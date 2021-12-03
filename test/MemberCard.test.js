@@ -43,9 +43,7 @@ describe("MemberCard", () => {
     it("Set count", async () => {
       await memberCard.setAvailCount(10);
       expect(await memberCard.countOfUse()).to.equal("10");
-      await expect(memberCard.setAvailCount(10)).to.be.revertedWith(
-        "Must different"
-      );
+      await expect(memberCard.setAvailCount(10)).to.be.revertedWith("Must different");
     });
 
     it("Check data mint", async () => {
@@ -163,4 +161,32 @@ describe("MemberCard", () => {
       expect(await memberCard.getAvailCount(3)).to.equal(2);
     });
   });
+
+  describe("setPause", () => {
+    it("allows transfer success", async () => {
+      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      
+      const balanceCurrentUser1 = await memberCard.connect(user1).balanceOf(user1.address);
+      expect(balanceCurrentUser1).to.equal(1)
+
+      const balanceCurrentUser2 = await memberCard.connect(user1).balanceOf(user2.address);
+      expect(balanceCurrentUser2).to.equal(0)
+
+      await memberCard.connect(user1).transferFrom(user1.address, user2.address, 1)
+
+      const balanceAfterTransferUser1 = await memberCard.connect(user1).balanceOf(user1.address);
+      expect(balanceAfterTransferUser1).to.equal(0)
+
+      const balanceAfterTransferUser2 = await memberCard.connect(user1).balanceOf(user2.address);
+      expect(balanceAfterTransferUser2).to.equal(1)
+    });
+
+    it("transfer not allows", async () => {
+      await memberCard.connect(admin).setPaused(true);
+      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      const token = await memberCard.connect(user1).tokenByIndex(0);
+      await memberCard.connect(user1).approve(admin.address, token)
+      await expect(memberCard.transferFrom(user1.address, user2.address, token)).to.be.revertedWith("Pausable: paused")
+    });
+  })
 });
