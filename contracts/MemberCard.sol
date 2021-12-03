@@ -3,8 +3,9 @@ pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 
-contract MemberCard is ERC721Enumerable, Ownable {
+contract MemberCard is ERC721Enumerable, Ownable, Pausable {
     uint256 private currentTokenId;
     uint256 public countOfUse;
     uint256 public cardDuration;
@@ -40,7 +41,24 @@ contract MemberCard is ERC721Enumerable, Ownable {
         fee = 5e16;
     }
 
-    function mintToken(address to) public payable {
+    function setPaused(bool _paused) external onlyOwner {
+        if (_paused) _pause();
+        else _unpause();
+    }
+
+    function transferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) public override whenNotPaused {
+        require(
+            _isApprovedOrOwner(_msgSender(), tokenId),
+            "ERC721: transfer caller is not owner nor approved"
+        );
+        _transfer(from, to, tokenId);
+    }
+
+    function mintToken(address to) external payable {
         require(msg.value >= fee, "Invalid value");
         _safeMint(to, ++currentTokenId);
         availCount[currentTokenId] = countOfUse;
