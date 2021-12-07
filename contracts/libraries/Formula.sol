@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "./Config.sol";
 
 library Formula {
-    // 18 Decimal places
     function decMul18(uint256 x, uint256 y) private pure returns (uint256) {
-        return (x * y + 10e18 / 2) / 10e18;
+        uint256 prod_xy = x * y;
+        return (prod_xy + Constant.FIXED_POINT / 2) / Constant.FIXED_POINT;
     }
 
     // b^x - fixed-point 18 DP base, integer exponent
@@ -15,9 +15,9 @@ library Formula {
         pure
         returns (uint256)
     {
-        if (n == 0) return 10e18;
+        if (n == 0) return Constant.FIXED_POINT;
 
-        uint256 y = 10e18;
+        uint256 y = Constant.FIXED_POINT;
 
         while (n > 1) {
             if (n % 2 == 0) {

@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
@@ -17,7 +15,7 @@ interface ITToken {
 }
 
 contract Staking is Ownable {
-    enum PoolStake {
+    enum PoolType {
         POOL1,
         POOL2,
         POOL3
@@ -38,61 +36,77 @@ contract Staking is Ownable {
     IERC20 public tge;
     IERC721 public memberCard;
 
-    mapping(address => mapping(PoolStake => UserInfo)) public valueStake;
-    mapping(PoolStake => StakeInfo) public stakeInfo;
-
-    event Deposit(PoolStake poolInfo, uint256 indexed amount);
-    event Withdraw(PoolStake poolInfo);
+    mapping(address => mapping(PoolType => UserInfo)) public valueStake;
+    mapping(PoolType => StakeInfo) public stakeInfo;
 
     constructor(IERC20 _tge, IERC721 _memberCard) {
         tge = _tge;
         memberCard = _memberCard;
-        stakeInfo[PoolStake.POOL1] = StakeInfo(30, 100, Constant.ROOT_30);
-        stakeInfo[PoolStake.POOL2] = StakeInfo(45, 200, Constant.ROOT_45);
-        stakeInfo[PoolStake.POOL3] = StakeInfo(60, 300, Constant.ROOT_60);
+        stakeInfo[PoolType.POOL1] = StakeInfo(30, 100, Constant.ROOT_30);
+        stakeInfo[PoolType.POOL2] = StakeInfo(45, 200, Constant.ROOT_45);
+        stakeInfo[PoolType.POOL3] = StakeInfo(60, 300, Constant.ROOT_60);
     }
 
-    function deposit(PoolStake poolInfo, uint256 amount) external {
+    event Deposit(PoolType poolType, uint256 indexed amount);
+
+    /// @notice deposit amount of TGE tokens to Staking Pool
+    /// @dev    this method can called by anyone
+    /// @param  _poolType pool type of staking
+    /// @param  _amount  amount of the tokens to be staked
+    function deposit(PoolType _poolType, uint256 _amount) external {
         require(memberCard.balanceOf(_msgSender()) > 0, "Must have MemberCard");
-        tge.transferFrom(_msgSender(), address(this), amount);
-        
-        UserInfo storage tmpInfo = valueStake[_msgSender()][poolInfo];
+        tge.transferFrom(_msgSender(), address(this), _amount);
 
-        uint256 profit = calProfit(poolInfo, _msgSender());
-        tmpInfo.value = profit + amount;
-        tmpInfo.originValue += amount;
+        UserInfo storage tmpInfo = valueStake[_msgSender()][_poolType];
+
+        if (tmpInfo.originValue == 0) {
+            tmpInfo.value = _amount;
+        } else {
+            uint256 profit = calProfit(_poolType, _msgSender());
+            tmpInfo.value = profit + _amount;
+        }
+
+        tmpInfo.originValue += _amount;
         tmpInfo.lastAction = block.timestamp;
-        emit Deposit(poolInfo, amount);
+        emit Deposit(_poolType, _amount);
     }
 
-    function withdraw(PoolStake poolInfo) external {
-        UserInfo storage tmpInfo = valueStake[_msgSender()][poolInfo];
+    event Withdraw(PoolType poolType);
+
+    /// @notice withdraw amount of TGE tokens from Staking Pool
+    /// @dev    This method can called by anyone
+    /// @param  _poolType pool type of staking
+    function withdraw(PoolType _poolType) external {
+        UserInfo storage tmpInfo = valueStake[_msgSender()][_poolType];
         require(tmpInfo.originValue > 0, "Nothing to withdraw");
 
-        uint256 profit = calProfit(poolInfo, _msgSender());
+        uint256 profit = calProfit(_poolType, _msgSender());
         tge.transfer(_msgSender(), tmpInfo.originValue);
-        uint256 reward = profit - tmpInfo.originValue * 10**19;
-        ITToken(address(tge)).stakeMint(_msgSender(), reward / (10**19));
-        console.log("Mint value ", reward / (10**19));
+
+        uint256 reward = profit - tmpInfo.originValue * Constant.FIXED_POINT;
+        ITToken(address(tge)).stakeMint(
+            _msgSender(),
+            reward / Constant.FIXED_POINT
+        );
+
         tmpInfo.value = 0;
         tmpInfo.originValue = 0;
         tmpInfo.lastAction = block.timestamp;
-        emit Withdraw(poolInfo);
+        emit Withdraw(_poolType);
     }
 
-    function calProfit(PoolStake poolInfo, address user)
+    function calProfit(PoolType _poolType, address _account)
         public
         view
         returns (uint256 profit)
     {
-        UserInfo storage tmpInfo = valueStake[user][poolInfo];
+        UserInfo storage tmpInfo = valueStake[_account][_poolType];
         uint256 tmpDay = (block.timestamp - tmpInfo.lastAction) / 1 days;
-        tmpDay = tmpDay > stakeInfo[poolInfo].duration
-            ? stakeInfo[poolInfo].duration
+        tmpDay = tmpDay > stakeInfo[_poolType].duration
+            ? stakeInfo[_poolType].duration
             : tmpDay;
         profit =
-            Formula.powBySquare18(stakeInfo[poolInfo].rootData, tmpDay) *
+            Formula.powBySquare18(stakeInfo[_poolType].rootData, tmpDay) *
             tmpInfo.value;
-        console.log(profit);
     }
 }
