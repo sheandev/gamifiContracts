@@ -1,6 +1,7 @@
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
 const { skipTime } = require("./utils");
+const { add, subtract, multiply, divide } = require("js-big-decimal");
 
 const THREE_MONTHS = 7776000; // seconds
 const ONE_MONTH = 2592000;
@@ -77,22 +78,21 @@ describe("Staking", () => {
       await staking.connect(user1).deposit(0, ONE_ETHER);
     })
 
-    it.only("deposit with 30 day", async () => {
+    it("deposit with 30 day", async () => {
+      const depositAmount = "100";
+
       await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
       const balance = (await memberCard.balanceOf(user1.address)).toString();
       expect(balance).to.equal("1");
 
       await tokenTest.connect(user1).ownerMint(ONE_ETHER);
-      await staking.connect(user1).deposit(0, 100);
+      await staking.connect(user1).deposit(0, depositAmount);
 
       // user1 check value staked with 30 day
       let checkValue = await staking.valueStake(user1.address, 0);
-      expect(checkValue.value).to.equal("100");
+      expect(checkValue.value).to.equal(depositAmount);
 
-      // await skipTime(ONE_MONTH);
-
-      let dataProfit = await staking.calProfit(0, user1.address);
-      console.log("Profit user 1 : ", dataProfit.toString());
+      await skipTime(THREE_MONTHS);
 
       // user1 check value staked with 45 day
       checkValue = await staking.valueStake(user1.address, 1);
@@ -101,7 +101,15 @@ describe("Staking", () => {
       // user1 check value staked with 60 day
       checkValue = await staking.valueStake(user1.address, 2);
       expect(checkValue.value).to.equal("0");
-    });
 
+      let profit = (await staking.calProfit(0, user1.address)).toString();
+      expect(
+        divide(
+          subtract(profit, multiply("5.862511103", ONE_ETHER)),
+          ONE_ETHER, 0
+        )
+      ).to.equal(depositAmount);
+
+    });
   });
 });
