@@ -33,6 +33,7 @@ describe("MemberCard", () => {
 
     it("Set count for a card", async () => {
       await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard.connect(admin).setTokenExpiry(1);
       await memberCard.connect(user1).useToken(1);
       expect(await memberCard.getAvailCount(1)).to.equal(2);
 
@@ -70,14 +71,21 @@ describe("MemberCard", () => {
   });
 
   describe("Deployment 2: Mint token", () => {
+
+    it("Check expiry empty after minted when admin not set yet", async () => {
+      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await expect(memberCard.connect(user2).getExpiryDate(1)).to.be.empty;
+    });
+
     it("Check not owner use", async () => {
       await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard.connect(admin).setTokenExpiry(1);
       await expect(memberCard.connect(user2).useToken(1)).to.be.revertedWith("Not owner");
     });
 
     it("Check owner use", async () => {
       await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
-
+      await memberCard.connect(admin).setTokenExpiry(1);
       await memberCard.connect(user1).useToken(1);
       expect(await memberCard.getAvailCount(1)).to.equal(2);
 
@@ -90,6 +98,7 @@ describe("MemberCard", () => {
 
     it("Check owner use 4 times ", async () => {
       await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard.connect(admin).setTokenExpiry(1);
       await memberCard.connect(user1).useToken(1);
       await memberCard.connect(user1).useToken(1);
       await memberCard.connect(user1).useToken(1);
@@ -100,19 +109,45 @@ describe("MemberCard", () => {
 
     it("Check owner use when expried", async () => {
       await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard.connect(admin).setTokenExpiry(1);
       await memberCard.connect(user1).useToken(1);
       await skipTime(THREE_MONTHS);
       await expect(memberCard.connect(user1).useToken(1)).to.be.revertedWith("Expired");
     });
+
   });
 
   describe("Deployment 3 : Use token", () => {
+
+    it("Check use when admin not set expiry yet", async () => {
+      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await expect(memberCard.connect(user1).useToken(1)).to.be.revertedWith("Expired");
+    });
+
     it("Check Token URI", async () => {
+
+      await memberCard.connect(admin).setTokenExpiry(1);
+      await memberCard.connect(admin).setTokenExpiry(2);
+      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard.connect(user2).mintToken(user2.address, { value: FEE });
+
+      let uri1 = await memberCard.tokenURI(1);
+      let uri2 = await memberCard.tokenURI(2);
+      expect(uri1).to.equal("");
+      expect(uri2).to.equal("");
+    });
+
+    
+    it("Check Balance User", async () => {
       let balanceB1 = await ethers.provider.getBalance(user1.address);
       let balanceB2 = await ethers.provider.getBalance(user2.address);
 
       let txData1 = await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
       let txData2 = await memberCard.connect(user2).mintToken(user2.address, { value: FEE });
+
+      await memberCard.connect(admin).setTokenExpiry(1);
+      await memberCard.connect(admin).setTokenExpiry(2);
+      await memberCard.connect(admin).setTokenExpiry(3);
 
       let txNormal1 = await ethers.provider.getTransaction(txData1.hash);
       let txNormal2 = await ethers.provider.getTransaction(txData2.hash);
@@ -130,11 +165,6 @@ describe("MemberCard", () => {
 
       let balanceA2 = await ethers.provider.getBalance(user2.address);
       expect(balanceB2.sub(txFee.add(balanceA2))).to.equal("50000000000000000");
-
-      let uri1 = await memberCard.tokenURI(1);
-      let uri2 = await memberCard.tokenURI(2);
-      expect(uri1).to.equal("");
-      expect(uri2).to.equal("");
 
       await memberCard.connect(user1).useToken(1);
       await memberCard.connect(user2).useToken(2);
@@ -160,10 +190,12 @@ describe("MemberCard", () => {
       expect(await memberCard.getAvailCount(2)).to.equal(2);
       expect(await memberCard.getAvailCount(3)).to.equal(2);
     });
+
+
   });
 
   describe("setPause", () => {
-    it("allows transfer success", async () => {
+    it("Allows transfer success", async () => {
       await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
       
       const balanceCurrentUser1 = await memberCard.connect(user1).balanceOf(user1.address);
@@ -181,7 +213,7 @@ describe("MemberCard", () => {
       expect(balanceAfterTransferUser2).to.equal(1)
     });
 
-    it("transfer not allows", async () => {
+    it("Transfer not allows", async () => {
       await memberCard.connect(admin).setPaused(true);
       await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
       const token = await memberCard.connect(user1).tokenByIndex(0);

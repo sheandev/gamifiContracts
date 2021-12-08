@@ -62,9 +62,12 @@ contract MemberCard is ERC721Enumerable, Ownable, Pausable {
         require(msg.value >= fee, "Invalid value");
         _safeMint(to, ++currentTokenId);
         availCount[currentTokenId] = countOfUse;
-        expiryDate[currentTokenId] = block.timestamp + cardDuration;
         payable(owner()).transfer(msg.value);
         emit CardMinted(to, currentTokenId);
+    }
+
+    function setTokenExpiry(uint256 tokenId) public onlyOwner {
+        expiryDate[tokenId] = block.timestamp + cardDuration;
     }
 
     function useToken(uint256 tokenId)
