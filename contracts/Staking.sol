@@ -72,6 +72,7 @@ contract Staking is Ownable {
     }
 
     event Withdraw(PoolType poolType);
+    event Reward(uint256 reward);
 
     /// @notice withdraw amount of TGE tokens from Staking Pool
     /// @dev    This method can called by anyone
@@ -92,6 +93,7 @@ contract Staking is Ownable {
         tmpInfo.value = 0;
         tmpInfo.originValue = 0;
         tmpInfo.lastAction = block.timestamp;
+        emit Reward(reward);
         emit Withdraw(_poolType);
     }
 
