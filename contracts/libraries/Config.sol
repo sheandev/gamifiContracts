@@ -2,7 +2,7 @@
 pragma solidity 0.8.4;
 
 library Constant {
-    uint256 internal constant FIXED_POINT = 10**18;
+    uint256 internal constant FIXED_POINT = 1e18;
 
     /// sqr(365)(1 + APY)
     uint256 internal constant ROOT_30 = 1001900837677200000;

@@ -108,7 +108,7 @@ contract Staking is Ownable {
             ? stakeInfo[_poolType].duration
             : tmpDay;
         profit =
-            Formula.powBySquare18(stakeInfo[_poolType].rootData, tmpDay) *
+            Formula.pow(stakeInfo[_poolType].rootData, tmpDay) *
             tmpInfo.value;
     }
 }
