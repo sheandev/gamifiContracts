@@ -55,10 +55,18 @@ contract MemberCard is ERC721Enumerable, Ownable, Pausable {
             _isApprovedOrOwner(_msgSender(), tokenId),
             "ERC721: transfer caller is not owner nor approved"
         );
+        require(
+            balanceOf(to) == 0,
+            "Only have 1 NFT per wallet"
+        );
         _transfer(from, to, tokenId);
     }
 
     function mintToken(address to) external payable {
+        require(
+            balanceOf(to) == 0,
+            "Only have 1 NFT per wallet"
+        );
         require(msg.value >= fee, "Invalid value");
         _safeMint(to, ++currentTokenId);
         availCount[currentTokenId] = countOfUse;
