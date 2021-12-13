@@ -14,7 +14,7 @@ contract TokenTest is ERC20 {
         _;
     }
 
-    constructor (string memory name_, string memory symbol_) ERC20(name_, symbol_){
+    constructor (string memory name_, string memory symbol_) ERC20(name_, symbol_) {
         _mint(_msgSender(), 1000 ether);
     }
 
@@ -26,7 +26,7 @@ contract TokenTest is ERC20 {
         _mint(_msgSender(), amount);
     }
 
-    function stakeMint(address receiver, uint256 amount) public onlyStakeContract{
+    function stakeMint(address receiver, uint256 amount) public onlyStakeContract {
         _mint(receiver, amount);
     }
 }
