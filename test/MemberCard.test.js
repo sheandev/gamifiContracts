@@ -63,6 +63,27 @@ describe("MemberCard", () => {
       expect(uri1).to.equal("");
     });
 
+    it("Check only have 1 NFT per wallet", async () => {
+      // If user1 already has 1 NFT, can not mint the second one
+      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      let data = await memberCard.tokensOfOwner(user1.address);
+      expect(data.length).to.equal(1);
+      expect(data[0]).to.equal(1);
+
+      await expect(
+        memberCard.connect(user1).mintToken(user1.address, { value: FEE })
+      ).to.be.revertedWith("Only have 1 NFT per wallet");
+
+      // If user2 already has 1 NFT, user2 can not receive NFTs more
+      await memberCard.connect(user2).mintToken(user2.address, { value: FEE });
+      data = await memberCard.tokensOfOwner(user2.address);
+      expect(data.length).to.equal(1);
+      expect(data[0]).to.equal(2);
+      await expect(
+        memberCard.connect(user1).transferFrom(user1.address, user2.address, 1)
+      ).to.be.revertedWith("Only have 1 NFT per wallet");
+    });
+
     it("Check Owner", async () => {
       await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
       let ownerOf1 = await memberCard.ownerOf(1);
@@ -81,19 +102,6 @@ describe("MemberCard", () => {
       await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
       await memberCard.connect(admin).setTokenExpiry(1);
       await expect(memberCard.connect(user2).useToken(1)).to.be.revertedWith("Not owner");
-    });
-
-    it("Check owner use", async () => {
-      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
-      await memberCard.connect(admin).setTokenExpiry(1);
-      await memberCard.connect(user1).useToken(1);
-      expect(await memberCard.getAvailCount(1)).to.equal(2);
-
-      await memberCard.connect(user2).mintToken(user2.address, { value: FEE });
-      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
-      let data = await memberCard.tokensOfOwner(user1.address);
-      expect(data[0]).to.equal(1);
-      expect(data[1]).to.equal(3);
     });
 
     it("Check owner use 4 times ", async () => {

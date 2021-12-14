@@ -26,7 +26,7 @@ contract MemberCard is ERC721Enumerable, Ownable, Pausable {
     }
 
     modifier validDate(uint256 tokenId) {
-        require(block.timestamp < getExpiryDate(tokenId), "Expired");
+        require(block.timestamp < getExpiryDate(tokenId), "Expired"); // solhint-disable-line not-rely-on-time
         _;
     }
 
@@ -42,8 +42,11 @@ contract MemberCard is ERC721Enumerable, Ownable, Pausable {
     }
 
     function setPaused(bool _paused) external onlyOwner {
-        if (_paused) _pause();
-        else _unpause();
+        if (_paused) {
+            _pause();
+        } else {
+            _unpause();
+        }
     }
 
     function transferFrom(
@@ -55,19 +58,27 @@ contract MemberCard is ERC721Enumerable, Ownable, Pausable {
             _isApprovedOrOwner(_msgSender(), tokenId),
             "ERC721: transfer caller is not owner nor approved"
         );
+        require(
+            balanceOf(to) == 0,
+            "Only have 1 NFT per wallet"
+        );
         _transfer(from, to, tokenId);
     }
 
     function mintToken(address to) external payable {
+        require(
+            balanceOf(to) == 0,
+            "Only have 1 NFT per wallet"
+        );
         require(msg.value >= fee, "Invalid value");
         _safeMint(to, ++currentTokenId);
         availCount[currentTokenId] = countOfUse;
-        payable(owner()).transfer(msg.value);
+        payable(owner()).transfer(msg.value); // solhint-disable-line indent
         emit CardMinted(to, currentTokenId);
     }
 
     function setTokenExpiry(uint256 tokenId) public onlyOwner {
-        expiryDate[tokenId] = block.timestamp + cardDuration;
+        expiryDate[tokenId] = block.timestamp + cardDuration; // solhint-disable-line not-rely-on-time
     }
 
     function useToken(uint256 tokenId)

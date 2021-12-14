@@ -67,7 +67,7 @@ contract Staking is Ownable {
         }
 
         tmpInfo.originValue += _amount;
-        tmpInfo.lastAction = block.timestamp;
+        tmpInfo.lastAction = block.timestamp; // solhint-disable-line not-rely-on-time
         emit Deposit(_poolType, _amount);
     }
 
@@ -92,7 +92,7 @@ contract Staking is Ownable {
 
         tmpInfo.value = 0;
         tmpInfo.originValue = 0;
-        tmpInfo.lastAction = block.timestamp;
+        tmpInfo.lastAction = block.timestamp; // solhint-disable-line not-rely-on-time
         emit Reward(reward);
         emit Withdraw(_poolType);
     }
@@ -103,7 +103,7 @@ contract Staking is Ownable {
         returns (uint256 profit)
     {
         UserInfo storage tmpInfo = valueStake[_account][_poolType];
-        uint256 tmpDay = (block.timestamp - tmpInfo.lastAction) / 1 days;
+        uint256 tmpDay = (block.timestamp - tmpInfo.lastAction) / 1 days; // solhint-disable-line not-rely-on-time
         tmpDay = tmpDay > stakeInfo[_poolType].duration
             ? stakeInfo[_poolType].duration
             : tmpDay;
