@@ -19,8 +19,17 @@ const getProfit = (r, days, deposedCash, round) => {
     .toString();
 };
 
+const getProfitRoot = (r, days, deposedCash, round) => {
+  return Big(r ** (1 / 365))
+    .pow(days)
+    .times(deposedCash)
+    .round(round ? round : 18)
+    .toString();
+};
+
 module.exports = {
   skipTime,
   setTime,
-  getProfit
+  getProfit,
+  getProfitRoot
 }

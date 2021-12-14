@@ -1,6 +1,6 @@
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
-const { skipTime, getProfit } = require("./utils");
+const { skipTime, getProfit, getProfitRoot } = require("./utils");
 const { add, subtract, multiply, divide, compareTo } = require("js-big-decimal");
 const Big = require("big.js");
 
@@ -302,6 +302,32 @@ describe("Staking", () => {
           await staking.connect(user4).withdraw(POOL1);
           expect((await staking.calProfit(POOL1, user4.address)).toString()).to.equal("0")
         })
+
+        it("Continue to deposit after 15 days", async () => {
+          await skipTime(FIFTEEN_DAYS);
+          // const ProfitUser1 = (await staking.calProfit(POOL1, user1.address)).toString();
+          // const ProfitUser2 = (await staking.calProfit(POOL1, user2.address)).toString();
+          // const ProfitUser3 = (await staking.calProfit(POOL1, user3.address)).toString();
+          // const ProfitUser4 = (await staking.calProfit(POOL1, user4.address)).toString();
+
+          await staking.connect(user1).deposit(POOL1, deposedCash);
+          await staking.connect(user2).deposit(POOL1, deposedCash);
+          await staking.connect(user3).deposit(POOL1, deposedCash);
+          await staking.connect(user4).deposit(POOL1, deposedCash);
+          await skipTime(FIFTEEN_DAYS);
+
+          const ProfitUser1 = (await staking.calProfit(POOL1, user1.address)).toString().slice(0, 10);
+          expect(ProfitUser1).to.equal("1058625111"); 
+
+          const ProfitUser2 = (await staking.calProfit(POOL1, user2.address)).toString().slice(0, 10);
+          expect(ProfitUser2).to.equal("1058625111"); 
+
+          const ProfitUser3 = (await staking.calProfit(POOL1, user3.address)).toString().slice(0, 10);
+          expect(ProfitUser3).to.equal("1058625111"); 
+
+          const ProfitUser4 = (await staking.calProfit(POOL1, user4.address)).toString().slice(0, 10);
+          expect(ProfitUser4).to.equal("1058625111"); 
+        })
       });
 
       describe("deposit with 45 days", () => {
@@ -495,6 +521,32 @@ describe("Staking", () => {
           expect((await staking.calProfit(POOL2, user4.address)).toString()).to.equal("11450466180798418780000")
           await staking.connect(user4).withdraw(POOL2);
           expect((await staking.calProfit(POOL2, user4.address)).toString()).to.equal("0")
+        })
+
+        it("Continue to deposit after 15 days", async () => {
+          await skipTime(FIFTEEN_DAYS);
+          // const ProfitUser1 = (await staking.calProfit(POOL2, user1.address)).toString();
+          // const ProfitUser2 = (await staking.calProfit(POOL2, user2.address)).toString();
+          // const ProfitUser3 = (await staking.calProfit(POOL2, user3.address)).toString();
+          // const ProfitUser4 = (await staking.calProfit(POOL2, user4.address)).toString();
+
+          await staking.connect(user1).deposit(POOL2, deposedCash);
+          await staking.connect(user2).deposit(POOL2, deposedCash);
+          await staking.connect(user3).deposit(POOL2, deposedCash);
+          await staking.connect(user4).deposit(POOL2, deposedCash);
+          await skipTime(FIFTEEN_DAYS);
+
+          const ProfitUser1 = (await staking.calProfit(POOL2, user1.address)).toString().slice(0, 10);
+          expect(ProfitUser1).to.equal("1094499192");
+          
+          const ProfitUser2 = (await staking.calProfit(POOL2, user2.address)).toString().slice(0, 10);
+          expect(ProfitUser2).to.equal("1094499192"); 
+
+          const ProfitUser3 = (await staking.calProfit(POOL2, user3.address)).toString().slice(0, 10);
+          expect(ProfitUser3).to.equal("1094499192"); 
+
+          const ProfitUser4 = (await staking.calProfit(POOL2, user4.address)).toString().slice(0, 10);
+          expect(ProfitUser4).to.equal("1094499192"); 
         })
       });
 
@@ -690,6 +742,32 @@ describe("Staking", () => {
           expect((await staking.calProfit(POOL3, user4.address)).toString()).to.equal("12559396337185363300000")
           await staking.connect(user4).withdraw(POOL3);
           expect((await staking.calProfit(POOL3, user4.address)).toString()).to.equal("0")
+        })
+
+        it("Continue to deposit after 15 days", async () => {
+          await skipTime(FIFTEEN_DAYS);
+          // const ProfitUser1 = (await staking.calProfit(POOL3, user1.address)).toString();
+          // const ProfitUser2 = (await staking.calProfit(POOL3, user2.address)).toString();
+          // const ProfitUser3 = (await staking.calProfit(POOL3, user3.address)).toString();
+          // const ProfitUser4 = (await staking.calProfit(POOL3, user4.address)).toString();
+
+          await staking.connect(user1).deposit(POOL3, deposedCash);
+          await staking.connect(user2).deposit(POOL3, deposedCash);
+          await staking.connect(user3).deposit(POOL3, deposedCash);
+          await staking.connect(user4).deposit(POOL3, deposedCash);
+          await skipTime(FIFTEEN_DAYS);
+
+          const ProfitUser1 = (await staking.calProfit(POOL3, user1.address)).toString().slice(0, 10);
+          expect(ProfitUser1).to.equal("1120687125"); 
+
+          const ProfitUser2 = (await staking.calProfit(POOL3, user2.address)).toString().slice(0, 10);
+          expect(ProfitUser2).to.equal("1120687125"); 
+
+          const ProfitUser3 = (await staking.calProfit(POOL3, user3.address)).toString().slice(0, 10);
+          expect(ProfitUser3).to.equal("1120687125"); 
+
+          const ProfitUser4 = (await staking.calProfit(POOL3, user4.address)).toString().slice(0, 10);
+          expect(ProfitUser4).to.equal("1120687125"); 
         })
       });
 
