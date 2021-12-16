@@ -6,16 +6,24 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
 contract MemberCard is ERC721Enumerable, Ownable, Pausable {
+    struct UseTokenInfo {
+        address vendor;
+        address owner;
+        uint256 usedAt;
+    }
+
     uint256 private currentTokenId;
     uint256 public countOfUse;
     uint256 public cardDuration;
     uint256 public fee;
 
+    mapping(address => bool) public vendors;
+    mapping(uint256 => UseTokenInfo[]) private useTokenInfo;
     mapping(uint256 => uint256) private availCount;
     mapping(uint256 => uint256) private expiryDate;
 
     event CardMinted(address receiver, uint256 indexed tokenId);
-    event CardUsed(uint256 indexed tokenId);
+    event CardUsed(uint256 indexed tokenId, address account);
     event SetExpiryDate(uint256 indexed value);
     event SetAvailCount(uint256 indexed value);
     event SetAvailCountFor(uint256 indexed tokenId, uint256 indexed value);
@@ -39,6 +47,14 @@ contract MemberCard is ERC721Enumerable, Ownable, Pausable {
         cardDuration = duration;
         countOfUse = count;
         fee = 5e16;
+    }
+
+    function addVendor(address addr) external onlyOwner {
+        vendors[addr] = true;
+    }
+
+    function removeVendor(address addr) external onlyOwner {
+        vendors[addr] = false;
     }
 
     function setPaused(bool _paused) external onlyOwner {
@@ -81,14 +97,17 @@ contract MemberCard is ERC721Enumerable, Ownable, Pausable {
         expiryDate[tokenId] = block.timestamp + cardDuration; // solhint-disable-line not-rely-on-time
     }
 
-    function useToken(uint256 tokenId)
+    function useToken(uint256 _tokenId, address _account)
         public
-        validCount(tokenId)
-        validDate(tokenId)
+        validCount(_tokenId)
+        validDate(_tokenId)
     {
-        require(_msgSender() == ownerOf(tokenId), "Not owner");
-        availCount[tokenId]--;
-        emit CardUsed(tokenId);
+        require(vendors[_msgSender()], "Invalid vendor");
+        require(_account == ownerOf(_tokenId), "Not owner");
+
+        availCount[_tokenId]--;
+        useTokenInfo[_tokenId].push(UseTokenInfo(_msgSender(), _account, block.timestamp));
+        emit CardUsed(_tokenId, _account);
     }
 
     function setExpiryDate(uint256 value) public onlyOwner {
@@ -128,5 +147,9 @@ contract MemberCard is ERC721Enumerable, Ownable, Pausable {
             ids[i] = tokenOfOwnerByIndex(owner, i);
         }
         return ids;
+    }
+
+    function getuseTokenInfo(uint256 _tokenId) public view returns (UseTokenInfo[] memory info) {
+        info = useTokenInfo[_tokenId];
     }
 }

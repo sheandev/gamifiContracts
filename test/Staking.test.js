@@ -163,28 +163,28 @@ describe("Staking", () => {
           await skipTime(THREE_MONTHS);
           const ApyOnlyProfit = getProfit(POOL1, 30, deposedCash);
 
-          let totalAfter30Days = (await staking.calProfit(POOL1, user1.address)).toString();
+          let totalAfter30Days = (await staking.calAccumulatedStakeAmount(POOL1, user1.address)).toString();
           expect(divide(subtract(totalAfter30Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
             )
           ).to.equal(deposedCash);
 
-          totalAfter30Days = (await staking.calProfit(POOL1, user2.address)).toString();
+          totalAfter30Days = (await staking.calAccumulatedStakeAmount(POOL1, user2.address)).toString();
           expect(divide(subtract(totalAfter30Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
             )
           ).to.equal(deposedCash);
 
-          totalAfter30Days = (await staking.calProfit(POOL1, user3.address)).toString();
+          totalAfter30Days = (await staking.calAccumulatedStakeAmount(POOL1, user3.address)).toString();
           expect(divide(subtract(totalAfter30Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
             )
           ).to.equal(deposedCash);
 
-          totalAfter30Days = (await staking.calProfit(POOL1, user4.address)).toString();
+          totalAfter30Days = (await staking.calAccumulatedStakeAmount(POOL1, user4.address)).toString();
           expect(divide(subtract(totalAfter30Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
@@ -196,28 +196,28 @@ describe("Staking", () => {
           await skipTime(FIFTEEN_DAYS);
           const ApyOnlyProfit = getProfit(POOL1, 15, deposedCash);
 
-          let totalAfter30Days = (await staking.calProfit(POOL1, user1.address)).toString();
+          let totalAfter30Days = (await staking.calAccumulatedStakeAmount(POOL1, user1.address)).toString();
           expect(divide(subtract(totalAfter30Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
             )
           ).to.equal(deposedCash);
 
-          totalAfter30Days = (await staking.calProfit(POOL1, user2.address)).toString();
+          totalAfter30Days = (await staking.calAccumulatedStakeAmount(POOL1, user2.address)).toString();
           expect(divide(subtract(totalAfter30Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
             )
           ).to.equal(deposedCash);
 
-          totalAfter30Days = (await staking.calProfit(POOL1, user3.address)).toString();
+          totalAfter30Days = (await staking.calAccumulatedStakeAmount(POOL1, user3.address)).toString();
           expect(divide(subtract(totalAfter30Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
             )
           ).to.equal(deposedCash);
 
-          totalAfter30Days = (await staking.calProfit(POOL1, user4.address)).toString();
+          totalAfter30Days = (await staking.calAccumulatedStakeAmount(POOL1, user4.address)).toString();
           expect(divide(subtract(totalAfter30Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
@@ -287,29 +287,29 @@ describe("Staking", () => {
           await skipTime(THREE_MONTHS);
           const result = multiply(getProfitRoot(POOL1, 30, deposedCash), BIG_NUMBER).slice(0, 10);
 
-          expect((await staking.calProfit(POOL1, user1.address)).toString().slice(0,10)).to.equal(result);
+          expect((await staking.calAccumulatedStakeAmount(POOL1, user1.address)).toString().slice(0,10)).to.equal(result);
           await staking.connect(user1).withdraw(POOL1);
-          expect((await staking.calProfit(POOL1, user1.address)).toString()).to.equal("0");
+          expect((await staking.calAccumulatedStakeAmount(POOL1, user1.address)).toString()).to.equal("0");
 
-          expect((await staking.calProfit(POOL1, user2.address)).toString().slice(0,10)).to.equal(result);
+          expect((await staking.calAccumulatedStakeAmount(POOL1, user2.address)).toString().slice(0,10)).to.equal(result);
           await staking.connect(user2).withdraw(POOL1);
-          expect((await staking.calProfit(POOL1, user2.address)).toString()).to.equal("0");
+          expect((await staking.calAccumulatedStakeAmount(POOL1, user2.address)).toString()).to.equal("0");
 
-          expect((await staking.calProfit(POOL1, user3.address)).toString().slice(0,10)).to.equal(result);
+          expect((await staking.calAccumulatedStakeAmount(POOL1, user3.address)).toString().slice(0,10)).to.equal(result);
           await staking.connect(user3).withdraw(POOL1);
-          expect((await staking.calProfit(POOL1, user3.address)).toString()).to.equal("0");
+          expect((await staking.calAccumulatedStakeAmount(POOL1, user3.address)).toString()).to.equal("0");
 
-          expect((await staking.calProfit(POOL1, user4.address)).toString().slice(0,10)).to.equal(result);
+          expect((await staking.calAccumulatedStakeAmount(POOL1, user4.address)).toString().slice(0,10)).to.equal(result);
           await staking.connect(user4).withdraw(POOL1);
-          expect((await staking.calProfit(POOL1, user4.address)).toString()).to.equal("0");
+          expect((await staking.calAccumulatedStakeAmount(POOL1, user4.address)).toString()).to.equal("0");
         })
 
         it("Continue to deposit after 15 days", async () => {
           await skipTime(FIFTEEN_DAYS);
-          const ProfitCurrent1 = (await staking.calProfit(POOL1, user1.address)).toString();
-          const ProfitCurrent2 = (await staking.calProfit(POOL1, user2.address)).toString();
-          const ProfitCurrent3 = (await staking.calProfit(POOL1, user3.address)).toString();
-          const ProfitCurrent4 = (await staking.calProfit(POOL1, user4.address)).toString();
+          const ProfitCurrent1 = (await staking.calAccumulatedStakeAmount(POOL1, user1.address)).toString();
+          const ProfitCurrent2 = (await staking.calAccumulatedStakeAmount(POOL1, user2.address)).toString();
+          const ProfitCurrent3 = (await staking.calAccumulatedStakeAmount(POOL1, user3.address)).toString();
+          const ProfitCurrent4 = (await staking.calAccumulatedStakeAmount(POOL1, user4.address)).toString();
 
           await staking.connect(user1).deposit(POOL1, deposedCash);
           await staking.connect(user2).deposit(POOL1, deposedCash);
@@ -321,28 +321,28 @@ describe("Staking", () => {
             getProfitRoot(POOL1, 15, add(ProfitCurrent1, deposedCash)),
             BIG_NUMBER
           ).slice(0, 10);
-          const ProfitUser1 = (await staking.calProfit(POOL1, user1.address)).toString().slice(0, 10);
+          const ProfitUser1 = (await staking.calAccumulatedStakeAmount(POOL1, user1.address)).toString().slice(0, 10);
           expect(ProfitUser1).to.equal(result); 
 
           result = multiply(
             getProfitRoot(POOL1, 15, add(ProfitCurrent2, deposedCash)),
             BIG_NUMBER
           ).slice(0, 10);
-          const ProfitUser2 = (await staking.calProfit(POOL1, user2.address)).toString().slice(0, 10);
+          const ProfitUser2 = (await staking.calAccumulatedStakeAmount(POOL1, user2.address)).toString().slice(0, 10);
           expect(ProfitUser2).to.equal(result); 
 
           result = multiply(
             getProfitRoot(POOL1, 15, add(ProfitCurrent3, deposedCash)),
             BIG_NUMBER
           ).slice(0, 10);
-          const ProfitUser3 = (await staking.calProfit(POOL1, user3.address)).toString().slice(0, 10);
+          const ProfitUser3 = (await staking.calAccumulatedStakeAmount(POOL1, user3.address)).toString().slice(0, 10);
           expect(ProfitUser3).to.equal(result); 
 
           result = multiply(
             getProfitRoot(POOL1, 15, add(ProfitCurrent4, deposedCash)),
             BIG_NUMBER
           ).slice(0, 10);
-          const ProfitUser4 = (await staking.calProfit(POOL1, user4.address)).toString().slice(0, 10);
+          const ProfitUser4 = (await staking.calAccumulatedStakeAmount(POOL1, user4.address)).toString().slice(0, 10);
           expect(ProfitUser4).to.equal(result); 
         })
       });
@@ -400,28 +400,28 @@ describe("Staking", () => {
           await skipTime(THREE_MONTHS);
           const ApyOnlyProfit = getProfit(POOL2, 45, deposedCash);
 
-          let totalAfter45Days = (await staking.calProfit(POOL2, user1.address)).toString();
+          let totalAfter45Days = (await staking.calAccumulatedStakeAmount(POOL2, user1.address)).toString();
           expect(divide(subtract(totalAfter45Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
             )
           ).to.equal(deposedCash);
 
-          totalAfter45Days = (await staking.calProfit(POOL2, user2.address)).toString();
+          totalAfter45Days = (await staking.calAccumulatedStakeAmount(POOL2, user2.address)).toString();
           expect(divide(subtract(totalAfter45Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
             )
           ).to.equal(deposedCash);
 
-          totalAfter45Days = (await staking.calProfit(POOL2, user3.address)).toString();
+          totalAfter45Days = (await staking.calAccumulatedStakeAmount(POOL2, user3.address)).toString();
           expect(divide(subtract(totalAfter45Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
             )
           ).to.equal(deposedCash);
 
-          totalAfter45Days = (await staking.calProfit(POOL2, user4.address)).toString();
+          totalAfter45Days = (await staking.calAccumulatedStakeAmount(POOL2, user4.address)).toString();
           expect(divide(subtract(totalAfter45Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
@@ -433,28 +433,28 @@ describe("Staking", () => {
           await skipTime(FIFTEEN_DAYS);
           const ApyOnlyProfit = getProfit(POOL2, 15, deposedCash);
 
-          let totalAfter45Days = (await staking.calProfit(POOL2, user1.address)).toString();
+          let totalAfter45Days = (await staking.calAccumulatedStakeAmount(POOL2, user1.address)).toString();
           expect(divide(subtract(totalAfter45Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
             )
           ).to.equal(deposedCash);
 
-          totalAfter45Days = (await staking.calProfit(POOL2, user2.address)).toString();
+          totalAfter45Days = (await staking.calAccumulatedStakeAmount(POOL2, user2.address)).toString();
           expect(divide(subtract(totalAfter45Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
             )
           ).to.equal(deposedCash);
 
-          totalAfter45Days = (await staking.calProfit(POOL2, user3.address)).toString();
+          totalAfter45Days = (await staking.calAccumulatedStakeAmount(POOL2, user3.address)).toString();
           expect(divide(subtract(totalAfter45Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
             )
           ).to.equal(deposedCash);
 
-          totalAfter45Days = (await staking.calProfit(POOL2, user4.address)).toString();
+          totalAfter45Days = (await staking.calAccumulatedStakeAmount(POOL2, user4.address)).toString();
           expect(divide(subtract(totalAfter45Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
@@ -524,29 +524,29 @@ describe("Staking", () => {
           await skipTime(THREE_MONTHS);
           const result = multiply(getProfitRoot(POOL2, 45, deposedCash), BIG_NUMBER).slice(0, 10);
 
-          expect((await staking.calProfit(POOL2, user1.address)).toString().slice(0, 10)).to.equal(result)
+          expect((await staking.calAccumulatedStakeAmount(POOL2, user1.address)).toString().slice(0, 10)).to.equal(result)
           await staking.connect(user1).withdraw(POOL2);
-          expect((await staking.calProfit(POOL2, user1.address)).toString()).to.equal("0")
+          expect((await staking.calAccumulatedStakeAmount(POOL2, user1.address)).toString()).to.equal("0")
 
-          expect((await staking.calProfit(POOL2, user2.address)).toString().slice(0, 10)).to.equal(result)
+          expect((await staking.calAccumulatedStakeAmount(POOL2, user2.address)).toString().slice(0, 10)).to.equal(result)
           await staking.connect(user2).withdraw(POOL2);
-          expect((await staking.calProfit(POOL2, user2.address)).toString()).to.equal("0")
+          expect((await staking.calAccumulatedStakeAmount(POOL2, user2.address)).toString()).to.equal("0")
 
-          expect((await staking.calProfit(POOL2, user3.address)).toString().slice(0, 10)).to.equal(result)
+          expect((await staking.calAccumulatedStakeAmount(POOL2, user3.address)).toString().slice(0, 10)).to.equal(result)
           await staking.connect(user3).withdraw(POOL2);
-          expect((await staking.calProfit(POOL2, user3.address)).toString()).to.equal("0")
+          expect((await staking.calAccumulatedStakeAmount(POOL2, user3.address)).toString()).to.equal("0")
 
-          expect((await staking.calProfit(POOL2, user4.address)).toString().slice(0, 10)).to.equal(result)
+          expect((await staking.calAccumulatedStakeAmount(POOL2, user4.address)).toString().slice(0, 10)).to.equal(result)
           await staking.connect(user4).withdraw(POOL2);
-          expect((await staking.calProfit(POOL2, user4.address)).toString()).to.equal("0")
+          expect((await staking.calAccumulatedStakeAmount(POOL2, user4.address)).toString()).to.equal("0")
         })
 
         it("Continue to deposit after 15 days", async () => {
           await skipTime(FIFTEEN_DAYS);
-          const ProfitCurrent1 = (await staking.calProfit(POOL2, user1.address)).toString();
-          const ProfitCurrent2 = (await staking.calProfit(POOL2, user2.address)).toString();
-          const ProfitCurrent3 = (await staking.calProfit(POOL2, user3.address)).toString();
-          const ProfitCurrent4 = (await staking.calProfit(POOL2, user4.address)).toString();
+          const ProfitCurrent1 = (await staking.calAccumulatedStakeAmount(POOL2, user1.address)).toString();
+          const ProfitCurrent2 = (await staking.calAccumulatedStakeAmount(POOL2, user2.address)).toString();
+          const ProfitCurrent3 = (await staking.calAccumulatedStakeAmount(POOL2, user3.address)).toString();
+          const ProfitCurrent4 = (await staking.calAccumulatedStakeAmount(POOL2, user4.address)).toString();
 
           await staking.connect(user1).deposit(POOL2, deposedCash);
           await staking.connect(user2).deposit(POOL2, deposedCash);
@@ -558,28 +558,28 @@ describe("Staking", () => {
             getProfitRoot(POOL2, 15, add(ProfitCurrent1, deposedCash)),
             BIG_NUMBER
           ).slice(0, 10);
-          const ProfitUser1 = (await staking.calProfit(POOL2, user1.address)).toString().slice(0, 10);
+          const ProfitUser1 = (await staking.calAccumulatedStakeAmount(POOL2, user1.address)).toString().slice(0, 10);
           expect(ProfitUser1).to.equal(result);
 
           result = multiply(
             getProfitRoot(POOL2, 15, add(ProfitCurrent2, deposedCash)),
             BIG_NUMBER
           ).slice(0, 10);
-          const ProfitUser2 = (await staking.calProfit(POOL2, user2.address)).toString().slice(0, 10);
+          const ProfitUser2 = (await staking.calAccumulatedStakeAmount(POOL2, user2.address)).toString().slice(0, 10);
           expect(ProfitUser2).to.equal(result); 
 
           result = multiply(
             getProfitRoot(POOL2, 15, add(ProfitCurrent3, deposedCash)),
             BIG_NUMBER
           ).slice(0, 10);
-          const ProfitUser3 = (await staking.calProfit(POOL2, user3.address)).toString().slice(0, 10);
+          const ProfitUser3 = (await staking.calAccumulatedStakeAmount(POOL2, user3.address)).toString().slice(0, 10);
           expect(ProfitUser3).to.equal(result); 
 
           result = multiply(
             getProfitRoot(POOL2, 15, add(ProfitCurrent4, deposedCash)),
             BIG_NUMBER
           ).slice(0, 10);
-          const ProfitUser4 = (await staking.calProfit(POOL2, user4.address)).toString().slice(0, 10);
+          const ProfitUser4 = (await staking.calAccumulatedStakeAmount(POOL2, user4.address)).toString().slice(0, 10);
           expect(ProfitUser4).to.equal(result); 
         })
       });
@@ -638,28 +638,28 @@ describe("Staking", () => {
           await skipTime(THREE_MONTHS);
           const ApyOnlyProfit = getProfit(POOL3, 60, deposedCash);
           
-          let totalAfter60Days = (await staking.calProfit(POOL3, user1.address)).toString();
+          let totalAfter60Days = (await staking.calAccumulatedStakeAmount(POOL3, user1.address)).toString();
           expect(divide(subtract(totalAfter60Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
             )
           ).to.equal(deposedCash);
 
-          totalAfter60Days = (await staking.calProfit(POOL3, user2.address)).toString();
+          totalAfter60Days = (await staking.calAccumulatedStakeAmount(POOL3, user2.address)).toString();
           expect(divide(subtract(totalAfter60Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
             )
           ).to.equal(deposedCash);
 
-          totalAfter60Days = (await staking.calProfit(POOL3, user3.address)).toString();
+          totalAfter60Days = (await staking.calAccumulatedStakeAmount(POOL3, user3.address)).toString();
           expect(divide(subtract(totalAfter60Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
             )
           ).to.equal(deposedCash);
 
-          totalAfter60Days = (await staking.calProfit(POOL3, user4.address)).toString();
+          totalAfter60Days = (await staking.calAccumulatedStakeAmount(POOL3, user4.address)).toString();
           expect(divide(subtract(totalAfter60Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
@@ -671,28 +671,28 @@ describe("Staking", () => {
           await skipTime(FIFTEEN_DAYS);
           const ApyOnlyProfit = getProfit(POOL3, 15, deposedCash);
           
-          let totalAfter60Days = (await staking.calProfit(POOL3, user1.address)).toString();
+          let totalAfter60Days = (await staking.calAccumulatedStakeAmount(POOL3, user1.address)).toString();
           expect(divide(subtract(totalAfter60Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
             )
           ).to.equal(deposedCash);
 
-          totalAfter60Days = (await staking.calProfit(POOL3, user2.address)).toString();
+          totalAfter60Days = (await staking.calAccumulatedStakeAmount(POOL3, user2.address)).toString();
           expect(divide(subtract(totalAfter60Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
             )
           ).to.equal(deposedCash);
 
-          totalAfter60Days = (await staking.calProfit(POOL3, user3.address)).toString();
+          totalAfter60Days = (await staking.calAccumulatedStakeAmount(POOL3, user3.address)).toString();
           expect(divide(subtract(totalAfter60Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
             )
           ).to.equal(deposedCash);
 
-          totalAfter60Days = (await staking.calProfit(POOL3, user4.address)).toString();
+          totalAfter60Days = (await staking.calAccumulatedStakeAmount(POOL3, user4.address)).toString();
           expect(divide(subtract(totalAfter60Days, multiply(ApyOnlyProfit, BIG_NUMBER)),
               BIG_NUMBER,
               precision
@@ -762,29 +762,29 @@ describe("Staking", () => {
           await skipTime(THREE_MONTHS);
           const result = multiply(getProfitRoot(POOL3, 60, deposedCash), BIG_NUMBER).slice(0, 10);
 
-          expect((await staking.calProfit(POOL3, user1.address)).toString().slice(0, 10)).to.equal(result);
+          expect((await staking.calAccumulatedStakeAmount(POOL3, user1.address)).toString().slice(0, 10)).to.equal(result);
           await staking.connect(user1).withdraw(POOL3);
-          expect((await staking.calProfit(POOL3, user1.address)).toString()).to.equal("0");
+          expect((await staking.calAccumulatedStakeAmount(POOL3, user1.address)).toString()).to.equal("0");
 
-          expect((await staking.calProfit(POOL3, user2.address)).toString().slice(0, 10)).to.equal(result);
+          expect((await staking.calAccumulatedStakeAmount(POOL3, user2.address)).toString().slice(0, 10)).to.equal(result);
           await staking.connect(user2).withdraw(POOL3);
-          expect((await staking.calProfit(POOL3, user2.address)).toString()).to.equal("0");
+          expect((await staking.calAccumulatedStakeAmount(POOL3, user2.address)).toString()).to.equal("0");
 
-          expect((await staking.calProfit(POOL3, user3.address)).toString().slice(0, 10)).to.equal(result);
+          expect((await staking.calAccumulatedStakeAmount(POOL3, user3.address)).toString().slice(0, 10)).to.equal(result);
           await staking.connect(user3).withdraw(POOL3);
-          expect((await staking.calProfit(POOL3, user3.address)).toString()).to.equal("0");
+          expect((await staking.calAccumulatedStakeAmount(POOL3, user3.address)).toString()).to.equal("0");
 
-          expect((await staking.calProfit(POOL3, user4.address)).toString().slice(0, 10)).to.equal(result);
+          expect((await staking.calAccumulatedStakeAmount(POOL3, user4.address)).toString().slice(0, 10)).to.equal(result);
           await staking.connect(user4).withdraw(POOL3);
-          expect((await staking.calProfit(POOL3, user4.address)).toString()).to.equal("0");
+          expect((await staking.calAccumulatedStakeAmount(POOL3, user4.address)).toString()).to.equal("0");
         })
 
         it("Continue to deposit after 15 days", async () => {
           await skipTime(FIFTEEN_DAYS);
-          const ProfitCurrent1 = (await staking.calProfit(POOL3, user1.address)).toString();
-          const ProfitCurrent2 = (await staking.calProfit(POOL3, user2.address)).toString();
-          const ProfitCurrent3 = (await staking.calProfit(POOL3, user3.address)).toString();
-          const ProfitCurrent4 = (await staking.calProfit(POOL3, user4.address)).toString();
+          const ProfitCurrent1 = (await staking.calAccumulatedStakeAmount(POOL3, user1.address)).toString();
+          const ProfitCurrent2 = (await staking.calAccumulatedStakeAmount(POOL3, user2.address)).toString();
+          const ProfitCurrent3 = (await staking.calAccumulatedStakeAmount(POOL3, user3.address)).toString();
+          const ProfitCurrent4 = (await staking.calAccumulatedStakeAmount(POOL3, user4.address)).toString();
 
           await staking.connect(user1).deposit(POOL3, deposedCash);
           await staking.connect(user2).deposit(POOL3, deposedCash);
@@ -796,28 +796,28 @@ describe("Staking", () => {
             getProfitRoot(POOL3, 15, add(ProfitCurrent1, deposedCash)),
             BIG_NUMBER
           ).slice(0, 10);
-          const ProfitUser1 = (await staking.calProfit(POOL3, user1.address)).toString().slice(0, 10);
+          const ProfitUser1 = (await staking.calAccumulatedStakeAmount(POOL3, user1.address)).toString().slice(0, 10);
           expect(ProfitUser1).to.equal(result); 
 
           result = multiply(
             getProfitRoot(POOL3, 15, add(ProfitCurrent2, deposedCash)),
             BIG_NUMBER
           ).slice(0, 10);
-          const ProfitUser2 = (await staking.calProfit(POOL3, user2.address)).toString().slice(0, 10);
+          const ProfitUser2 = (await staking.calAccumulatedStakeAmount(POOL3, user2.address)).toString().slice(0, 10);
           expect(ProfitUser2).to.equal(result); 
 
           result = multiply(
             getProfitRoot(POOL3, 15, add(ProfitCurrent3, deposedCash)),
             BIG_NUMBER
           ).slice(0, 10);
-          const ProfitUser3 = (await staking.calProfit(POOL3, user3.address)).toString().slice(0, 10);
+          const ProfitUser3 = (await staking.calAccumulatedStakeAmount(POOL3, user3.address)).toString().slice(0, 10);
           expect(ProfitUser3).to.equal(result); 
 
           result = multiply(
             getProfitRoot(POOL3, 15, add(ProfitCurrent4, deposedCash)),
             BIG_NUMBER
           ).slice(0, 10);
-          const ProfitUser4 = (await staking.calProfit(POOL3, user4.address)).toString().slice(0, 10);
+          const ProfitUser4 = (await staking.calAccumulatedStakeAmount(POOL3, user4.address)).toString().slice(0, 10);
           expect(ProfitUser4).to.equal(result); 
         })
       });
