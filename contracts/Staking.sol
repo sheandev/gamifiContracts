@@ -62,8 +62,8 @@ contract Staking is Ownable {
         if (tmpInfo.originValue == 0) {
             tmpInfo.value = _amount;
         } else {
-            uint256 profit = calProfit(_poolType, _msgSender());
-            tmpInfo.value = profit + _amount;
+            uint256 accAmount = calAccumulatedStakeAmount(_poolType, _msgSender());
+            tmpInfo.value = accAmount + _amount;
         }
 
         tmpInfo.originValue += _amount;
@@ -81,10 +81,10 @@ contract Staking is Ownable {
         UserInfo storage tmpInfo = valueStake[_msgSender()][_poolType];
         require(tmpInfo.originValue > 0, "Nothing to withdraw");
 
-        uint256 profit = calProfit(_poolType, _msgSender());
+        uint256 accAmount = calAccumulatedStakeAmount(_poolType, _msgSender());
         tge.transfer(_msgSender(), tmpInfo.originValue);
 
-        uint256 reward = profit - tmpInfo.originValue * Constant.FIXED_POINT;
+        uint256 reward = accAmount - tmpInfo.originValue * Constant.FIXED_POINT;
         ITToken(address(tge)).stakeMint(
             _msgSender(),
             reward / Constant.FIXED_POINT
@@ -97,17 +97,17 @@ contract Staking is Ownable {
         emit Withdraw(_poolType);
     }
 
-    function calProfit(PoolType _poolType, address _account)
+    function calAccumulatedStakeAmount(PoolType _poolType, address _account)
         public
         view
-        returns (uint256 profit)
+        returns (uint256 accAmount)
     {
         UserInfo storage tmpInfo = valueStake[_account][_poolType];
         uint256 tmpDay = (block.timestamp - tmpInfo.lastAction) / 1 days; // solhint-disable-line not-rely-on-time
         tmpDay = tmpDay > stakeInfo[_poolType].duration
             ? stakeInfo[_poolType].duration
             : tmpDay;
-        profit =
+        accAmount =
             Formula.pow(stakeInfo[_poolType].rootData, tmpDay) *
             tmpInfo.value;
     }

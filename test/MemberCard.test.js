@@ -14,13 +14,31 @@ describe("MemberCard", () => {
     user3 = accounts[3];
 
     MemberCard = await ethers.getContractFactory("MemberCard");
+    Vendor     = await ethers.getContractFactory("Vendor");
+
     memberCard = await MemberCard.deploy("Member Card NFT", "MCN", 3, THREE_MONTHS);
+    vendor1    = await Vendor.deploy(memberCard.address);
+    vendor2    = await Vendor.deploy(memberCard.address);
+
+    await memberCard.addVendor(vendor1.address);
   });
 
   describe("Deployment 1 : Check basic info", () => {
     it("Check name", async () => {
       let name = await memberCard.name();
       expect(name).to.equal("Member Card NFT");
+    });
+
+    it("Check Token URI", async () => {
+      await memberCard.connect(admin).setTokenExpiry(1);
+      await memberCard.connect(admin).setTokenExpiry(2);
+      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard.connect(user2).mintToken(user2.address, { value: FEE });
+
+      let uri1 = await memberCard.tokenURI(1);
+      let uri2 = await memberCard.tokenURI(2);
+      expect(uri1).to.equal("");
+      expect(uri2).to.equal("");
     });
 
     it("Set duration", async () => {
@@ -34,7 +52,7 @@ describe("MemberCard", () => {
     it("Set count for a card", async () => {
       await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
       await memberCard.connect(admin).setTokenExpiry(1);
-      await memberCard.connect(user1).useToken(1);
+      await vendor1.connect(user1).useMemberCard(1);
       expect(await memberCard.getAvailCount(1)).to.equal(2);
 
       await memberCard.setAvailCountFor(1, 10);
@@ -89,6 +107,18 @@ describe("MemberCard", () => {
       let ownerOf1 = await memberCard.ownerOf(1);
       expect(ownerOf1).to.equal(user1.address);
     });
+
+    it("add and remove Vendor", async () => {
+      await expect(
+        memberCard.connect(user1).addVendor(vendor2.address)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+
+      expect(await memberCard.vendors(vendor2.address)).to.be.false;
+      await memberCard.addVendor(vendor2.address);
+      expect(await memberCard.vendors(vendor2.address)).to.be.true;
+      await memberCard.removeVendor(vendor2.address);
+      expect(await memberCard.vendors(vendor2.address)).to.be.false;
+    });
   });
 
   describe("Deployment 2: Mint token", () => {
@@ -101,26 +131,45 @@ describe("MemberCard", () => {
     it("Check not owner use", async () => {
       await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
       await memberCard.connect(admin).setTokenExpiry(1);
-      await expect(memberCard.connect(user2).useToken(1)).to.be.revertedWith("Not owner");
+      await expect(vendor1.connect(user2).useMemberCard(1)).to.be.revertedWith("Not owner");
     });
 
     it("Check owner use 4 times ", async () => {
       await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
       await memberCard.connect(admin).setTokenExpiry(1);
-      await memberCard.connect(user1).useToken(1);
-      await memberCard.connect(user1).useToken(1);
-      await memberCard.connect(user1).useToken(1);
-      expect(await memberCard.getAvailCount(1)).to.equal(0);
 
-      await expect(memberCard.connect(user1).useToken(1)).to.be.revertedWith("Out of use");
+      await vendor1.connect(user1).useMemberCard(1);
+      let useInfo = await memberCard.getuseTokenInfo(1);
+      expect(useInfo.length).to.be.equal(1);
+      expect(useInfo[0].vendor).to.be.equal(vendor1.address);
+      expect(useInfo[0].owner).to.be.equal(user1.address);
+      expect(useInfo[0].usedAt > 0).to.be.true;
+
+      await vendor1.connect(user1).useMemberCard(1);
+      useInfo = await memberCard.getuseTokenInfo(1);
+      expect(useInfo.length).to.be.equal(2);
+      expect(useInfo[1].vendor).to.be.equal(vendor1.address);
+      expect(useInfo[1].owner).to.be.equal(user1.address);
+      expect(useInfo[1].usedAt > 0).to.be.true;
+
+      await memberCard.addVendor(vendor2.address);
+      await vendor2.connect(user1).useMemberCard(1);
+      useInfo = await memberCard.getuseTokenInfo(1);
+      expect(useInfo.length).to.be.equal(3);
+      expect(useInfo[2].vendor).to.be.equal(vendor2.address);
+      expect(useInfo[2].owner).to.be.equal(user1.address);
+      expect(useInfo[2].usedAt > 0).to.be.true;
+
+      expect(await memberCard.getAvailCount(1)).to.equal(0);
+      await expect(vendor1.connect(user1).useMemberCard(1)).to.be.revertedWith("Out of use");
     });
 
     it("Check owner use when expried", async () => {
       await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
       await memberCard.connect(admin).setTokenExpiry(1);
-      await memberCard.connect(user1).useToken(1);
+      await vendor1.connect(user1).useMemberCard(1);
       await skipTime(THREE_MONTHS);
-      await expect(memberCard.connect(user1).useToken(1)).to.be.revertedWith("Expired");
+      await expect(vendor1.connect(user1).useMemberCard(1)).to.be.revertedWith("Expired");
     });
 
   });
@@ -129,23 +178,15 @@ describe("MemberCard", () => {
 
     it("Check use when admin not set expiry yet", async () => {
       await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
-      await expect(memberCard.connect(user1).useToken(1)).to.be.revertedWith("Expired");
+      await expect(vendor1.connect(user1).useMemberCard(1)).to.be.revertedWith("Expired");
     });
 
-    it("Check Token URI", async () => {
-
-      await memberCard.connect(admin).setTokenExpiry(1);
-      await memberCard.connect(admin).setTokenExpiry(2);
+    it("Check invalid vendor", async () => {
       await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
-      await memberCard.connect(user2).mintToken(user2.address, { value: FEE });
-
-      let uri1 = await memberCard.tokenURI(1);
-      let uri2 = await memberCard.tokenURI(2);
-      expect(uri1).to.equal("");
-      expect(uri2).to.equal("");
+      await memberCard.connect(admin).setTokenExpiry(1);
+      await expect(vendor2.connect(user1).useMemberCard(1)).to.be.revertedWith("Invalid vendor");
     });
 
-    
     it("Check Balance User", async () => {
       let balanceB1 = await ethers.provider.getBalance(user1.address);
       let balanceB2 = await ethers.provider.getBalance(user2.address);
@@ -174,8 +215,8 @@ describe("MemberCard", () => {
       let balanceA2 = await ethers.provider.getBalance(user2.address);
       expect(balanceB2.sub(txFee.add(balanceA2))).to.equal("50000000000000000");
 
-      await memberCard.connect(user1).useToken(1);
-      await memberCard.connect(user2).useToken(2);
+      await vendor1.connect(user1).useMemberCard(1);
+      await vendor1.connect(user2).useMemberCard(2);
       expect(await memberCard.getAvailCount(1)).to.equal(2);
       expect(await memberCard.getAvailCount(2)).to.equal(2);
 
@@ -193,7 +234,7 @@ describe("MemberCard", () => {
       let balanceA3 = await ethers.provider.getBalance(user3.address);
       expect(balanceB3.sub(txFee.add(balanceA3))).to.equal("50000000000000000");
 
-      await memberCard.connect(user3).useToken(3);
+      await vendor1.connect(user3).useMemberCard(3);
       expect(await memberCard.getAvailCount(1)).to.equal(2);
       expect(await memberCard.getAvailCount(2)).to.equal(2);
       expect(await memberCard.getAvailCount(3)).to.equal(2);
