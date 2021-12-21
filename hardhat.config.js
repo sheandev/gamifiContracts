@@ -23,27 +23,17 @@ const config = {
     hardhat: {
       accounts: { count: 100 },
     },
-    // Rinkeby test network config for deploying
-    // rinkeby: {
-    //   url: process.env.RINKEBY_URL,
-    //   accounts: [`${process.env.PRIVATE_KEY}`],
-    //   gas: 8100000,
-    //   gasPrice: 8000000000
-    // },
     // Polygon test network config for deploying
     matic: {
-      url: "https://rpc-mumbai.maticvigil.com",
-      accounts: [process.env.PRIVATE_KEY],
+      url: process.env.MATIC_URL,
+      accounts: [process.env.PRIVATE_KEY_MATIC],
     },
   },
   // Verify and public source code on etherscan
-  // etherscan: {
-  //   apiKey: `${process.env.ETHERSCAN_API_KEY}`
-  // },
   etherscan: {
-    apiKey: "5ZRNEI4VFPZNU5ZBHEAWYMM36DXZ5XNSJM", //key polygon
+    // polygonscan
+    apiKey: process.env.POLYGONSCAN_API_KEY,
   },
-
   solidity: {
     compilers: [
       {
