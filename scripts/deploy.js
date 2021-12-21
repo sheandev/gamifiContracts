@@ -2,56 +2,52 @@ const hre = require("hardhat");
 const ethers = hre.ethers;
 
 async function main() {
-  const THREE_MONTHS = 7776000;
-
   //Loading accounts
   const accounts = await ethers.getSigners();
   const addresses = accounts.map((item) => item.address);
+  const THREE_MONTHS = 7776000; // seconds
 
   // Loading contract factory.
-  // const Token      = await ethers.getContractFactory("ERC20");
-  // const AntiBot    = await ethers.getContractFactory("AntiBotMaster");
-  // const Vesting    = await ethers.getContractFactory("Vesting");
-  const MemberCard = await ethers.getContractFactory("MemberCard");
   const TokenTest  = await ethers.getContractFactory("TokenTest");
+  const MemberCard = await ethers.getContractFactory("MemberCard");
   const Staking    = await ethers.getContractFactory("Staking");
   const Vendor     = await ethers.getContractFactory("Vendor");
 
   // Deploy contracts
-  // const token = await Token.deploy("GAMI20", "GAMI", {
-  //   from: addresses[0],
-  //   to: addresses[1],
-  //   amount: 1000,
-  // });
-  // await token.deployed();
-  // console.log("Token      deployed to:", token.address);
-
-  // TODO: Add deploy params later
-  // const antiBot = await AntiBot.deploy();
-  // await antiBot.deployed();
-  // console.log("AntiBot    deployed to:", antiBot.address);
-
-  // const vesting = await Vesting.deploy();
-  // await vesting.deployed();
-  // console.log("Vesting    deployed to:", vesting.address);
-
+  console.log('==================================================================');
+  console.log('VERIFY ADDRESS');
+  console.log('==================================================================');
   const memberCard = await MemberCard.deploy("Member Card NFT", "MCN", 3, THREE_MONTHS);
   await memberCard.deployed();
   console.log("MemberCard deployed to:", memberCard.address);
+  const deployedMemberCard = await memberCard.deployTransaction.wait();
 
-  const vendor = await Vendor.deploy(memberCard.address);
+  const vendor = await Vendor.deploy(deployedMemberCard.contractAddress);
   await vendor.deployed();
-  console.log("Vendor deployed to:", vendor.address);
+  console.log("Vendor     deployed to:", vendor.address);
+  const deployedVendor = await vendor.deployTransaction.wait();
 
-  const tokenTest = await TokenTest.deploy("TGEToken", "TGE");
+  const tokenTest = await TokenTest.deploy("TGE Token", "TGE");
   await tokenTest.deployed();
-  console.log("TokenTest deployed to:", tokenTest.address);
+  console.log("TokenTest  deployed to:", tokenTest.address);
+  const deployedToken = await tokenTest.deployTransaction.wait();
 
-  const staking = await Staking.deploy(tokenTest.address, memberCard.address);
+  const staking = await Staking.deploy(deployedToken.contractAddress, deployedMemberCard.contractAddress);
   await staking.deployed();
-  console.log("Staking deployed to:", staking.address);
+  console.log("Staking    deployed to:", staking.address);
+  const deployedStaking = await staking.deployTransaction.wait();
 
-  await tokenTest.setStakeContract(staking.address);
+  console.log('==================================================================');
+  console.log('CONTRACT ADDRESS');
+  console.log('==================================================================');
+  console.log("MemberCard :", deployedMemberCard.contractAddress);
+  console.log("TokenTest  :", deployedToken.contractAddress);
+  console.log("Vendor     :", deployedVendor.contractAddress);
+  console.log("Staking    :", deployedStaking.contractAddress);
+
+  await tokenTest.setStakeContract(deployedStaking.contractAddress);
+  await memberCard.addVendor(deployedVendor.contractAddress);
+  await memberCard.setPaused(true);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
