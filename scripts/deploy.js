@@ -1,11 +1,12 @@
 const hre = require("hardhat");
+const fs = require("fs");
 const ethers = hre.ethers;
+const THREE_MONTHS = 7776000; // seconds
 
 async function main() {
   //Loading accounts
   const accounts = await ethers.getSigners();
   const addresses = accounts.map((item) => item.address);
-  const THREE_MONTHS = 7776000; // seconds
 
   // Loading contract factory.
   const TokenTest  = await ethers.getContractFactory("TokenTest");
@@ -17,6 +18,7 @@ async function main() {
   console.log('==================================================================');
   console.log('VERIFY ADDRESS');
   console.log('==================================================================');
+
   const memberCard = await MemberCard.deploy("Member Card NFT", "MCN", 3, THREE_MONTHS);
   await memberCard.deployed();
   console.log("MemberCard deployed to:", memberCard.address);
@@ -40,14 +42,27 @@ async function main() {
   console.log('==================================================================');
   console.log('CONTRACT ADDRESS');
   console.log('==================================================================');
+
   console.log("MemberCard :", deployedMemberCard.contractAddress);
-  console.log("TokenTest  :", deployedToken.contractAddress);
   console.log("Vendor     :", deployedVendor.contractAddress);
+  console.log("TokenTest  :", deployedToken.contractAddress);
   console.log("Staking    :", deployedStaking.contractAddress);
 
   await tokenTest.setStakeContract(deployedStaking.contractAddress);
   await memberCard.addVendor(deployedVendor.contractAddress);
   await memberCard.setPaused(true);
+
+  const contractAddresses = {
+    memberCard: deployedMemberCard.contractAddress,
+    vendor: deployedVendor.contractAddress,
+    tokenTest: deployedToken.contractAddress,
+    staking: deployedStaking.contractAddress,
+  };
+
+  await fs.writeFileSync(
+    "scripts/contracts.json",
+    JSON.stringify(contractAddresses)
+  );
 }
 
 // We recommend this pattern to be able to use async/await everywhere
@@ -58,3 +73,7 @@ main()
   console.error(error);
   process.exit(1);
 });
+
+module.exports = {
+  THREE_MONTHS
+};

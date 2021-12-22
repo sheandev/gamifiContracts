@@ -1,1 +1,5 @@
-module.exports = ["0x2Ba2a552Fb6CDcF7De7B823f03bf5546F0c5c1CC"];
+const fs = require("fs");
+const text = fs.readFileSync("scripts/contracts.json", "utf8");
+const contractAddress = JSON.parse(text);
+
+module.exports = [contractAddress.memberCard];
