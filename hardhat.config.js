@@ -23,6 +23,13 @@ const config = {
     hardhat: {
       accounts: { count: 100 },
     },
+    // Rinkeby test network config for deploying
+    rinkeby: {
+      url: process.env.RINKEBY_URL,
+      accounts: [`${process.env.PRIVATE_KEY_RINKEBY}`],
+      gas: 8100000,
+      gasPrice: 8000000000,
+    },
     // Polygon test network config for deploying
     matic: {
       url: process.env.MATIC_URL,
@@ -32,6 +39,7 @@ const config = {
   // Verify and public source code on etherscan
   etherscan: {
     // polygonscan
+    // apiKey: `${process.env.ETHERSCAN_API_KEY}`
     apiKey: process.env.POLYGONSCAN_API_KEY,
   },
   solidity: {

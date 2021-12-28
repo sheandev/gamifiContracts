@@ -2,22 +2,38 @@
 pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./TokenTest.sol";
 import "./MemberCard.sol";
 
-contract Vendor is Ownable {
-    address immutable public memberCard;
+import "hardhat/console.sol";
 
-    constructor(address _memberCard) {
+contract Vendor is Ownable {
+    MemberCard public memberCard;
+    TokenTest public tge;
+
+    constructor(TokenTest _tge, MemberCard _memberCard) {
+        tge = _tge;
         memberCard = _memberCard;
     }
 
-    event UseMemberCard(address indexed user, uint256 tokenId);
+    event BuyTokens(address indexed acc, uint256 tokenId, uint256 tokenAmount);
 
     /// @notice useMemberCard user use their card
     /// @dev    this method can called by anyone
     /// @param  _tokenId of user's card
-    function useMemberCard(uint256 _tokenId) external {
+    function buyTokens(uint256 _tokenId) external payable {
+        require(memberCard.getAvailCount(_tokenId) > 0, "Token is expired");
+        require(block.timestamp < memberCard.getExpiryDate(_tokenId), "Expired");
+        require(msg.value > 0, "not enough amount");
         MemberCard(memberCard).useToken(_tokenId, _msgSender());
-        emit UseMemberCard(_msgSender(), _tokenId);
+
+        // transfer token to user;
+        payable(owner()).transfer(msg.value);
+
+        uint256 tokenAmount = msg.value * 1000;
+        tge.vendorMint(msg.sender, tokenAmount);
+
+        emit BuyTokens(_msgSender(), _tokenId, tokenAmount);
     }
 }
