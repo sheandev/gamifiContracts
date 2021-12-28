@@ -1,5 +1,5 @@
-// TODO: Loading env configs for deploying and public contract source
-// require('dotenv').config();
+// Loading env configs for deploying and public contract source
+require('dotenv').config();
 
 // Using hardhat-ethers plugin for deploying
 // See here: https://hardhat.org/plugins/nomiclabs-hardhat-ethers.html
@@ -14,56 +14,55 @@ require("@nomiclabs/hardhat-waffle");
 // See here: https://hardhat.org/plugins/nomiclabs-hardhat-solhint.html
 require("@nomiclabs/hardhat-solhint");
 
-// TODO: Verify and public source code on etherscan
-// require('@nomiclabs/hardhat-etherscan');
+// Verify and public source code on etherscan
+require('@nomiclabs/hardhat-etherscan');
 
 const config = {
-  defaultNetwork: 'hardhat',
+  defaultNetwork: "hardhat",
   networks: {
     hardhat: {
-      accounts: { count: 100 }
+      accounts: { count: 100 },
     },
-    // TODO: Rinkeby test network config for deploying
-    // rinkeby: {
-    //   url: `https://rinkeby.infura.io/v3/${process.env.INFURA_API_KEY}`,
-    //   accounts: [`${process.env.PRIVATE_KEY}`],
-    //   gas: 8100000,
-    //   gasPrice: 8000000000
-    // }
+    // Polygon test network config for deploying
+    matic: {
+      url: process.env.MATIC_URL,
+      accounts: [process.env.PRIVATE_KEY_MATIC],
+    },
   },
-  // TODO: Verify and public source code on etherscan
-  // etherscan: {
-  //   apiKey: `${process.env.ETHERSCAN_KEY}`
-  // },
+  // Verify and public source code on etherscan
+  etherscan: {
+    // polygonscan
+    apiKey: process.env.POLYGONSCAN_API_KEY,
+  },
   solidity: {
     compilers: [
       {
-        version: '0.8.4',
+        version: "0.8.4",
         settings: {
           optimizer: {
             enabled: true,
-            runs: 200
-          }
-        }
-      }
+            runs: 200,
+          },
+        },
+      },
     ],
   },
   paths: {
-    sources: './contracts',
-    tests: './test',
-    cache: './cache',
-    artifacts: './artifacts',
-    deploy: 'deploy',
-    deployments: 'deployments',
+    sources: "./contracts",
+    tests: "./test",
+    cache: "./cache",
+    artifacts: "./artifacts",
+    deploy: "deploy",
+    deployments: "deployments",
   },
   mocha: {
     timeout: 200000,
     useColors: true,
-    reporter: 'mocha-multi-reporters',
+    reporter: "mocha-multi-reporters",
     reporterOptions: {
-      configFile: './mocha-report.json',
+      configFile: "./mocha-report.json",
     },
-  }
+  },
 };
 
 module.exports = config;
