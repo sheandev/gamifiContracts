@@ -31,19 +31,79 @@ describe("Vendor", () => {
     const MemberCard = await ethers.getContractFactory("MemberCard");
     memberCard = await MemberCard.deploy("Member Card NFT", "MCN", 3, THREE_MONTHS);
 
-    const Vendor = await ethers.getContractFactory("Vendor");
-    vendor = await Vendor.deploy(token.address, memberCard.address);
+    Vendor = await ethers.getContractFactory("Vendor");
+    // vendor = await Vendor.deploy(token.address, memberCard.address);
 
     await token.connect(admin).approve(user1.address, MAX_INT);
-    await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
-    await memberCard.connect(admin).setTokenExpiry(1);
-    await memberCard.addVendor(vendor.address);
-    await token.addVendor(vendor.address);
+    // await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+    // await memberCard.addVendor(vendor.address);
+    // await token.addVendor(vendor.address);
   });
 
   describe("Buy token", async () => {
+    it("Vendor constructor memberCard address not invalid", async () => {
+      const vendor = await Vendor.deploy(token.address, user1.address);
+
+      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard.addVendor(vendor.address);
+      await token.addVendor(vendor.address);
+
+      await memberCard.connect(admin).setTokenExpiry(1);
+      await expect(vendor.connect(user1).buyTokens(1, { value: FEE })).to.be.revertedWith("function call to a non-contract account");
+    })
+
+    it("Vendor constructor token address not invalid", async () => {
+      const vendor = await Vendor.deploy(user1.address, memberCard.address);
+
+      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard.addVendor(vendor.address);
+      await token.addVendor(vendor.address);
+
+      await memberCard.connect(admin).setTokenExpiry(1);
+      await expect(vendor.connect(user1).buyTokens(1, { value: FEE })).to.be.revertedWith("function call to a non-contract account");
+    })
+
     it("Not enough amount", async () => {
-      await expect(vendor.connect(user1).buyTokens(1, { value: 0 })).to.be.revertedWith('not enough amount')
+      const vendor = await Vendor.deploy(token.address, memberCard.address);
+      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard.addVendor(vendor.address);
+      await token.addVendor(vendor.address);
+
+      await memberCard.connect(admin).setTokenExpiry(1);
+      await expect(vendor.connect(user1).buyTokens(1, { value: 0 })).to.be.revertedWith("not enough amount");
     });
+
+    it("End of use", async () => {
+      const vendor = await Vendor.deploy(token.address, memberCard.address);
+      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard.addVendor(vendor.address);
+      await token.addVendor(vendor.address);
+
+      await memberCard.connect(admin).setTokenExpiry(1);
+      await vendor.connect(user1).buyTokens(1, { value: FEE });
+      await vendor.connect(user1).buyTokens(1, { value: FEE });
+      await vendor.connect(user1).buyTokens(1, { value: FEE });
+
+      await expect(vendor.connect(user1).buyTokens(1, { value: FEE })).to.be.revertedWith("End of use");
+    })
+
+    it("Expired", async () => {
+      const vendor = await Vendor.deploy(token.address, memberCard.address);
+      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard.addVendor(vendor.address);
+      await token.addVendor(vendor.address);
+
+      await expect(vendor.connect(user1).buyTokens(1, { value: FEE })).to.be.revertedWith("Expired");
+    })
+
+    it("Pass all", async () => {
+      const vendor = await Vendor.deploy(token.address, memberCard.address);
+      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard.addVendor(vendor.address);
+      await token.addVendor(vendor.address);
+
+      await memberCard.connect(admin).setTokenExpiry(1);
+      await vendor.connect(user1).buyTokens(1, { value: FEE });
+    })
   });
 });

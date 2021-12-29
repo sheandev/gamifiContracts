@@ -23,7 +23,7 @@ contract Vendor is Ownable {
     /// @dev    this method can called by anyone
     /// @param  _tokenId of user's card
     function buyTokens(uint256 _tokenId) external payable {
-        require(memberCard.getAvailCount(_tokenId) > 0, "Token is expired");
+        require(memberCard.getAvailCount(_tokenId) > 0, "End of use");
         require(block.timestamp < memberCard.getExpiryDate(_tokenId), "Expired");
         require(msg.value > 0, "not enough amount");
         MemberCard(memberCard).useToken(_tokenId, _msgSender());
