@@ -15,21 +15,23 @@ describe("MemberCard", () => {
     user1 = accounts[1];
     user2 = accounts[2];
     user3 = accounts[3];
+    user4 = accounts[4];
 
     CashTestToken = await ethers.getContractFactory("CashTestToken");
     MemberCard    = await ethers.getContractFactory("MemberCard");
-    Vendor        = await ethers.getContractFactory("Vendor");
+    // Vendor        = await ethers.getContractFactory("Vendor");
 
     cash       = await CashTestToken.deploy([user1.address, user2.address, user3.address]);
     memberCard = await MemberCard.deploy("Member Card NFT", "MCN", cash.address, 3, THREE_MONTHS);
-    vendor1    = await Vendor.deploy(memberCard.address);
-    vendor2    = await Vendor.deploy(memberCard.address);
+    // vendor1    = await Vendor.deploy(memberCard.address);
+    // vendor2    = await Vendor.deploy(memberCard.address);
 
-    await memberCard.addVendor(vendor1.address);
+    // await memberCard.addVendor(vendor1.address);
 
     await cash.connect(user1).increaseAllowance(memberCard.address, constants.MAX_UINT256.toString());
     await cash.connect(user2).increaseAllowance(memberCard.address, constants.MAX_UINT256.toString());
     await cash.connect(user3).increaseAllowance(memberCard.address, constants.MAX_UINT256.toString());
+    await cash.connect(user4).increaseAllowance(memberCard.address, constants.MAX_UINT256.toString());
   });
 
   describe("Deployment 1 : Check basic info", () => {
@@ -179,6 +181,10 @@ describe("MemberCard", () => {
       await expect(vendor1.connect(user1).useMemberCard(1)).to.be.revertedWith("Expired");
     });
 
+    it("Not enough cash", async () => {
+      await expect(memberCard.connect(user4).mintToken(user4.address)).to.be.revertedWith("transfer amount exceeds balance");
+    })
+
   });
 
   describe("Deployment 3 : Use token", () => {
@@ -263,7 +269,7 @@ describe("MemberCard", () => {
     });
   });
 
-  describe.only("burnExpiredTokens", () => {
+  describe("burnExpiredTokens", () => {
     it("Caller is not NFT contract owner", async () => {
       await expect(
         memberCard.connect(user1).burnExpiredTokens()
