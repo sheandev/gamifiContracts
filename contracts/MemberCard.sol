@@ -2,6 +2,7 @@
 pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
@@ -11,6 +12,8 @@ contract MemberCard is ERC721Enumerable, Ownable, Pausable {
         address owner;
         uint256 usedAt;
     }
+
+    IERC20 public cash;
 
     uint256 private currentTokenId;
     uint256 public countOfUse;
@@ -22,7 +25,8 @@ contract MemberCard is ERC721Enumerable, Ownable, Pausable {
     mapping(uint256 => uint256) private availCount;
     mapping(uint256 => uint256) private expiryDate;
 
-    event CardMinted(address receiver, uint256 indexed tokenId);
+    event CardMinted(address receiver, uint256 indexed tokenId, uint256 mintedAt);
+    event CardBurned(address owner, uint256 indexed tokenId, uint256 burnedAt);
     event CardUsed(uint256 indexed tokenId, address account);
     event SetExpiryDate(uint256 indexed value);
     event SetAvailCount(uint256 indexed value);
@@ -41,12 +45,14 @@ contract MemberCard is ERC721Enumerable, Ownable, Pausable {
     constructor(
         string memory name,
         string memory symbol,
-        uint256 count,
-        uint256 duration
+        IERC20 _cash,
+        uint256 _count,
+        uint256 _duration
     ) ERC721(name, symbol) {
-        cardDuration = duration;
-        countOfUse = count;
-        fee = 5e16;
+        cash = _cash;
+        cardDuration = _duration;
+        countOfUse = _count;
+        fee = 30e18; // cost is 30 CASH token
     }
 
     function addVendor(address addr) external onlyOwner {
@@ -81,16 +87,27 @@ contract MemberCard is ERC721Enumerable, Ownable, Pausable {
         _transfer(from, to, tokenId);
     }
 
-    function mintToken(address to) external payable {
+    function mintToken(address to) external {
         require(
             balanceOf(to) == 0,
             "Only have 1 NFT per wallet"
         );
-        require(msg.value >= fee, "Invalid value");
+        cash.transferFrom(_msgSender(), owner(), fee);
         _safeMint(to, ++currentTokenId);
         availCount[currentTokenId] = countOfUse;
-        payable(owner()).transfer(msg.value); // solhint-disable-line indent
-        emit CardMinted(to, currentTokenId);
+        emit CardMinted(to, currentTokenId, block.timestamp);
+    }
+
+    function burnExpiredTokens() external onlyOwner {
+        require(totalSupply() > 0, "Total supply is empty");
+
+        for (uint256 tokenId = 1; tokenId <= currentTokenId; tokenId++) {
+            if (_exists(tokenId) && isTokenExpired(tokenId)) {
+                address owner = ownerOf(tokenId);
+                _burn(tokenId);
+                emit CardBurned(owner, tokenId, block.timestamp);
+            }
+        }
     }
 
     function setTokenExpiry(uint256 tokenId) public onlyOwner {
@@ -130,6 +147,10 @@ contract MemberCard is ERC721Enumerable, Ownable, Pausable {
 
     function getExpiryDate(uint256 tokenId) public view returns (uint256) {
         return expiryDate[tokenId];
+    }
+
+    function isTokenExpired(uint256 tokenId) public view returns (bool) {
+        return block.timestamp > expiryDate[tokenId];
     }
 
     function getAvailCount(uint256 tokenId) public view returns (uint256) {
