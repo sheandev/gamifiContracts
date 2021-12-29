@@ -19,14 +19,14 @@ describe("MemberCard", () => {
 
     CashTestToken = await ethers.getContractFactory("CashTestToken");
     MemberCard    = await ethers.getContractFactory("MemberCard");
-    // Vendor        = await ethers.getContractFactory("Vendor");
+    Vendor        = await ethers.getContractFactory("Vendor");
 
     cash       = await CashTestToken.deploy([user1.address, user2.address, user3.address]);
     memberCard = await MemberCard.deploy("Member Card NFT", "MCN", cash.address, 3, THREE_MONTHS);
-    // vendor1    = await Vendor.deploy(memberCard.address);
-    // vendor2    = await Vendor.deploy(memberCard.address);
+    vendor1    = await Vendor.deploy(memberCard.address);
+    vendor2    = await Vendor.deploy(memberCard.address);
 
-    // await memberCard.addVendor(vendor1.address);
+    await memberCard.addVendor(vendor1.address);
 
     await cash.connect(user1).increaseAllowance(memberCard.address, constants.MAX_UINT256.toString());
     await cash.connect(user2).increaseAllowance(memberCard.address, constants.MAX_UINT256.toString());
