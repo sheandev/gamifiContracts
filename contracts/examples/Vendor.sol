@@ -2,7 +2,7 @@
 pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./MemberCard.sol";
+import "contracts/MemberCard.sol";
 
 contract Vendor is Ownable {
     address immutable public memberCard;

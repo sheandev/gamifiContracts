@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
+import "hardhat/console.sol";
 
 contract MemberCard is ERC721Enumerable, Ownable, Pausable {
     struct UseTokenInfo {
@@ -28,7 +29,7 @@ contract MemberCard is ERC721Enumerable, Ownable, Pausable {
     event CardMinted(address receiver, uint256 indexed tokenId, uint256 mintedAt);
     event CardBurned(address owner, uint256 indexed tokenId, uint256 burnedAt);
     event CardUsed(uint256 indexed tokenId, address account);
-    event SetExpiryDate(uint256 indexed value);
+    event SetCardDuration(uint256 indexed value);
     event SetAvailCount(uint256 indexed value);
     event SetAvailCountFor(uint256 indexed tokenId, uint256 indexed value);
 
@@ -49,6 +50,8 @@ contract MemberCard is ERC721Enumerable, Ownable, Pausable {
         uint256 _count,
         uint256 _duration
     ) ERC721(name, symbol) {
+        require(_count > 0, "Count value is invalid");
+        require(_duration > 0, "Duration value is invalid");
         cash = _cash;
         cardDuration = _duration;
         countOfUse = _count;
@@ -80,11 +83,26 @@ contract MemberCard is ERC721Enumerable, Ownable, Pausable {
             _isApprovedOrOwner(_msgSender(), tokenId),
             "ERC721: transfer caller is not owner nor approved"
         );
+
+        require(isTokenExpired(tokenId), "Expired");
+
         require(
             balanceOf(to) == 0,
             "Only have 1 NFT per wallet"
         );
         _transfer(from, to, tokenId);
+    }
+
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes memory _data
+    ) public override {
+        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: transfer caller is not owner nor approved");
+        require(balanceOf(to) == 0, "Only have 1 NFT per wallet");
+        require(isTokenExpired(tokenId), "Expired");
+        _safeTransfer(from, to, tokenId, _data);
     }
 
     function mintToken(address to) external {
@@ -96,18 +114,6 @@ contract MemberCard is ERC721Enumerable, Ownable, Pausable {
         _safeMint(to, ++currentTokenId);
         availCount[currentTokenId] = countOfUse;
         emit CardMinted(to, currentTokenId, block.timestamp);
-    }
-
-    function burnExpiredTokens() external onlyOwner {
-        require(totalSupply() > 0, "Total supply is empty");
-
-        for (uint256 tokenId = 1; tokenId <= currentTokenId; tokenId++) {
-            if (_exists(tokenId) && isTokenExpired(tokenId)) {
-                address owner = ownerOf(tokenId);
-                _burn(tokenId);
-                emit CardBurned(owner, tokenId, block.timestamp);
-            }
-        }
     }
 
     function setTokenExpiry(uint256 tokenId) public onlyOwner {
@@ -127,10 +133,10 @@ contract MemberCard is ERC721Enumerable, Ownable, Pausable {
         emit CardUsed(_tokenId, _account);
     }
 
-    function setExpiryDate(uint256 value) public onlyOwner {
+    function setCardDuration(uint256 value) public onlyOwner {
         require(cardDuration != value, "Must different");
         cardDuration = value;
-        emit SetExpiryDate(cardDuration);
+        emit SetCardDuration(cardDuration);
     }
 
     function setAvailCountFor(uint256 tokenId, uint256 value) public onlyOwner {

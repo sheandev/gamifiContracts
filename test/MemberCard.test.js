@@ -53,10 +53,10 @@ describe("MemberCard", () => {
     });
 
     it("Set duration", async () => {
-      await memberCard.setExpiryDate(THREE_MONTHS + 100);
+      await memberCard.setCardDuration(THREE_MONTHS + 100);
       expect(await memberCard.cardDuration()).to.equal("7776100");
       await expect(
-        memberCard.setExpiryDate(THREE_MONTHS + 100)
+        memberCard.setCardDuration(THREE_MONTHS + 100)
       ).to.be.revertedWith("Must different");
     });
 
@@ -153,9 +153,8 @@ describe("MemberCard", () => {
       expect(useInfo[0].vendor).to.be.equal(vendor1.address);
       expect(useInfo[0].owner).to.be.equal(user1.address);
       expect(useInfo[0].usedAt > 0).to.be.true;
-
       await vendor1.connect(user1).useMemberCard(1);
-      useInfo = await memberCard.getuseTokenInfo(1);
+      useInfo = await memberCard.getuseTokenInfo(1); 
       expect(useInfo.length).to.be.equal(2);
       expect(useInfo[1].vendor).to.be.equal(vendor1.address);
       expect(useInfo[1].owner).to.be.equal(user1.address);
@@ -230,6 +229,7 @@ describe("MemberCard", () => {
       expect(balanceCashUser3_before.sub(balanceCashUser3_after)).to.equal(FEE);
 
       await vendor1.connect(user3).useMemberCard(3);
+
       expect(await memberCard.getAvailCount(1)).to.equal(2);
       expect(await memberCard.getAvailCount(2)).to.equal(2);
       expect(await memberCard.getAvailCount(3)).to.equal(2);
@@ -266,55 +266,6 @@ describe("MemberCard", () => {
       await expect(
         memberCard.transferFrom(user1.address, user2.address, token)
       ).to.be.revertedWith("Pausable: paused")
-    });
-  });
-
-  describe("burnExpiredTokens", () => {
-    it("Caller is not NFT contract owner", async () => {
-      await expect(
-        memberCard.connect(user1).burnExpiredTokens()
-      ).to.be.revertedWith('Ownable: caller is not the owner');
-    });
-
-    it("Total supply is empty", async () => {
-      await expect(
-        memberCard.burnExpiredTokens()
-      ).to.be.revertedWith('Total supply is empty');
-    });
-
-    it("burn token after expired automatically", async () => {
-      await memberCard.connect(user1).mintToken(user1.address);
-      await memberCard.connect(user2).mintToken(user2.address);
-      await memberCard.connect(user3).mintToken(user3.address);
-
-      expect(await memberCard.totalSupply()).to.be.equal('3');
-
-      await memberCard.connect(admin).setTokenExpiry(1);
-
-      await skipTime(ONE_MONTH);
-      await memberCard.connect(admin).setTokenExpiry(2);
-      await memberCard.connect(admin).setTokenExpiry(3);
-
-      await memberCard.burnExpiredTokens();
-      expect(await memberCard.totalSupply()).to.be.equal('3');
-
-      await skipTime(2 * ONE_MONTH); // Skip 2 months, token 1 will be expired
-      await memberCard.burnExpiredTokens();
-      expect(await memberCard.totalSupply()).to.be.equal('2');
-      expect(await memberCard.balanceOf(user1.address)).to.be.equal('0');
-      expect(await memberCard.balanceOf(user2.address)).to.be.equal('1');
-      expect(await memberCard.balanceOf(user3.address)).to.be.equal('1');
-
-      await skipTime(ONE_MONTH); // Skip 1 months, token 2, 3 will be expired
-      await memberCard.burnExpiredTokens();
-      expect(await memberCard.totalSupply()).to.be.equal('0');
-      expect(await memberCard.balanceOf(user1.address)).to.be.equal('0');
-      expect(await memberCard.balanceOf(user2.address)).to.be.equal('0');
-      expect(await memberCard.balanceOf(user3.address)).to.be.equal('0');
-
-      await expect(
-        memberCard.burnExpiredTokens()
-      ).to.be.revertedWith('Total supply is empty');
     });
   });
 });

@@ -1,8 +1,8 @@
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
 const { skipTime, getProfit, getProfitRoot } = require("./utils");
+const { constants } = require('@openzeppelin/test-helpers');
 const { add, subtract, multiply, divide, compareTo } = require("js-big-decimal");
-const Big = require("big.js");
 
 const THREE_MONTHS = 7776000; // seconds
 const ONE_MONTH    = 2592000; // seconds
@@ -34,8 +34,11 @@ describe("Staking", () => {
     user3 = accounts[3];
     user4 = accounts[4];
 
+    const CashTestToken = await ethers.getContractFactory("CashTestToken");
+    cash = await CashTestToken.deploy([user1.address, user2.address, user3.address, user4.address]);
+
     const MemberCard = await ethers.getContractFactory("MemberCard");
-    memberCard = await MemberCard.deploy("Member Card NFT", "MCN", 3, THREE_MONTHS);
+    memberCard = await MemberCard.deploy("Member Card NFT", "MCN", cash.address, 3, THREE_MONTHS);
 
     const TokenTest = await ethers.getContractFactory("TokenTest");
     tokenTest = await TokenTest.deploy("MiToken", "MIT");
@@ -49,6 +52,10 @@ describe("Staking", () => {
     await tokenTest.connect(user3).approve(staking.address, MAX_INT);
     await tokenTest.connect(user4).approve(staking.address, MAX_INT);
 
+    await cash.connect(user1).increaseAllowance(memberCard.address, constants.MAX_UINT256.toString());
+    await cash.connect(user2).increaseAllowance(memberCard.address, constants.MAX_UINT256.toString());
+    await cash.connect(user3).increaseAllowance(memberCard.address, constants.MAX_UINT256.toString());
+    await cash.connect(user4).increaseAllowance(memberCard.address, constants.MAX_UINT256.toString());
   });
 
     it("Not allow when not have MemberCard", async () => {
@@ -57,7 +64,7 @@ describe("Staking", () => {
     })
 
     it("Allow when have MemberCard", async () => {
-      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard.connect(user1).mintToken(user1.address);
       const balance = (await memberCard.balanceOf(user1.address)).toString();
       expect(balance).to.equal("1");
 
@@ -66,7 +73,7 @@ describe("Staking", () => {
     })
 
     it("Not allow when transfer deposit > balance", async () => {
-      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard.connect(user1).mintToken(user1.address);
       const balance = (await memberCard.balanceOf(user1.address)).toString();
       expect(balance).to.equal("1");
 
@@ -75,7 +82,7 @@ describe("Staking", () => {
     })
 
     it("Allow when transfer deposit < balance", async () => {
-      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard.connect(user1).mintToken(user1.address);
       const balance = (await memberCard.balanceOf(user1.address)).toString();
       expect(balance).to.equal("1");
 
@@ -84,7 +91,7 @@ describe("Staking", () => {
     })
 
     it("Allow when transfer deposit = balance", async () => {
-      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard.connect(user1).mintToken(user1.address);
       const balance = (await memberCard.balanceOf(user1.address)).toString();
       expect(balance).to.equal("1");
 
@@ -100,16 +107,16 @@ describe("Staking", () => {
       let checkValue4;
       
       beforeEach(async () => {
-        await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+        await memberCard.connect(user1).mintToken(user1.address);
         await tokenTest.connect(user1).ownerMint(ONE_ETHER);
 
-        await memberCard.connect(user2).mintToken(user2.address, { value: FEE });
+        await memberCard.connect(user2).mintToken(user2.address);
         await tokenTest.connect(user2).ownerMint(ONE_ETHER);
 
-        await memberCard.connect(user3).mintToken(user3.address, { value: FEE });
+        await memberCard.connect(user3).mintToken(user3.address);
         await tokenTest.connect(user3).ownerMint(ONE_ETHER);
 
-        await memberCard.connect(user4).mintToken(user4.address, { value: FEE });
+        await memberCard.connect(user4).mintToken(user4.address);
         await tokenTest.connect(user4).ownerMint(ONE_ETHER);
       })
 
@@ -130,7 +137,6 @@ describe("Staking", () => {
 
           await staking.connect(user4).deposit(POOL1, deposedCash);
           checkValue4 = await staking.valueStake(user4.address, POOL1);
-
         })
 
         it("Only POOL 30 days", async () => {

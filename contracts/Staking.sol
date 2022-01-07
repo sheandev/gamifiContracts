@@ -4,6 +4,8 @@ pragma solidity 0.8.4;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "./libraries/Formula.sol";
 import "./libraries/Config.sol";
@@ -12,7 +14,9 @@ interface ITToken {
     function stakeMint(address receiver, uint256 amount) external;
 }
 
-contract Staking is Ownable {
+contract Staking is Ownable, ReentrancyGuard  {
+    using SafeERC20 for IERC20;
+
     enum PoolType {
         POOL1,
         POOL2,
@@ -53,7 +57,7 @@ contract Staking is Ownable {
     /// @param  _amount  amount of the tokens to be staked
     function deposit(PoolType _poolType, uint256 _amount) external {
         require(memberCard.balanceOf(_msgSender()) > 0, "Must have MemberCard");
-        tge.transferFrom(_msgSender(), address(this), _amount);
+        tge.safeTransferFrom(_msgSender(), address(this), _amount);
 
         UserInfo storage tmpInfo = valueStake[_msgSender()][_poolType];
 
@@ -75,12 +79,12 @@ contract Staking is Ownable {
     /// @notice withdraw amount of TGE tokens from Staking Pool
     /// @dev    This method can called by anyone
     /// @param  _poolType pool type of staking
-    function withdraw(PoolType _poolType) external {
+    function withdraw(PoolType _poolType) external nonReentrant {
         UserInfo storage tmpInfo = valueStake[_msgSender()][_poolType];
         require(tmpInfo.originValue > 0, "Nothing to withdraw");
 
         uint256 accAmount = calAccumulatedStakeAmount(_poolType, _msgSender());
-        tge.transfer(_msgSender(), tmpInfo.originValue);
+        tge.safeTransfer(_msgSender(), tmpInfo.originValue);
 
         uint256 reward = accAmount - tmpInfo.originValue * Constant.FIXED_POINT;
         ITToken(address(tge)).stakeMint(
