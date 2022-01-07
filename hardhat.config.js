@@ -23,13 +23,11 @@ const config = {
     hardhat: {
       accounts: { count: 100 },
     },
-    // Polygon test network config for deploying
-    matic: {
+    polygonTestnet: {
       url: process.env.MATIC_URL,
       accounts: [process.env.PRIVATE_KEY_MATIC],
     },
   },
-  // Verify and public source code on etherscan
   etherscan: {
     // polygonscan
     apiKey: process.env.POLYGONSCAN_API_KEY,

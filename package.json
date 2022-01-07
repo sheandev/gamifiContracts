@@ -4,7 +4,9 @@
   "main": "hardhat.config.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "deploy-testnet": "npx hardhat run scripts/deploy.js --network matic"
+    "deploy-polygon": "npx hardhat run scripts/deploy.js --network polygonTestnet",
+    "verify-polygon": "npx hardhat run scripts/verify.js --network polygonTestnet",
+    "compile": "npx hardhat compile"
   },
   "dependencies": {
     "@nomiclabs/hardhat-ethers": "2.0.2",
