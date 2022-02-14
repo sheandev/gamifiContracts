@@ -9,10 +9,12 @@ import "./libraries/Config.sol";
 
 contract Project is Ownable {
     struct UserInfo {
+        bool isCompletedCampaign;
+        bool isAddedWhitelist;
+        bool isClaimedBack;
         uint256 stakedAmount;
         uint256 fundedAmount;
         uint256 tokenAllocationAmount;
-        bool isClaimedBack;
     }
 
     struct ProjectInfo {
@@ -35,8 +37,8 @@ contract Project is Ownable {
         uint256 fundingAllocationRate;
     }
 
-    IERC20 public gmi;
-    IERC20 public busd;
+    IERC20 public immutable gmi;
+    IERC20 public immutable busd;
 
     uint256 public latestProjectId;
     uint256[] public projectIds;
@@ -46,9 +48,6 @@ contract Project is Ownable {
 
     // projectId => account address => user info
     mapping(uint256 => mapping(address => UserInfo)) public userInfo;
-
-    // projectId => account address => is in whitelist
-    mapping(uint256 => mapping(address => bool)) public whiteLists;
 
     event CreateProject(ProjectInfo project);
     event SetAllocaltionSize(uint256 indexed _projectId, uint256 allocaltionSize);
@@ -62,6 +61,8 @@ contract Project is Ownable {
     event SetFundingAllocationRate(uint256 indexed projectId, uint256 fundingAllocationRate);
     event Stake(address account, uint256 indexed projectId, uint256 indexed amount);
     event ClaimBack(address account, uint256 indexed projectId, uint256 indexed amount);
+    event AddToCompletedCampaignList(uint256 indexed projectId, address[] accounts);
+    event RemovedFromCompletedCampaignList(uint256 indexed projectId, address indexed account);
     event AddedToWhitelist(uint256 indexed projectId, address[] accounts);
     event RemovedFromWhitelist(uint256 indexed projectId, address indexed account);
     event Funding(address account, uint256 indexed projectId, uint256 indexed amount, uint256 tokenAllocationAmount);
@@ -178,18 +179,20 @@ contract Project is Ownable {
         ProjectInfo storage project = projects[_projectId];
         require(block.number >= project.stakingStartBlockNumber, "Staking has not started yet");
         require(block.number <= project.stakingEndBlockNumber, "Staking has ended");
+
+        require(isCompletedCampaign(_projectId, _msgSender()), "User is not complete gleam campaign");
         require(_amount > 0, "Invalid stake amount");
         require(_amount <= project.stakingLimitAmount, "Amount exceed limit stake amount");
 
         gmi.transferFrom(_msgSender(), address(this), _amount);
 
-        UserInfo memory tmpUserInfo = userInfo[_projectId][_msgSender()];
+        UserInfo storage user = userInfo[_projectId][_msgSender()];
 
-        if (tmpUserInfo.stakedAmount == 0) {
+        if (user.stakedAmount == 0) {
             project.stakedAccounts.push(_msgSender());
         }
         project.stakedTotalAmount += _amount;
-        tmpUserInfo.stakedAmount += _amount;
+        user.stakedAmount += _amount;
 
         emit Stake(_msgSender(), _projectId, _amount);
     }
@@ -201,32 +204,47 @@ contract Project is Ownable {
         ProjectInfo memory project = projects[_projectId];
         require(block.number >= project.fundingEndBlockNumber, "It is not the time to claim back token");
 
-        UserInfo storage tmpUserInfo = userInfo[_projectId][_msgSender()];
-        uint256 claimableAmount = tmpUserInfo.stakedAmount;
+        UserInfo storage user = userInfo[_projectId][_msgSender()];
+        uint256 claimableAmount = user.stakedAmount;
         require(claimableAmount > 0, "Nothing to claim back");
 
-        tmpUserInfo.isClaimedBack = true;
+        user.isClaimedBack = true;
         gmi.transfer(_msgSender(), claimableAmount);
 
         emit ClaimBack(_msgSender(), _projectId, claimableAmount);
     }
 
-    function addWhitelist(uint256 _projectId, address[] memory _accounts) external onlyOwner validProject(_projectId) {
+    function addCompletedCampaignList(uint256 _projectId, address[] memory _accounts) external onlyOwner validProject(_projectId) {
         for (uint256 i = 0; i < _accounts.length; i++) { 
             address account = _accounts[i];
-
             require(account != address(0), "Invalid account");
 
-            UserInfo memory tmpUserInfo = userInfo[_projectId][account];
-            require(tmpUserInfo.stakedAmount > 0, "Account did not stake");
+            UserInfo storage user = userInfo[_projectId][account];
+            user.isCompletedCampaign = true;
+        }
+        emit AddToCompletedCampaignList(_projectId, _accounts);
+    }
 
-            whiteLists[_projectId][account] = true;
+    function removedFromCompletedCampaignList(uint256 _projectId, address _account) public onlyOwner validProject(_projectId) {
+        userInfo[_projectId][_account].isCompletedCampaign = false;
+        emit RemovedFromCompletedCampaignList(_projectId, _account);
+    }
+
+    function addWhitelist(uint256 _projectId, address[] memory _accounts) external onlyOwner validProject(_projectId) {
+        for (uint256 i = 0; i < _accounts.length; i++) {
+            address account = _accounts[i];
+            require(account != address(0), "Invalid account");
+
+            UserInfo storage user = userInfo[_projectId][account];
+            require(user.stakedAmount > 0, "Account did not stake");
+
+            user.isAddedWhitelist = true;
         }
         emit AddedToWhitelist(_projectId, _accounts);
     }
 
     function removeFromWhitelist(uint256 _projectId, address _account) public onlyOwner validProject(_projectId) {
-        whiteLists[_projectId][_account] = false;
+        userInfo[_projectId][_account].isAddedWhitelist = false;
         emit RemovedFromWhitelist(_projectId, _account);
     }
 
@@ -239,7 +257,7 @@ contract Project is Ownable {
         require(block.number >= project.fundingStartBlockNumber, "Funding has not started yet");
         require(block.number <= project.fundingEndBlockNumber, "Funding has ended");
 
-        require(whiteLists[_projectId][_msgSender()], "User is not in whitelist");
+        require(isAddedWhitelist(_projectId, _msgSender()), "User is not in whitelist");
         require(_amount >= project.fundingMinAllocation, "Amount must be greater than min allocation");
 
         uint256 fundingMaxAllocation = getFundingMaxAllocation(_projectId, _msgSender());
@@ -248,9 +266,9 @@ contract Project is Ownable {
         busd.transferFrom(_msgSender(), address(this), _amount);
 
         uint256 tokenAllocationAmount = estimateTokenAllocation(_projectId, _amount);
-        UserInfo storage tmpUserInfo = userInfo[_projectId][_msgSender()];
-        tmpUserInfo.fundedAmount += _amount;
-        tmpUserInfo.tokenAllocationAmount += tokenAllocationAmount;
+        UserInfo storage user = userInfo[_projectId][_msgSender()];
+        user.fundedAmount += _amount;
+        user.tokenAllocationAmount += tokenAllocationAmount;
 
         emit Funding(_msgSender(), _projectId, _amount, tokenAllocationAmount);
     }
@@ -263,9 +281,17 @@ contract Project is Ownable {
         result = userInfo[_projectId][_account];
     }
 
+    function isCompletedCampaign(uint256 _projectId, address _account) public view returns (bool) {
+        return userInfo[_projectId][_account].isCompletedCampaign;
+    }
+
+    function isAddedWhitelist(uint256 _projectId, address _account) public view returns (bool) {
+        return userInfo[_projectId][_account].isAddedWhitelist;
+    }
+
     function getFundingMaxAllocation(uint256 _projectId, address _account) public view returns(uint256) {
-        UserInfo memory tmpUserInfo = userInfo[_projectId][_account];
-        uint256 stakedAmount = tmpUserInfo.stakedAmount;
+        UserInfo memory user = userInfo[_projectId][_account];
+        uint256 stakedAmount = user.stakedAmount;
         if (stakedAmount == 0) return 0;
 
         ProjectInfo memory project = projects[_projectId];
