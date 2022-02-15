@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./libraries/Formula.sol";
 import "./libraries/Config.sol";
+import "hardhat/console.sol";
 
 contract Project is Ownable {
     struct UserInfo {
@@ -20,7 +21,7 @@ contract Project is Ownable {
     struct ProjectInfo {
         uint256 id;
         address tokenAddress;
-        uint256 allocaltionSize;
+        uint256 allocationSize;
         uint256 estimateTokenAllocationRate;
 
         // Staking
@@ -35,6 +36,14 @@ contract Project is Ownable {
         uint256 fundingEndBlockNumber;
         uint256 fundingMinAllocation;
         uint256 fundingAllocationRate;
+        uint256 fundingTotalAmount;
+        address fundingReceiver;
+        address[] fundingAccounts;
+    }
+
+    struct ObjectInfo {
+        address objectAccount;
+        uint256 objectAmount;
     }
 
     IERC20 public immutable gmi;
@@ -50,7 +59,7 @@ contract Project is Ownable {
     mapping(uint256 => mapping(address => UserInfo)) public userInfo;
 
     event CreateProject(ProjectInfo project);
-    event SetAllocaltionSize(uint256 indexed _projectId, uint256 allocaltionSize);
+    event SetAllocationSize(uint256 indexed _projectId, uint256 allocationSize);
     event SetEstimateTokenAllocationRate(uint256 indexed _projectId, uint256 estimateTokenAllocationRate);
     event SetStakingStartBlockNumber(uint256 indexed projectId, uint256 blockNumber);
     event SetStakingEndBlockNumber(uint256 indexed projectId, uint256 blockNumber);
@@ -59,6 +68,7 @@ contract Project is Ownable {
     event SetFundingEndBlockNumber(uint256 indexed projectId, uint256 blockNumber);
     event SetFundingMinAllocation(uint256 indexed projectId, uint256 minAllocation);
     event SetFundingAllocationRate(uint256 indexed projectId, uint256 fundingAllocationRate);
+    event SetFundingReceiver(uint256 indexed projectId, address fundingReceiver);
     event Stake(address account, uint256 indexed projectId, uint256 indexed amount);
     event ClaimBack(address account, uint256 indexed projectId, uint256 indexed amount);
     event AddToCompletedCampaignList(uint256 indexed projectId, address[] accounts);
@@ -66,6 +76,7 @@ contract Project is Ownable {
     event AddedToWhitelist(uint256 indexed projectId, address[] accounts);
     event RemovedFromWhitelist(uint256 indexed projectId, address indexed account);
     event Funding(address account, uint256 indexed projectId, uint256 indexed amount, uint256 tokenAllocationAmount);
+    event WithdrawFunding(address account, uint256 indexed projectId, uint256 indexed amount);
 
     constructor(IERC20 _gmi, IERC20 _busd) {
         gmi = _gmi;
@@ -73,13 +84,13 @@ contract Project is Ownable {
     }
 
     modifier validProject(uint256 _projectId) {
-        require(_projectId <= latestProjectId, "Invalid project id");
+        require(projects[_projectId].id != 0 && projects[_projectId].id <= latestProjectId, "Invalid project id");
         _; 
     }
 
     function createProject(
         address _tokenAddress,
-        uint256 _allocaltionSize,
+        uint256 _allocationSize,
         uint256 _estimateTokenAllocationRate,
         uint256 _stakingStartBlockNumber,
         uint256 _stakingEndBlockNumber,
@@ -87,12 +98,19 @@ contract Project is Ownable {
         uint256 _fundingStartBlockNumber,
         uint256 _fundingEndBlockNumber,
         uint256 _fundingMinAllocation,
-        uint256 _fundingAllocationRate
+        uint256 _fundingAllocationRate,
+        address _fundingReceiver
     ) external onlyOwner {
+        require(_stakingStartBlockNumber > block.number
+             && _stakingStartBlockNumber < _stakingEndBlockNumber
+             && _fundingStartBlockNumber > _stakingEndBlockNumber
+             && _fundingStartBlockNumber < _fundingEndBlockNumber, "Invalid block number");
+
+        latestProjectId++;
         ProjectInfo memory project;
         project.id = latestProjectId;
         project.tokenAddress = _tokenAddress;
-        project.allocaltionSize = _allocaltionSize;
+        project.allocationSize = _allocationSize;
         project.estimateTokenAllocationRate = _estimateTokenAllocationRate;
         project.stakingStartBlockNumber = _stakingStartBlockNumber;
         project.stakingEndBlockNumber = _stakingEndBlockNumber;
@@ -101,36 +119,37 @@ contract Project is Ownable {
         project.fundingEndBlockNumber = _fundingEndBlockNumber;
         project.fundingMinAllocation = _fundingMinAllocation;
         project.fundingAllocationRate = _fundingAllocationRate;
+        project.fundingReceiver = _fundingReceiver;
 
         projects[latestProjectId] = project;
         projectIds.push(latestProjectId);
-        latestProjectId++;
         emit CreateProject(project);
     }
 
-    function setAllocaltionSize(uint256 _projectId, uint256 _allocaltionSize) external onlyOwner validProject(_projectId) {
-        require(_allocaltionSize > 0, "Invalid project allocaltion size");
+    function setAllocationSize(uint256 _projectId, uint256 _allocationSize) external onlyOwner validProject(_projectId) {
+        require(_allocationSize > 0, "Invalid project allocation size");
 
-        projects[_projectId].allocaltionSize = _allocaltionSize;
-        emit SetAllocaltionSize(_projectId, _allocaltionSize);
+        projects[_projectId].allocationSize = _allocationSize;
+        emit SetAllocationSize(_projectId, _allocationSize);
     }
 
     function setEstimateTokenAllocationRate(uint256 _projectId, uint256 _estimateTokenAllocationRate) external onlyOwner validProject(_projectId) {
-        require(_estimateTokenAllocationRate > 0, "Invalid project estimate token allocaltion rate");
+        require(_estimateTokenAllocationRate > 0, "Invalid project estimate token allocation rate");
 
         projects[_projectId].estimateTokenAllocationRate = _estimateTokenAllocationRate;
         emit SetEstimateTokenAllocationRate(_projectId, _estimateTokenAllocationRate);
     }
 
     function setStakingStartBlockNumber(uint256 _projectId, uint256 _blockNumber) external onlyOwner validProject(_projectId) {
-        require(_blockNumber > block.number, "Invalid block number");
+        require(_blockNumber > block.number && _blockNumber < projects[_projectId].stakingEndBlockNumber, "Invalid block number");
 
         projects[_projectId].stakingStartBlockNumber = _blockNumber;
         emit SetStakingStartBlockNumber(_projectId, _blockNumber);
     }
 
     function setStakingEndBlockNumber(uint256 _projectId, uint256 _blockNumber) external onlyOwner validProject(_projectId) {
-        require(_blockNumber > block.number, "Invalid block number");
+        ProjectInfo memory project = projects[_projectId];
+        require(_blockNumber > project.stakingStartBlockNumber && _blockNumber < project.fundingStartBlockNumber, "Invalid block number");
 
         projects[_projectId].stakingEndBlockNumber = _blockNumber;
         emit SetStakingEndBlockNumber(_projectId, _blockNumber);
@@ -158,17 +177,24 @@ contract Project is Ownable {
     }
 
     function setFundingMinAllocation(uint256 _projectId, uint256 _minAllocation) external onlyOwner validProject(_projectId) {
-        require(_minAllocation > 0, "Invalid project funding min allocaltion");
+        require(_minAllocation > 0, "Invalid project funding min allocation");
 
         projects[_projectId].fundingMinAllocation = _minAllocation;
         emit SetFundingMinAllocation(_projectId, _minAllocation);
     }
 
     function setFundingAllocationRate(uint256 _projectId, uint256 _fundingAllocationRate) external onlyOwner validProject(_projectId) {
-        require(_fundingAllocationRate > 0, "Invalid project funding allocaltion rate");
+        require(_fundingAllocationRate > 0, "Invalid project funding allocation rate");
 
         projects[_projectId].fundingAllocationRate = _fundingAllocationRate;
         emit SetFundingAllocationRate(_projectId, _fundingAllocationRate);
+    }
+
+    function setFundingReceiver(uint256 _projectId, address _fundingReceiver) external onlyOwner validProject(_projectId) {
+        require(_fundingReceiver != address(0), "Invalid funding receiver");
+
+        projects[_projectId].fundingReceiver = _fundingReceiver;
+        emit SetFundingReceiver(_projectId, _fundingReceiver);
     }
 
     /// @notice stake amount of GMI tokens to Staking Pool
@@ -253,7 +279,7 @@ contract Project is Ownable {
     /// @param  _projectId  id of the project
     /// @param  _amount  amount of the tokens to be staked
     function funding(uint256 _projectId, uint256 _amount) external validProject(_projectId) {
-        ProjectInfo memory project = projects[_projectId];
+        ProjectInfo storage project = projects[_projectId];
         require(block.number >= project.fundingStartBlockNumber, "Funding has not started yet");
         require(block.number <= project.fundingEndBlockNumber, "Funding has ended");
 
@@ -273,7 +299,23 @@ contract Project is Ownable {
         emit Funding(_msgSender(), _projectId, _amount, tokenAllocationAmount);
     }
 
-    function getProjectInfo(uint256 _projectId) public view returns (ProjectInfo memory result) {
+    /// @notice receive amount USD from contract
+    /// @dev    this method can called by owner
+    /// @param  _projectId  id of the project
+    function withdrawFunding(uint256 _projectId) external onlyOwner validProject(_projectId) {
+        ProjectInfo memory project = projects[_projectId];
+        require(block.number > project.fundingEndBlockNumber, "Funding has not ended yet");
+        require(project.fundingReceiver != address(0), "Funding receive address is not set");
+
+        uint256 _amount = project.fundingTotalAmount;
+        busd.transferFrom(address(this), project.fundingReceiver, _amount);
+
+        project.fundingTotalAmount = 0;
+
+        emit WithdrawFunding(project.fundingReceiver, _projectId, _amount);
+    }
+
+    function getProjectInfo(uint256 _projectId) public validProject(_projectId) view returns (ProjectInfo memory result) {
         result = projects[_projectId];
     }
 
@@ -295,11 +337,11 @@ contract Project is Ownable {
         if (stakedAmount == 0) return 0;
 
         ProjectInfo memory project = projects[_projectId];
-        uint256 allocaltionSize = project.allocaltionSize;
+        uint256 allocationSize = project.allocationSize;
 
         uint256 maxAllocationAmount = Formula.mulDiv(stakedAmount, Formula.SCALE, project.fundingAllocationRate);
-        if (maxAllocationAmount > allocaltionSize) {
-            return allocaltionSize;
+        if (maxAllocationAmount > allocationSize) {
+            return allocationSize;
         }
 
         return maxAllocationAmount;
