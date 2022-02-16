@@ -279,7 +279,7 @@ describe("Project", () => {
         })
     })
 
-    describe("Set staking start block number", () => {
+    describe("Set staking block number", () => {
       beforeEach(async () => {
         currentBlock = await getCurrentBlock();
         stakingStartBlockNumber = currentBlock + 100;
@@ -306,83 +306,55 @@ describe("Project", () => {
 
       it("Success", async () => {
         let projectInfo = await project.getProjectInfo(1);
+        const blockStart = projectInfo.stakingEndBlockNumber - 10;
+        const blockEnd = projectInfo.fundingStartBlockNumber - 10;
         expect(projectInfo.stakingStartBlockNumber).equal(stakingStartBlockNumber, "Invalid block number");
-        await project.setStakingStartBlockNumber(1, projectInfo.stakingEndBlockNumber - 10);
-        projectInfo = await project.getProjectInfo(1);
-        expect(projectInfo.stakingStartBlockNumber).equal(projectInfo.stakingEndBlockNumber - 10, "Invalid block number");
-      });
-
-      it("Only owner", async () => {
-        const projectInfo = await project.getProjectInfo(1);
-        const stakingEndBlockNumber = projectInfo.stakingEndBlockNumber;
-        await expect(project.connect(user1).setStakingStartBlockNumber(1, stakingEndBlockNumber - 1)).revertedWith("caller is not the owner");
-        await project.connect(admin).setStakingStartBlockNumber(1, stakingEndBlockNumber - 1);
-      });
-
-      it("Set stakingStartBlockNumber >= stakingEndBlockNumber", async () => {
-        const projectInfo = await project.getProjectInfo(1);
-        const stakingEndBlockNumber = projectInfo.stakingEndBlockNumber;
-        await expect(project.connect(admin).setStakingStartBlockNumber(1, stakingEndBlockNumber + 10)).revertedWith("Invalid block number");
-        await expect(project.connect(admin).setStakingStartBlockNumber(1, stakingEndBlockNumber)).revertedWith("Invalid block number");
-      });
-    });
-
-    describe("Set staking end block number", () => {
-      beforeEach(async () => {
-        currentBlock = await getCurrentBlock();
-        stakingStartBlockNumber = currentBlock + 100;
-        stakingEndBlockNumber = stakingStartBlockNumber + 100;
-        fundingStartBlockNumber = stakingEndBlockNumber + 100;
-        fundingEndBlockNumber = fundingStartBlockNumber + 100;
-
-        await project
-          .connect(admin)
-          .createProject(
-            tokenTest.address,
-            allocationSize,
-            estimateTokenAllocationRate,
-            stakingStartBlockNumber,
-            stakingEndBlockNumber,
-            stakingLimitAmount,
-            fundingStartBlockNumber,
-            fundingEndBlockNumber,
-            fundingMinAllocation,
-            fundingAllocationRate,
-            user1.address
-          );
-      });
-
-      it("Success", async () => {
-        let projectInfo = await project.getProjectInfo(1);
         expect(projectInfo.stakingEndBlockNumber).equal(stakingEndBlockNumber, "Invalid block number");
-        await project.setStakingEndBlockNumber(1, projectInfo.fundingStartBlockNumber - 10);
+        await project.setStakingBlockNumber(1, blockStart, blockEnd);
         projectInfo = await project.getProjectInfo(1);
-        expect(projectInfo.stakingEndBlockNumber).equal(projectInfo.fundingStartBlockNumber - 10, "Invalid block number");
+        expect(projectInfo.stakingStartBlockNumber).equal(blockStart, "Invalid block number");
+        expect(projectInfo.stakingEndBlockNumber).equal(blockEnd, "Invalid block number");
       });
 
       it("Only owner", async () => {
         const projectInfo = await project.getProjectInfo(1);
-        await expect(project.connect(user1).setStakingEndBlockNumber(1, projectInfo.fundingStartBlockNumber - 10)).revertedWith("caller is not the owner");
-
-        await project.connect(admin).setStakingEndBlockNumber(1, projectInfo.fundingStartBlockNumber - 10);
+        const blockStart = projectInfo.stakingEndBlockNumber - 10;
+        const blockEnd = projectInfo.fundingStartBlockNumber - 10;
+        await expect(project.connect(user1).setStakingBlockNumber(1, blockStart, blockEnd)).revertedWith("caller is not the owner");
+        await project.connect(admin).setStakingBlockNumber(1, blockStart, blockEnd);
       });
 
-      it("Set stakingEndBlockNumber <= stakingStartBlockNumber", async () => {
+      it("blockStart <= blockCurrent", async () => {
         const projectInfo = await project.getProjectInfo(1);
-        const stakingEndBlockNumber = projectInfo.stakingEndBlockNumber;
-        await expect(project.connect(admin).setStakingStartBlockNumber(1, stakingEndBlockNumber + 10)).revertedWith("Invalid block number");
-        await expect(project.connect(admin).setStakingStartBlockNumber(1, stakingEndBlockNumber)).revertedWith("Invalid block number");
+        const currentBlock = await getCurrentBlock();
+        const blockEnd = projectInfo.fundingStartBlockNumber - 1;
+        await expect(project.connect(admin).setStakingBlockNumber(1, currentBlock - 1, blockEnd)).revertedWith("Invalid block number");
+        await expect(project.connect(admin).setStakingBlockNumber(1, currentBlock, blockEnd)).revertedWith("Invalid block number");
+        expect(await project.connect(admin).setStakingBlockNumber(1, currentBlock + 20, blockEnd)).ok;
       });
 
-      it("Set stakingEndBlockNumber >= fundingStartBlockNumber", async () => {
+      it("blockStart >= blockEnd", async () => {
         const projectInfo = await project.getProjectInfo(1);
-        const fundingStartBlockNumber = projectInfo.fundingStartBlockNumber;
-        await expect(project.connect(admin).setStakingEndBlockNumber(1, fundingStartBlockNumber + 10)).revertedWith("Invalid block number");
-        await expect(project.connect(admin).setStakingEndBlockNumber(1, fundingStartBlockNumber)).revertedWith("Invalid block number");
+        const currentBlock = await getCurrentBlock();
+        const blockStart = currentBlock + 20;
+        const blockEnd = projectInfo.fundingStartBlockNumber - 250;
+        await expect(project.connect(admin).setStakingBlockNumber(1, blockStart, blockStart - 1)).revertedWith("Invalid block number");
+        await expect(project.connect(admin).setStakingBlockNumber(1, blockStart, blockStart)).revertedWith("Invalid block number");
+        expect(await project.connect(admin).setStakingBlockNumber(1, blockStart, blockEnd)).ok;
+      });
+
+      it("blockEnd >= fundingStartBlockNumber", async () => {
+        const projectInfo = await project.getProjectInfo(1);
+        const currentBlock = await getCurrentBlock();
+        const blockStart = currentBlock + 20;
+        const blockEnd = projectInfo.fundingStartBlockNumber * 1 + 10;
+        await expect(project.connect(admin).setStakingBlockNumber(1, blockStart, blockEnd)).revertedWith("Invalid block number");
+        await expect(project.connect(admin).setStakingBlockNumber(1, blockStart, projectInfo.fundingStartBlockNumber)).revertedWith("Invalid block number");
+        expect(await project.connect(admin).setStakingBlockNumber(1, blockStart, blockEnd - 20)).ok;
       });
     });
 
-    describe("Set funding start block number", () => {
+    describe("Set funding block number", () => {
       beforeEach(async () => {
         currentBlock = await getCurrentBlock();
         stakingStartBlockNumber = currentBlock + 100;
@@ -409,31 +381,54 @@ describe("Project", () => {
 
       it("Success", async () => {
         let projectInfo = await project.getProjectInfo(1);
+        let currentBlock = await getCurrentBlock();
+        const blockStart = projectInfo.stakingEndBlockNumber * 1 + currentBlock + 10;
+        const blockEnd = blockStart + 10;
         expect(projectInfo.fundingStartBlockNumber).equal(fundingStartBlockNumber, "Invalid block number");
-        await project.setFundingStartBlockNumber(1, projectInfo.stakingEndBlockNumber + 10);
+        expect(projectInfo.fundingEndBlockNumber).equal(fundingEndBlockNumber, "Invalid block number");
+        await project.setFundingBlockNumber(1, blockStart, blockEnd);
         projectInfo = await project.getProjectInfo(1);
-        expect(projectInfo.fundingStartBlockNumber).equal(projectInfo.stakingEndBlockNumber + 10, "Invalid block number");
+        expect(projectInfo.fundingStartBlockNumber).equal(blockStart, "Invalid block number");
+        expect(projectInfo.fundingEndBlockNumber).equal(blockEnd, "Invalid block number");
       });
 
       it("Only owner", async () => {
         const projectInfo = await project.getProjectInfo(1);
-        await expect(project.connect(user1).setFundingStartBlockNumber(1, projectInfo.stakingEndBlockNumber + 10)).revertedWith("caller is not the owner");
-
-        await project.connect(admin).setFundingStartBlockNumber(1, projectInfo.stakingEndBlockNumber + 10);
+        let currentBlock = await getCurrentBlock();
+        const blockStart = projectInfo.stakingEndBlockNumber * 1 + currentBlock + 10;
+        const blockEnd = blockStart + 10;
+        await expect(project.connect(user1).setFundingBlockNumber(1, blockStart, blockEnd)).revertedWith("caller is not the owner");
+        expect(await project.connect(admin).setFundingBlockNumber(1, blockStart, blockEnd)).ok;
       });
 
-      it("Set stakingEndBlockNumber <= stakingStartBlockNumber", async () => {
+      it("blockStart <= currentBlock", async () => {
         const projectInfo = await project.getProjectInfo(1);
-        const stakingEndBlockNumber = projectInfo.stakingEndBlockNumber;
-        await expect(project.connect(admin).setStakingStartBlockNumber(1, stakingEndBlockNumber + 10)).revertedWith("Invalid block number");
-        await expect(project.connect(admin).setStakingStartBlockNumber(1, stakingEndBlockNumber)).revertedWith("Invalid block number");
+        let currentBlock = await getCurrentBlock();
+        const blockStart = projectInfo.stakingEndBlockNumber * 1 + currentBlock + 10;
+        const blockEnd = blockStart + 10;
+        await expect(project.connect(admin).setFundingBlockNumber(1, currentBlock - 1, blockEnd)).revertedWith("Invalid block number");
+        await expect(project.connect(admin).setFundingBlockNumber(1, currentBlock, blockEnd)).revertedWith("Invalid block number");
+        expect(await project.connect(admin).setFundingBlockNumber(1, blockStart, blockEnd)).ok;
       });
 
-      it("Set stakingEndBlockNumber >= fundingStartBlockNumber", async () => {
+      it("blockStart <= blockEnd", async () => {
         const projectInfo = await project.getProjectInfo(1);
-        const fundingStartBlockNumber = projectInfo.fundingStartBlockNumber;
-        await expect(project.connect(admin).setStakingEndBlockNumber(1, fundingStartBlockNumber + 10)).revertedWith("Invalid block number");
-        await expect(project.connect(admin).setStakingEndBlockNumber(1, fundingStartBlockNumber)).revertedWith("Invalid block number");
+        let currentBlock = await getCurrentBlock();
+        const blockStart = projectInfo.stakingEndBlockNumber * 1 + currentBlock + 10;
+        const blockEnd = blockStart + 10;
+        await expect(project.connect(admin).setFundingBlockNumber(1, blockStart, blockStart - 1)).revertedWith("Invalid block number");
+        await expect(project.connect(admin).setFundingBlockNumber(1, blockStart, blockStart)).revertedWith("Invalid block number");
+        expect(await project.connect(admin).setFundingBlockNumber(1, blockStart, blockEnd)).ok;
+      });
+
+      it("blockStart <= stakingEndBlockNumber", async () => {
+        const projectInfo = await project.getProjectInfo(1);
+        let currentBlock = await getCurrentBlock();
+        const blockStart = projectInfo.stakingEndBlockNumber * 1 + currentBlock + 10;
+        const blockEnd = blockStart + 10;
+        await expect(project.connect(admin).setFundingBlockNumber(1, projectInfo.stakingEndBlockNumber - 10, blockEnd)).revertedWith("Invalid block number");
+        await expect(project.connect(admin).setFundingBlockNumber(1, projectInfo.stakingEndBlockNumber, projectInfo.stakingEndBlockNumber)).revertedWith("Invalid block number");
+        expect(await project.connect(admin).setFundingBlockNumber(1, blockStart, blockEnd)).ok;
       });
     });
 })

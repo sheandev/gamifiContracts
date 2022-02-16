@@ -23,16 +23,18 @@ const config = {
     hardhat: {
       accounts: { count: 100 },
     },
-    // Polygon test network config for deploying
-    matic: {
-      url: process.env.MATIC_URL,
-      accounts: [process.env.PRIVATE_KEY_MATIC],
+    polygon_testnet: {
+      url: process.env.MUMBAI_URL,
+      accounts: [process.env.PRIVATE_KEY_MUMBAI],
+    },
+    binance_testnet: {
+      url: process.env.BINANCE_URL,
+      accounts: [process.env.PRIVATE_KEY_BINANCE],
     },
   },
-  // Verify and public source code on etherscan
   etherscan: {
-    // polygonscan
-    apiKey: process.env.POLYGONSCAN_API_KEY,
+    // apiKey: process.env.POLYGONSCAN_API_KEY,
+    apiKey: process.env.BINANCE_API_KEY,
   },
   solidity: {
     compilers: [

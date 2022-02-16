@@ -61,11 +61,9 @@ contract Project is Ownable {
     event CreateProject(ProjectInfo project);
     event SetAllocationSize(uint256 indexed _projectId, uint256 allocationSize);
     event SetEstimateTokenAllocationRate(uint256 indexed _projectId, uint256 estimateTokenAllocationRate);
-    event SetStakingStartBlockNumber(uint256 indexed projectId, uint256 blockNumber);
-    event SetStakingEndBlockNumber(uint256 indexed projectId, uint256 blockNumber);
+    event SetStakingBlockNumber(uint256 indexed projectId, uint256 blockStart, uint256 blockEnd);
     event SetStakingLimitAmount(uint256 indexed projectId, uint256 stakingLimitAmount);
-    event SetFundingStartBlockNumber(uint256 indexed projectId, uint256 blockNumber);
-    event SetFundingEndBlockNumber(uint256 indexed projectId, uint256 blockNumber);
+    event SetFundingBlockNumber(uint256 indexed projectId, uint256 blockStart, uint256 blockEnd);
     event SetFundingMinAllocation(uint256 indexed projectId, uint256 minAllocation);
     event SetFundingAllocationRate(uint256 indexed projectId, uint256 fundingAllocationRate);
     event SetFundingReceiver(uint256 indexed projectId, address fundingReceiver);
@@ -140,19 +138,15 @@ contract Project is Ownable {
         emit SetEstimateTokenAllocationRate(_projectId, _estimateTokenAllocationRate);
     }
 
-    function setStakingStartBlockNumber(uint256 _projectId, uint256 _blockNumber) external onlyOwner validProject(_projectId) {
-        require(_blockNumber > block.number && _blockNumber < projects[_projectId].stakingEndBlockNumber, "Invalid block number");
+    function setStakingBlockNumber(uint256 _projectId, uint256 _blockStart, uint256 _blockEnd) external onlyOwner validProject(_projectId) {
+        ProjectInfo storage project = projects[_projectId];
+        require(_blockStart > block.number 
+             && _blockStart < _blockEnd
+             && _blockEnd   < project.fundingStartBlockNumber, "Invalid block number");
 
-        projects[_projectId].stakingStartBlockNumber = _blockNumber;
-        emit SetStakingStartBlockNumber(_projectId, _blockNumber);
-    }
-
-    function setStakingEndBlockNumber(uint256 _projectId, uint256 _blockNumber) external onlyOwner validProject(_projectId) {
-        ProjectInfo memory project = projects[_projectId];
-        require(_blockNumber > project.stakingStartBlockNumber && _blockNumber < project.fundingStartBlockNumber, "Invalid block number");
-
-        projects[_projectId].stakingEndBlockNumber = _blockNumber;
-        emit SetStakingEndBlockNumber(_projectId, _blockNumber);
+        project.stakingStartBlockNumber = _blockStart;
+        project.stakingEndBlockNumber = _blockEnd;
+        emit SetStakingBlockNumber(_projectId, _blockStart, _blockEnd);
     }
 
     function setStakingLimitAmount(uint256 _projectId, uint256 _stakingLimitAmount) external onlyOwner validProject(_projectId) {
@@ -162,18 +156,15 @@ contract Project is Ownable {
         emit SetStakingLimitAmount(_projectId, _stakingLimitAmount);
     }
 
-    function setFundingStartBlockNumber(uint256 _projectId, uint256 _blockNumber) external onlyOwner validProject(_projectId) {
-        require(_blockNumber > block.number, "Invalid block number");
+    function setFundingBlockNumber(uint256 _projectId, uint256 _blockStart, uint256 _blockEnd) external onlyOwner validProject(_projectId) {
+        ProjectInfo storage project = projects[_projectId];
+        require(_blockStart > block.number
+             && _blockStart < _blockEnd
+             && _blockStart > project.stakingEndBlockNumber, "Invalid block number");
 
-        projects[_projectId].fundingStartBlockNumber = _blockNumber;
-        emit SetFundingStartBlockNumber(_projectId, _blockNumber);
-    }
-
-    function setFundingEndBlockNumber(uint256 _projectId, uint256 _blockNumber) external onlyOwner validProject(_projectId) {
-        require(_blockNumber > block.number, "Invalid block number");
-
-        projects[_projectId].fundingEndBlockNumber = _blockNumber;
-        emit SetFundingEndBlockNumber(_projectId, _blockNumber);
+        project.fundingStartBlockNumber = _blockStart;
+        project.fundingEndBlockNumber = _blockEnd;
+        emit SetFundingBlockNumber(_projectId, _blockStart, _blockEnd);
     }
 
     function setFundingMinAllocation(uint256 _projectId, uint256 _minAllocation) external onlyOwner validProject(_projectId) {
@@ -308,6 +299,7 @@ contract Project is Ownable {
         require(project.fundingReceiver != address(0), "Funding receive address is not set");
 
         uint256 _amount = project.fundingTotalAmount;
+        require(_amount > 0, "Not enought amount");
         busd.transferFrom(address(this), project.fundingReceiver, _amount);
 
         project.fundingTotalAmount = 0;
