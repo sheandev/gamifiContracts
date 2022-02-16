@@ -1,10 +1,11 @@
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
 const { getCurrentBlock, skipBlock } = require("./utils");
+const { MAX_UINT256 } = require("@openzeppelin/test-helpers/src/constants");
 
 const allocationSize = 5000;
 const estimateTokenAllocationRate = 1000;
-const stakingLimitAmount = 1000;
+const stakingLimitAmount = '1000000000000000000000';
 const fundingMinAllocation = 500;
 const fundingAllocationRate = 500;
 
@@ -18,33 +19,22 @@ describe("Project", () => {
         user4 = accounts[4];
         liquidity = accounts[10];
 
-        // const maxBuyLimit = 500;
-        // const maxSellLimit = 500;
-        // const snipeTimeout = 20;
-        // const blacklistTimeout = 30;
-        // const listingTime = 30;
+        const TokenGMI = await ethers.getContractFactory("TokenGMI");
+        token = await TokenGMI.deploy();
 
-        // const AntiBot = await ethers.getContractFactory("AntiBotMaster");
-        // antiBot = await AntiBot.deploy(liquidity.address, maxBuyLimit, maxSellLimit, snipeTimeout, blacklistTimeout, listingTime);
-
-        // gmi = await Gmi.deploy("GMI", "Gamifi Token", antiBot.address);
-        // gmi = await Gmi.deploy("GMI", "Gamifi Token");
-        // await gmi.connect(admin).mint(user2.address, 100);
-        // await gmi.connect(admin).mint(user3.address, 100);
-        // await gmi.connect(admin).mint(user4.address, 100);
-
-        const TokenTest = await ethers.getContractFactory("TokenTest");
-        tokenTest = await TokenTest.deploy("TKT", "Token Test");
-
-        const Busd = await ethers.getContractFactory("CashTestToken");
-        busd = await Busd.deploy([admin.address, user1.address, user2.address, user3.address]);
+        const CashTestToken = await ethers.getContractFactory("CashTestToken");
+        busd = await CashTestToken.deploy([admin.address, user1.address, user2.address, user3.address]);
 
         const Project = await ethers.getContractFactory("Project");
-        project = await Project.deploy(tokenTest.address, busd.address);
+        project = await Project.deploy(token.address, busd.address);
 
-        await tokenTest.connect(user2).approve(project.address, 60)
-        await tokenTest.connect(user3).approve(project.address, 60)
-        await tokenTest.connect(user4).approve(project.address, 60)
+        await token.addController(admin.address);
+        await token.mint(user1.address, '1000000000000000000000000'); // mint 1000,000 token GMI
+
+        await token.connect(user1).approve(project.address, MAX_UINT256.toString())
+        await token.connect(user2).approve(project.address, MAX_UINT256.toString())
+        await token.connect(user3).approve(project.address, MAX_UINT256.toString())
+        await token.connect(user4).approve(project.address, MAX_UINT256.toString())
     })
 
     describe("Create Project", () => {
@@ -59,7 +49,7 @@ describe("Project", () => {
           await project
             .connect(admin)
             .createProject(
-              tokenTest.address,
+              token.address,
               allocationSize,
               estimateTokenAllocationRate,
               stakingStartBlockNumber,
@@ -86,7 +76,7 @@ describe("Project", () => {
             project
               .connect(user1)
               .createProject(
-                tokenTest.address,
+                token.address,
                 allocationSize,
                 estimateTokenAllocationRate,
                 stakingStartBlockNumber,
@@ -112,7 +102,7 @@ describe("Project", () => {
             project
               .connect(admin)
               .createProject(
-                tokenTest.address,
+                token.address,
                 allocationSize,
                 estimateTokenAllocationRate,
                 currentBlock - 1,
@@ -131,7 +121,7 @@ describe("Project", () => {
             project
               .connect(admin)
               .createProject(
-                tokenTest.address,
+                token.address,
                 allocationSize,
                 estimateTokenAllocationRate,
                 currentBlock,
@@ -157,7 +147,7 @@ describe("Project", () => {
             project
               .connect(admin)
               .createProject(
-                tokenTest.address,
+                token.address,
                 allocationSize,
                 estimateTokenAllocationRate,
                 stakingEndBlockNumber + 1,
@@ -175,7 +165,7 @@ describe("Project", () => {
             project
               .connect(admin)
               .createProject(
-                tokenTest.address,
+                token.address,
                 allocationSize,
                 estimateTokenAllocationRate,
                 stakingEndBlockNumber,
@@ -201,7 +191,7 @@ describe("Project", () => {
             project
               .connect(admin)
               .createProject(
-                tokenTest.address,
+                token.address,
                 allocationSize,
                 estimateTokenAllocationRate,
                 stakingStartBlockNumber,
@@ -219,7 +209,7 @@ describe("Project", () => {
             project
               .connect(admin)
               .createProject(
-                tokenTest.address,
+                token.address,
                 allocationSize,
                 estimateTokenAllocationRate,
                 stakingStartBlockNumber,
@@ -245,7 +235,7 @@ describe("Project", () => {
             project
               .connect(admin)
               .createProject(
-                tokenTest.address,
+                token.address,
                 allocationSize,
                 estimateTokenAllocationRate,
                 stakingStartBlockNumber,
@@ -263,7 +253,7 @@ describe("Project", () => {
             project
               .connect(admin)
               .createProject(
-                tokenTest.address,
+                token.address,
                 allocationSize,
                 estimateTokenAllocationRate,
                 stakingStartBlockNumber,
@@ -290,7 +280,7 @@ describe("Project", () => {
         await project
           .connect(admin)
           .createProject(
-            tokenTest.address,
+            token.address,
             allocationSize,
             estimateTokenAllocationRate,
             stakingStartBlockNumber,
@@ -365,7 +355,7 @@ describe("Project", () => {
         await project
           .connect(admin)
           .createProject(
-            tokenTest.address,
+            token.address,
             allocationSize,
             estimateTokenAllocationRate,
             stakingStartBlockNumber,
@@ -431,4 +421,89 @@ describe("Project", () => {
         expect(await project.connect(admin).setFundingBlockNumber(1, blockStart, blockEnd)).ok;
       });
     });
-})
+
+    describe('stake', () => {
+      beforeEach(async () => {
+        currentBlock = await getCurrentBlock();
+        stakingStartBlockNumber = currentBlock + 100;
+        stakingEndBlockNumber = stakingStartBlockNumber + 100;
+        fundingStartBlockNumber = stakingEndBlockNumber + 100;
+        fundingEndBlockNumber = fundingStartBlockNumber + 100;
+
+        await project
+          .connect(admin)
+          .createProject(
+            token.address,
+            allocationSize,
+            estimateTokenAllocationRate,
+            stakingStartBlockNumber,
+            stakingEndBlockNumber,
+            stakingLimitAmount,
+            fundingStartBlockNumber,
+            fundingEndBlockNumber,
+            fundingMinAllocation,
+            fundingAllocationRate,
+            user1.address
+          );
+
+        projectId = await project.latestProjectId();
+        await project.addCompletedCampaignList(projectId, [user1.address])
+      });
+
+      it('Staking has not started yet', async () => {
+        await expect(
+          project.connect(user1).stake(projectId, '1000000000000000000')
+        ).to.revertedWith('Staking has not started yet');
+      });
+
+      it('Staking has ended', async () => {
+        await skipBlock(400);
+        await expect(
+          project.connect(user1).stake(projectId, '1000000000000000000')
+        ).to.revertedWith('Staking has ended');
+      });
+
+      it('User is not complete gleam campaign', async () => {
+        await skipBlock(100);
+        await expect(
+          project.connect(user2).stake(projectId, '1000000000000000000')
+        ).to.revertedWith('User is not complete gleam campaign');
+      });
+
+      it('Invalid stake amount', async () => {
+        await skipBlock(100);
+        await expect(
+          project.connect(user1).stake(projectId, '0')
+        ).to.revertedWith('Invalid stake amount');
+      });
+
+      it('Amount exceed limit stake amount', async () => {
+        await skipBlock(100);
+        await expect(
+          project.connect(user1).stake(projectId, stakingLimitAmount + 1)
+        ).to.revertedWith('Amount exceed limit stake amount');
+      });
+
+      it('Stake success', async () => {
+        const tokenBalanceOfProject_before = await token.balanceOf(project.address);
+        const tokenBalanceOfUser_before = await token.balanceOf(user1.address);
+
+        await skipBlock(100);
+        await project.connect(user1).stake(projectId, stakingLimitAmount);
+
+        const tokenBalanceOfProject_after = await token.balanceOf(project.address);
+        const tokenBalanceOfUser_after = await token.balanceOf(user1.address);
+
+        expect(tokenBalanceOfProject_after.sub(tokenBalanceOfProject_before)).to.be.equal(stakingLimitAmount);
+        expect(tokenBalanceOfUser_before.sub(tokenBalanceOfUser_after)).to.be.equal(stakingLimitAmount);
+
+        const projectInfo = await project.getProjectInfo(projectId);
+        expect(projectInfo.stakedTotalAmount).to.be.equal(stakingLimitAmount);
+        expect(projectInfo.stakedAccounts.length).to.be.equal(1);
+        expect(projectInfo.stakedAccounts[0]).to.be.equal(user1.address);
+
+        const userInfo = await project.getUserInfo(projectId, user1.address);
+        expect(userInfo.stakedAmount).to.be.equal(stakingLimitAmount);
+      });
+    });
+});
