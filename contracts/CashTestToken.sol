@@ -10,4 +10,8 @@ contract CashTestToken is ERC20 {
             _mint(acc[i], 100000000 * Constant.FIXED_POINT);
         }
     }
+
+    function mint(address account) public {
+        _mint(account, 100000000 * Constant.FIXED_POINT);
+    }
 }

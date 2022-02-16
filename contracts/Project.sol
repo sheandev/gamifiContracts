@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./libraries/Formula.sol";
 import "./libraries/Config.sol";
-import "hardhat/console.sol";
 
 contract Project is Ownable {
     struct UserInfo {
