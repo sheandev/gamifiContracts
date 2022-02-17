@@ -1,7 +1,24 @@
 const hre = require("hardhat");
-const contractAddress = require("./contracts.json");
+const contractAddress = require("../contracts.json");
 
 async function main() {
+  try {
+    await hre.run("verify:verify", {
+      address: contractAddress.memberCard,
+    });
+  } catch (err) {
+    console.log("err :>> ", err);
+  }
+  
+  try {
+    await hre.run("verify:verify", {
+      address: contractAddress.vendor,
+      constructorArguments: [contractAddress.memberCard]
+    });
+  } catch (err) {
+    console.log("err :>> ", err);
+  }
+
   try {
     await hre.run("verify:verify", {
       address: contractAddress.gmi,
@@ -9,7 +26,7 @@ async function main() {
   } catch (err) {
     console.log("err :>> ", err);
   }
-
+  
   try {
     await hre.run("verify:verify", {
       address: contractAddress.busd,
@@ -23,6 +40,23 @@ async function main() {
     await hre.run("verify:verify", {
       address: contractAddress.project,
       constructorArguments: [contractAddress.gmi, contractAddress.busd],
+    });
+  } catch (err) {
+    console.log("err :>> ", err);
+  }
+
+  try {
+    await hre.run("verify:verify", {
+      address: contractAddress.staking,
+      constructorArguments: [contractAddress.gmi, contractAddress.memberCard],
+    });
+  } catch (err) {
+    console.log("err :>> ", err);
+  }
+
+  try {
+    await hre.run("verify:verify", {
+      address: contractAddress.vesting,
     });
   } catch (err) {
     console.log("err :>> ", err);
