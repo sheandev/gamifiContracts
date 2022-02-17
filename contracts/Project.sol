@@ -20,6 +20,7 @@ contract Project is Ownable {
     struct StakeInfo {
         uint256 startBlockNumber;
         uint256 endBlockNumber;
+        uint256 minStakeAmount;
         uint256 maxStakeAmount;
         uint256 stakedTotalAmount;
         address[] stakedAccounts;
@@ -62,6 +63,7 @@ contract Project is Ownable {
     event SetAllocationSize(uint256 indexed _projectId, uint256 allocationSize);
     event SetEstimateTokenAllocationRate(uint256 indexed _projectId, uint256 estimateTokenAllocationRate);
     event SetStakingBlockNumber(uint256 indexed projectId, uint256 blockStart, uint256 blockEnd);
+    event SetMinStakeAmount(uint256 indexed projectId, uint256 minStakeAmount);
     event SetMaxStakeAmount(uint256 indexed projectId, uint256 maxStakeAmount);
     event SetFundingBlockNumber(uint256 indexed projectId, uint256 blockStart, uint256 blockEnd);
     event SetFundingMinAllocation(uint256 indexed projectId, uint256 minAllocation);
@@ -92,6 +94,7 @@ contract Project is Ownable {
         uint256 _estimateTokenAllocationRate,
         uint256 _stakingStartBlockNumber,
         uint256 _stakingEndBlockNumber,
+        uint256 _minStakeAmount,
         uint256 _maxStakeAmount,
         uint256 _fundingStartBlockNumber,
         uint256 _fundingEndBlockNumber,
@@ -103,6 +106,7 @@ contract Project is Ownable {
                 _stakingStartBlockNumber < _stakingEndBlockNumber &&
                 _fundingStartBlockNumber > _stakingEndBlockNumber &&
                 _fundingStartBlockNumber < _fundingEndBlockNumber, "Invalid block number");
+        require(_minStakeAmount <= _maxStakeAmount, "Invalid stake min amount");
         require(_fundingReceiver != address(0), "Invalid funding receiver address");
 
         latestProjectId++;
@@ -112,6 +116,7 @@ contract Project is Ownable {
         project.allocationSize = _allocationSize;
         project.stakeInfo.startBlockNumber = _stakingStartBlockNumber;
         project.stakeInfo.endBlockNumber = _stakingEndBlockNumber;
+        project.stakeInfo.minStakeAmount = _minStakeAmount;
         project.stakeInfo.maxStakeAmount = _maxStakeAmount;
         project.fundingInfo.startBlockNumber = _fundingStartBlockNumber;
         project.fundingInfo.endBlockNumber = _fundingEndBlockNumber;
@@ -150,6 +155,13 @@ contract Project is Ownable {
         emit SetStakingBlockNumber(_projectId, _blockStart, _blockEnd);
     }
 
+    function setMinStakeAmount(uint256 _projectId, uint256 _minStakeAmount) external onlyOwner validProject(_projectId) {
+        require(_minStakeAmount > 0 && _minStakeAmount <= projects[_projectId].stakeInfo.maxStakeAmount, "Invalid min of stake amount");
+
+        projects[_projectId].stakeInfo.minStakeAmount = _minStakeAmount;
+        emit SetMinStakeAmount(_projectId, _minStakeAmount);
+    }
+
     function setMaxStakeAmount(uint256 _projectId, uint256 _maxStakeAmount) external onlyOwner validProject(_projectId) {
         require(_maxStakeAmount > 0, "Invalid limit of stake amount");
 
@@ -184,7 +196,6 @@ contract Project is Ownable {
 
     function setFundingReceiver(uint256 _projectId, address _fundingReceiver) external onlyOwner validProject(_projectId) {
         require(_fundingReceiver != address(0), "Invalid funding receiver");
-
         projects[_projectId].fundingInfo.fundingReceiver = _fundingReceiver;
         emit SetFundingReceiver(_projectId, _fundingReceiver);
     }
@@ -199,7 +210,7 @@ contract Project is Ownable {
         require(block.number <= stakeInfo.endBlockNumber, "Staking has ended");
 
         require(isCompletedCampaign(_projectId, _msgSender()), "User is not complete gleam campaign");
-        require(_amount > 0, "Invalid stake amount");
+        require(_amount != 0 && _amount >= stakeInfo.minStakeAmount, "Not enough stake amount");
         require(_amount <= stakeInfo.maxStakeAmount, "Amount exceed limit stake amount");
 
         gmi.transferFrom(_msgSender(), address(this), _amount);
@@ -304,7 +315,7 @@ contract Project is Ownable {
         require(!fundingInfo.isWithdrawnFund, "Already withdrawn fund");
 
         uint256 _amount = fundingInfo.fundedTotalAmount;
-        require(_amount > 0, "Not enought amount");
+        require(_amount > 0, "Not enough amount");
 
         busd.transfer(fundingInfo.fundingReceiver, _amount);
         fundingInfo.isWithdrawnFund = true;

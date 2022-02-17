@@ -5,10 +5,12 @@ const { MAX_UINT256 } = require("@openzeppelin/test-helpers/src/constants");
 const Big = require('big.js');
 
 const allocationSize        = '100000000000000000000000'; // 100,000 USD
-const maxStakeAmount    = '1000000000000000000000'; // 1000 GMI
+const minStakeAmount        = '1000000000000000000000'; // 1000 GMI
+const maxStakeAmount        = '10000000000000000000000'; // 10000 GMI
 const fundingMinAllocation  = '10000000000000000000'; // 10 USD
 const fundingAllocationRate = '500000000000000000'; // rate is 0.5 / mean that stake 1 GMI => can funding 0.5 USD
 const estimateTokenAllocationRate = 1000;
+const blackHoleAddress = "0x0000000000000000000000000000000000000000";
 
 describe("Project", () => {
     beforeEach(async () => {
@@ -56,6 +58,7 @@ describe("Project", () => {
               estimateTokenAllocationRate,
               stakingStartBlockNumber,
               stakingEndBlockNumber,
+              minStakeAmount,
               maxStakeAmount,
               fundingStartBlockNumber,
               fundingEndBlockNumber,
@@ -83,6 +86,7 @@ describe("Project", () => {
                 estimateTokenAllocationRate,
                 stakingStartBlockNumber,
                 stakingEndBlockNumber,
+                minStakeAmount,
                 maxStakeAmount,
                 fundingStartBlockNumber,
                 fundingEndBlockNumber,
@@ -109,6 +113,7 @@ describe("Project", () => {
                 estimateTokenAllocationRate,
                 currentBlock - 1,
                 stakingEndBlockNumber,
+                minStakeAmount,
                 maxStakeAmount,
                 fundingStartBlockNumber,
                 fundingEndBlockNumber,
@@ -128,6 +133,7 @@ describe("Project", () => {
                 estimateTokenAllocationRate,
                 currentBlock,
                 stakingEndBlockNumber,
+                minStakeAmount,
                 maxStakeAmount,
                 fundingStartBlockNumber,
                 fundingEndBlockNumber,
@@ -154,6 +160,7 @@ describe("Project", () => {
                 estimateTokenAllocationRate,
                 stakingEndBlockNumber + 1,
                 stakingEndBlockNumber,
+                minStakeAmount,
                 maxStakeAmount,
                 fundingStartBlockNumber,
                 fundingEndBlockNumber,
@@ -172,6 +179,7 @@ describe("Project", () => {
                 estimateTokenAllocationRate,
                 stakingEndBlockNumber,
                 stakingEndBlockNumber,
+                minStakeAmount,
                 maxStakeAmount,
                 fundingStartBlockNumber,
                 fundingEndBlockNumber,
@@ -198,6 +206,7 @@ describe("Project", () => {
                 estimateTokenAllocationRate,
                 stakingStartBlockNumber,
                 stakingEndBlockNumber,
+                minStakeAmount,
                 maxStakeAmount,
                 stakingEndBlockNumber - 1,
                 fundingEndBlockNumber,
@@ -216,6 +225,7 @@ describe("Project", () => {
                 estimateTokenAllocationRate,
                 stakingStartBlockNumber,
                 stakingEndBlockNumber,
+                minStakeAmount,
                 maxStakeAmount,
                 stakingEndBlockNumber,
                 fundingEndBlockNumber,
@@ -242,6 +252,7 @@ describe("Project", () => {
                 estimateTokenAllocationRate,
                 stakingStartBlockNumber,
                 stakingEndBlockNumber,
+                minStakeAmount,
                 maxStakeAmount,
                 fundingEndBlockNumber + 1,
                 fundingEndBlockNumber,
@@ -260,6 +271,7 @@ describe("Project", () => {
                 estimateTokenAllocationRate,
                 stakingStartBlockNumber,
                 stakingEndBlockNumber,
+                minStakeAmount,
                 maxStakeAmount,
                 fundingEndBlockNumber,
                 fundingEndBlockNumber,
@@ -269,6 +281,33 @@ describe("Project", () => {
               )
           ).to.revertedWith("Invalid block number");
         })
+
+        it("minStakeAmount > maxStakeAmount", async () => {
+          let currentBlock = await getCurrentBlock();
+          const stakingStartBlockNumber = currentBlock + 100;
+          const stakingEndBlockNumber = stakingStartBlockNumber + 100;
+          const fundingStartBlockNumber = stakingEndBlockNumber + 100;
+          const fundingEndBlockNumber = fundingStartBlockNumber + 100;
+          const minStakeAmount = '1000000000000000000000';
+          const maxStakeAmount = '100000000000000000000'; 
+
+          await expect(project
+            .connect(admin)
+            .createProject(
+              token.address,
+              allocationSize,
+              estimateTokenAllocationRate,
+              stakingStartBlockNumber,
+              stakingEndBlockNumber,
+              minStakeAmount,
+              maxStakeAmount,
+              fundingStartBlockNumber,
+              fundingEndBlockNumber,
+              fundingMinAllocation,
+              fundingAllocationRate,
+              user1.address
+            )).revertedWith("Invalid stake min amount")
+        });
     })
 
     describe("Set staking block number", () => {
@@ -287,6 +326,7 @@ describe("Project", () => {
             estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
+            minStakeAmount,
             maxStakeAmount,
             fundingStartBlockNumber,
             fundingEndBlockNumber,
@@ -362,6 +402,7 @@ describe("Project", () => {
             estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
+            minStakeAmount,
             maxStakeAmount,
             fundingStartBlockNumber,
             fundingEndBlockNumber,
@@ -424,6 +465,271 @@ describe("Project", () => {
       });
     });
 
+    describe("Set Allocation size", () => {
+      beforeEach(async () => {
+        currentBlock = await getCurrentBlock();
+        stakingStartBlockNumber = currentBlock + 100;
+        stakingEndBlockNumber = stakingStartBlockNumber + 100;
+        fundingStartBlockNumber = stakingEndBlockNumber + 100;
+        fundingEndBlockNumber = fundingStartBlockNumber + 100;
+
+        await project
+          .connect(admin)
+          .createProject(
+            token.address,
+            allocationSize,
+            estimateTokenAllocationRate,
+            stakingStartBlockNumber,
+            stakingEndBlockNumber,
+            minStakeAmount,
+            maxStakeAmount,
+            fundingStartBlockNumber,
+            fundingEndBlockNumber,
+            fundingMinAllocation,
+            fundingAllocationRate,
+            user1.address
+          );
+      });
+
+      it("Only owner", async () => {
+        await expect(project.connect(user1).setAllocationSize(1, '10')).revertedWith("caller is not the owner");
+        expect(await project.connect(admin).setAllocationSize(1, '10')).ok;
+      })
+
+      it("Invalid project allocation size", async () => {
+         await expect(project.setAllocationSize(1, '0')).revertedWith("Invalid project allocation size");
+      })
+
+      it("Success", async () => {
+        let projectInfo = await project.getProjectInfo(1);
+        expect(projectInfo.allocationSize).equal(allocationSize);
+        await project.setAllocationSize(1, "50");
+        projectInfo = await project.getProjectInfo(1);
+        expect(projectInfo.allocationSize).equal("50");
+     })
+    })
+    
+    describe("Set Estimate Token Allocation rate", () => {
+      beforeEach(async () => {
+        currentBlock = await getCurrentBlock();
+        stakingStartBlockNumber = currentBlock + 100;
+        stakingEndBlockNumber = stakingStartBlockNumber + 100;
+        fundingStartBlockNumber = stakingEndBlockNumber + 100;
+        fundingEndBlockNumber = fundingStartBlockNumber + 100;
+
+        await project
+          .connect(admin)
+          .createProject(
+            token.address,
+            allocationSize,
+            estimateTokenAllocationRate,
+            stakingStartBlockNumber,
+            stakingEndBlockNumber,
+            minStakeAmount,
+            maxStakeAmount,
+            fundingStartBlockNumber,
+            fundingEndBlockNumber,
+            fundingMinAllocation,
+            fundingAllocationRate,
+            user1.address
+          );
+      });
+
+      it("Only owner", async () => {
+        await expect(project.connect(user1).setEstimateTokenAllocationRate(1, '10')).revertedWith("caller is not the owner");
+        expect(await project.connect(admin).setEstimateTokenAllocationRate(1, '10')).ok;
+      })
+
+      it("Invalid project estimate token allocation rate", async () => {
+         await expect(project.setEstimateTokenAllocationRate(1, '0')).revertedWith("Invalid project estimate token allocation rate");
+      })
+
+      it("Success", async () => {
+        let projectInfo = await project.getProjectInfo(1);
+        expect(projectInfo.fundingInfo.estimateTokenAllocationRate).equal(estimateTokenAllocationRate);
+        await project.setEstimateTokenAllocationRate(1, "50");
+        projectInfo = await project.getProjectInfo(1);
+        expect(projectInfo.fundingInfo.estimateTokenAllocationRate).equal("50");
+     })
+    })
+
+    describe("Set min Stake amount", () => {
+      beforeEach(async () => {
+        currentBlock = await getCurrentBlock();
+        stakingStartBlockNumber = currentBlock + 100;
+        stakingEndBlockNumber = stakingStartBlockNumber + 100;
+        fundingStartBlockNumber = stakingEndBlockNumber + 100;
+        fundingEndBlockNumber = fundingStartBlockNumber + 100;
+
+        await project
+          .connect(admin)
+          .createProject(
+            token.address,
+            allocationSize,
+            estimateTokenAllocationRate,
+            stakingStartBlockNumber,
+            stakingEndBlockNumber,
+            minStakeAmount,
+            maxStakeAmount,
+            fundingStartBlockNumber,
+            fundingEndBlockNumber,
+            fundingMinAllocation,
+            fundingAllocationRate,
+            user1.address
+          );
+      });
+
+      it("Only owner", async () => {
+        await expect(project.connect(user1).setMinStakeAmount(1, '10')).revertedWith("caller is not the owner");
+        expect(await project.connect(admin).setMinStakeAmount(1, '10')).ok;
+      })
+
+      it("Invalid min of stake amount", async () => {
+         await expect(project.setMinStakeAmount(1, '0')).revertedWith("Invalid min of stake amount");
+         await expect(project.setMinStakeAmount(1, maxStakeAmount + 100)).revertedWith("Invalid min of stake amount");
+      })
+
+      it("Success", async () => {
+        let projectInfo = await project.getProjectInfo(1);
+        expect(projectInfo.stakeInfo.minStakeAmount).equal(minStakeAmount);
+        await project.setMinStakeAmount(1, "50");
+        projectInfo = await project.getProjectInfo(1);
+        expect(projectInfo.stakeInfo.minStakeAmount).equal("50");
+     })
+    })
+
+    describe("Set max Stake amount", () => {
+      beforeEach(async () => {
+        currentBlock = await getCurrentBlock();
+        stakingStartBlockNumber = currentBlock + 100;
+        stakingEndBlockNumber = stakingStartBlockNumber + 100;
+        fundingStartBlockNumber = stakingEndBlockNumber + 100;
+        fundingEndBlockNumber = fundingStartBlockNumber + 100;
+
+        await project
+          .connect(admin)
+          .createProject(
+            token.address,
+            allocationSize,
+            estimateTokenAllocationRate,
+            stakingStartBlockNumber,
+            stakingEndBlockNumber,
+            minStakeAmount,
+            maxStakeAmount,
+            fundingStartBlockNumber,
+            fundingEndBlockNumber,
+            fundingMinAllocation,
+            fundingAllocationRate,
+            user1.address
+          );
+      });
+
+      it("Only owner", async () => {
+        await expect(project.connect(user1).setMaxStakeAmount(1, '10')).revertedWith("caller is not the owner");
+        expect(await project.connect(admin).setMaxStakeAmount(1, '10')).ok;
+      })
+
+      it("Invalid limit of stake amount", async () => {
+         await expect(project.setMaxStakeAmount(1, '0')).revertedWith("Invalid limit of stake amount");
+      })
+
+      it("Success", async () => {
+        let projectInfo = await project.getProjectInfo(1);
+        expect(projectInfo.stakeInfo.maxStakeAmount).equal(maxStakeAmount);
+        await project.setMaxStakeAmount(1, "50");
+        projectInfo = await project.getProjectInfo(1);
+        expect(projectInfo.stakeInfo.maxStakeAmount).equal("50");
+     })
+    })
+    
+    describe("Set Funding Allocation rate", () => {
+      beforeEach(async () => {
+        currentBlock = await getCurrentBlock();
+        stakingStartBlockNumber = currentBlock + 100;
+        stakingEndBlockNumber = stakingStartBlockNumber + 100;
+        fundingStartBlockNumber = stakingEndBlockNumber + 100;
+        fundingEndBlockNumber = fundingStartBlockNumber + 100;
+
+        await project
+          .connect(admin)
+          .createProject(
+            token.address,
+            allocationSize,
+            estimateTokenAllocationRate,
+            stakingStartBlockNumber,
+            stakingEndBlockNumber,
+            minStakeAmount,
+            maxStakeAmount,
+            fundingStartBlockNumber,
+            fundingEndBlockNumber,
+            fundingMinAllocation,
+            fundingAllocationRate,
+            user1.address
+          );
+      });
+
+      it("Only owner", async () => {
+        await expect(project.connect(user1).setFundingAllocationRate(1, '10')).revertedWith("caller is not the owner");
+        expect(await project.connect(admin).setFundingAllocationRate(1, '10')).ok;
+      })
+
+      it("Invalid project funding allocation rate", async () => {
+         await expect(project.setFundingAllocationRate(1, '0')).revertedWith("Invalid project funding allocation rate");
+      })
+
+      it("Success", async () => {
+        let projectInfo = await project.getProjectInfo(1);
+        expect(projectInfo.fundingInfo.allocationRate).equal(fundingAllocationRate);
+        await project.setFundingAllocationRate(1, "50");
+        projectInfo = await project.getProjectInfo(1);
+        expect(projectInfo.fundingInfo.allocationRate).equal("50");
+     })
+    })
+
+    describe("Set Funding Receiver", () => {
+      beforeEach(async () => {
+        currentBlock = await getCurrentBlock();
+        stakingStartBlockNumber = currentBlock + 100;
+        stakingEndBlockNumber = stakingStartBlockNumber + 100;
+        fundingStartBlockNumber = stakingEndBlockNumber + 100;
+        fundingEndBlockNumber = fundingStartBlockNumber + 100;
+
+        await project
+          .connect(admin)
+          .createProject(
+            token.address,
+            allocationSize,
+            estimateTokenAllocationRate,
+            stakingStartBlockNumber,
+            stakingEndBlockNumber,
+            minStakeAmount,
+            maxStakeAmount,
+            fundingStartBlockNumber,
+            fundingEndBlockNumber,
+            fundingMinAllocation,
+            fundingAllocationRate,
+            user1.address
+          );
+      });
+
+      it("Only owner", async () => {
+        await expect(project.connect(user1).setFundingReceiver(1, user2.address)).revertedWith("caller is not the owner");
+        expect(await project.connect(admin).setFundingReceiver(1, user2.address)).ok;
+      })
+
+      it("Invalid funding receiver", async () => {
+         await expect(project.setFundingReceiver(1, blackHoleAddress)).revertedWith("Invalid funding receiver");
+      })
+
+      it("Success", async () => {
+        let projectInfo = await project.getProjectInfo(1);
+        expect(projectInfo.fundingInfo.fundingReceiver).equal(user1.address);
+        await project.setFundingReceiver(1, user2.address);
+        projectInfo = await project.getProjectInfo(1);
+        expect(projectInfo.fundingInfo.fundingReceiver).equal(user2.address);
+     })
+    })
+
     describe('stake', () => {
       beforeEach(async () => {
         currentBlock = await getCurrentBlock();
@@ -440,6 +746,7 @@ describe("Project", () => {
             estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
+            minStakeAmount,
             maxStakeAmount,
             fundingStartBlockNumber,
             fundingEndBlockNumber,
@@ -472,11 +779,15 @@ describe("Project", () => {
         ).to.revertedWith('User is not complete gleam campaign');
       });
 
-      it('Invalid stake amount', async () => {
+      it('Not enough stake amount', async () => {
         await skipBlock(100);
         await expect(
           project.connect(user1).stake(projectId, '0')
-        ).to.revertedWith('Invalid stake amount');
+        ).to.revertedWith('Not enough stake amount');
+
+        await expect(
+          project.connect(user1).stake(projectId, '10000')
+        ).to.revertedWith('Not enough stake amount');
       });
 
       it('Amount exceed limit stake amount', async () => {
@@ -525,6 +836,7 @@ describe("Project", () => {
             estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
+            minStakeAmount,
             maxStakeAmount,
             fundingStartBlockNumber,
             fundingEndBlockNumber,
@@ -615,6 +927,7 @@ describe("Project", () => {
             estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
+            minStakeAmount,
             maxStakeAmount,
             fundingStartBlockNumber,
             fundingEndBlockNumber,
@@ -665,7 +978,7 @@ describe("Project", () => {
       });
     });
 
-    describe.only('withdrawFunding', () => {
+    describe('withdrawFunding', () => {
       beforeEach(async () => {
         currentBlock = await getCurrentBlock();
         stakingStartBlockNumber = currentBlock + 100;
@@ -681,6 +994,7 @@ describe("Project", () => {
             estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
+            minStakeAmount,
             maxStakeAmount,
             fundingStartBlockNumber,
             fundingEndBlockNumber,
@@ -715,7 +1029,7 @@ describe("Project", () => {
         ).to.revertedWith('Already withdrawn fund');
       });
 
-      it('Not enought amount', async () => {
+      it('Not enough amount', async () => {
         currentBlock = await getCurrentBlock();
         stakingStartBlockNumber = currentBlock + 100;
         stakingEndBlockNumber = stakingStartBlockNumber + 100;
@@ -730,6 +1044,7 @@ describe("Project", () => {
             estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
+            minStakeAmount,
             maxStakeAmount,
             fundingStartBlockNumber,
             fundingEndBlockNumber,
@@ -742,7 +1057,7 @@ describe("Project", () => {
         projectId = await project.latestProjectId();
         await expect(
           project.connect(admin).withdrawFunding(projectId)
-        ).to.revertedWith('Not enought amount');
+        ).to.revertedWith('Not enough amount');
       });
 
       it('Withdraw success', async () => {
