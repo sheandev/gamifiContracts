@@ -1099,12 +1099,6 @@ describe("Project", () => {
         await expect(project.connect(admin).addWhitelist(projectId, [user1.address])).ok;
       })
 
-      it("Account did not stake", async () => {
-        await expect(project.connect(admin).addWhitelist(projectId, [user1.address])).revertedWith("Account did not stake");
-        await project.connect(user1).stake(projectId, maxStakeAmount);
-        await expect(project.connect(admin).addWhitelist(projectId, [user1.address])).ok;
-      })
-
       it("Success", async () => {
         expect(await project.connect(user1).isAddedWhitelist(projectId, user1.address)).equal(false);
         await project.connect(user1).stake(projectId, maxStakeAmount);

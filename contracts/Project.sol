@@ -264,7 +264,6 @@ contract Project is Ownable {
             require(account != address(0), "Invalid account");
 
             UserInfo storage user = userInfo[_projectId][account];
-            require(user.stakedAmount > 0, "Account did not stake");
 
             user.isAddedWhitelist = true;
         }
