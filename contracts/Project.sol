@@ -9,7 +9,6 @@ import "./libraries/Config.sol";
 
 contract Project is Ownable {
     struct UserInfo {
-        bool isCompletedCampaign;
         bool isAddedWhitelist;
         bool isClaimedBack;
         uint256 stakedAmount;
@@ -71,8 +70,6 @@ contract Project is Ownable {
     event SetFundingReceiver(uint256 indexed projectId, address fundingReceiver);
     event Stake(address account, uint256 indexed projectId, uint256 indexed amount);
     event ClaimBack(address account, uint256 indexed projectId, uint256 indexed amount);
-    event AddToCompletedCampaignList(uint256 indexed projectId, address[] accounts);
-    event RemovedFromCompletedCampaignList(uint256 indexed projectId, address indexed account);
     event AddedToWhitelist(uint256 indexed projectId, address[] accounts);
     event RemovedFromWhitelist(uint256 indexed projectId, address indexed account);
     event Funding(address account, uint256 indexed projectId, uint256 indexed amount, uint256 tokenAllocationAmount);
@@ -209,7 +206,6 @@ contract Project is Ownable {
         require(block.number >= stakeInfo.startBlockNumber, "Staking has not started yet");
         require(block.number <= stakeInfo.endBlockNumber, "Staking has ended");
 
-        require(isCompletedCampaign(_projectId, _msgSender()), "User is not complete gleam campaign");
         require(_amount != 0 && _amount >= stakeInfo.minStakeAmount, "Not enough stake amount");
         require(_amount <= stakeInfo.maxStakeAmount, "Amount exceed limit stake amount");
 
@@ -240,22 +236,6 @@ contract Project is Ownable {
         gmi.transfer(_msgSender(), claimableAmount);
 
         emit ClaimBack(_msgSender(), _projectId, claimableAmount);
-    }
-
-    function addCompletedCampaignList(uint256 _projectId, address[] memory _accounts) external onlyOwner validProject(_projectId) {
-        for (uint256 i = 0; i < _accounts.length; i++) { 
-            address account = _accounts[i];
-            require(account != address(0), "Invalid account");
-
-            UserInfo storage user = userInfo[_projectId][account];
-            user.isCompletedCampaign = true;
-        }
-        emit AddToCompletedCampaignList(_projectId, _accounts);
-    }
-
-    function removedFromCompletedCampaignList(uint256 _projectId, address _account) public onlyOwner validProject(_projectId) {
-        userInfo[_projectId][_account].isCompletedCampaign = false;
-        emit RemovedFromCompletedCampaignList(_projectId, _account);
     }
 
     function addWhitelist(uint256 _projectId, address[] memory _accounts) external onlyOwner validProject(_projectId) {
@@ -336,10 +316,6 @@ contract Project is Ownable {
 
     function getUserInfo(uint256 _projectId, address _account) public view returns (UserInfo memory result) {
         result = userInfo[_projectId][_account];
-    }
-
-    function isCompletedCampaign(uint256 _projectId, address _account) public view returns (bool) {
-        return userInfo[_projectId][_account].isCompletedCampaign;
     }
 
     function isAddedWhitelist(uint256 _projectId, address _account) public view returns (bool) {
