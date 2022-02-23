@@ -756,7 +756,6 @@ describe("Project", () => {
           );
 
         projectId = await project.latestProjectId();
-        await project.addCompletedCampaignList(projectId, [user1.address])
       });
 
       it('Staking has not started yet', async () => {
@@ -770,13 +769,6 @@ describe("Project", () => {
         await expect(
           project.connect(user1).stake(projectId, maxStakeAmount)
         ).to.revertedWith('Staking has ended');
-      });
-
-      it('User is not complete gleam campaign', async () => {
-        await skipBlock(100);
-        await expect(
-          project.connect(user2).stake(projectId, maxStakeAmount)
-        ).to.revertedWith('User is not complete gleam campaign');
       });
 
       it('Not enough stake amount', async () => {
@@ -820,152 +812,6 @@ describe("Project", () => {
       });
     });
 
-    describe("addCompletedCampaignList", () => {
-      beforeEach(async () => {
-        currentBlock = await getCurrentBlock();
-        stakingStartBlockNumber = currentBlock + 100;
-        stakingEndBlockNumber = stakingStartBlockNumber + 100;
-        fundingStartBlockNumber = stakingEndBlockNumber + 100;
-        fundingEndBlockNumber = fundingStartBlockNumber + 100;
-
-        await project
-          .connect(admin)
-          .createProject(
-            token.address,
-            allocationSize,
-            estimateTokenAllocationRate,
-            stakingStartBlockNumber,
-            stakingEndBlockNumber,
-            minStakeAmount,
-            maxStakeAmount,
-            fundingStartBlockNumber,
-            fundingEndBlockNumber,
-            fundingMinAllocation,
-            fundingAllocationRate,
-            user1.address
-          );
-      });
-
-      it("Only owner", async () => {
-        await expect(
-          project.connect(user1).addCompletedCampaignList(1, [user2.address, user3.address, user4.address])
-        ).revertedWith("caller is not the owner");
-        expect(
-          await project.connect(admin).addCompletedCampaignList(1, [user2.address, user3.address, user4.address])
-        ).ok;
-      });
-
-      it("Invalid account", async () => {
-        await expect(project.connect(admin).addCompletedCampaignList(1, [user2.address, blackHoleAddress, user4.address])
-        ).revertedWith("Invalid account");
-        expect(
-          await project.connect(admin).addCompletedCampaignList(1, [user2.address, user3.address, user4.address])
-        ).ok;
-      });
-
-      it("Success", async () => {
-        const tokenBalanceOfProject_before = await token.balanceOf(project.address);
-        const tokenBalanceOfUser_before = await token.balanceOf(user1.address);
-
-        await skipBlock(100);
-        await expect(project.connect(user1).stake(1, maxStakeAmount)).revertedWith("User is not complete gleam campaign");
-
-        let tokenBalanceOfProject_after = await token.balanceOf(project.address);
-        let tokenBalanceOfUser_after = await token.balanceOf(user1.address);
-
-        expect(tokenBalanceOfProject_after.sub(tokenBalanceOfProject_before)).to.be.equal('0');
-        expect(tokenBalanceOfUser_before.sub(tokenBalanceOfUser_after)).to.be.equal('0');
-
-        await project.connect(admin).addCompletedCampaignList(1, [user1.address]);
-
-        expect(await project.connect(user1).stake(1, maxStakeAmount)).ok;
-
-        tokenBalanceOfProject_after = await token.balanceOf(project.address);
-        tokenBalanceOfUser_after = await token.balanceOf(user1.address);
-
-        expect(tokenBalanceOfProject_after.sub(tokenBalanceOfProject_before)).to.be.equal(maxStakeAmount);
-        expect(tokenBalanceOfUser_before.sub(tokenBalanceOfUser_after)).to.be.equal(maxStakeAmount);
-      });
-    });
-
-    describe("isCompletedCampaign", () => {
-      beforeEach(async () => {
-        currentBlock = await getCurrentBlock();
-        stakingStartBlockNumber = currentBlock + 100;
-        stakingEndBlockNumber = stakingStartBlockNumber + 100;
-        fundingStartBlockNumber = stakingEndBlockNumber + 100;
-        fundingEndBlockNumber = fundingStartBlockNumber + 100;
-
-        await project
-          .connect(admin)
-          .createProject(
-            token.address,
-            allocationSize,
-            estimateTokenAllocationRate,
-            stakingStartBlockNumber,
-            stakingEndBlockNumber,
-            minStakeAmount,
-            maxStakeAmount,
-            fundingStartBlockNumber,
-            fundingEndBlockNumber,
-            fundingMinAllocation,
-            fundingAllocationRate,
-            user1.address
-          );
-      });
-
-      it("success", async () => {
-        expect(await project.connect(user1).isCompletedCampaign(1, user1.address)).equal(false);
-        await project.connect(admin).addCompletedCampaignList(1, [user1.address]);
-        expect(await project.connect(user1).isCompletedCampaign(1, user1.address)).equal(true);
-      })
-    })
-
-    describe("removedFromCompletedCampaignList", () => {
-      beforeEach(async () => {
-        currentBlock = await getCurrentBlock();
-        stakingStartBlockNumber = currentBlock + 100;
-        stakingEndBlockNumber = stakingStartBlockNumber + 100;
-        fundingStartBlockNumber = stakingEndBlockNumber + 100;
-        fundingEndBlockNumber = fundingStartBlockNumber + 100;
-
-        await project
-          .connect(admin)
-          .createProject(
-            token.address,
-            allocationSize,
-            estimateTokenAllocationRate,
-            stakingStartBlockNumber,
-            stakingEndBlockNumber,
-            minStakeAmount,
-            maxStakeAmount,
-            fundingStartBlockNumber,
-            fundingEndBlockNumber,
-            fundingMinAllocation,
-            fundingAllocationRate,
-            user1.address
-          );
-      });
-
-      it("Only owner", async () => {
-        await project.addCompletedCampaignList(1, [user1.address, user2.address, user3.address]);
-        await expect(
-          project.connect(user1).removedFromCompletedCampaignList(1, user2.address)
-        ).revertedWith("caller is not the owner");
-        expect(
-          await project.connect(admin).removedFromCompletedCampaignList(1, user2.address)
-        ).ok;
-      });
-
-      it("Success", async () => {
-        expect(await project.isCompletedCampaign(1, user1.address)).equal(false);
-        expect(await project.addCompletedCampaignList(1, [user1.address])).ok;
-        expect(await project.isCompletedCampaign(1, user1.address)).equal(true);
-        expect(await project.removedFromCompletedCampaignList(1, user1.address)).ok;
-        expect(await project.isCompletedCampaign(1, user1.address)).equal(false);
-      });
-    })
-
     describe('funding', () => {
       beforeEach(async () => {
         currentBlock = await getCurrentBlock();
@@ -993,7 +839,6 @@ describe("Project", () => {
 
         projectId = await project.latestProjectId();
         await skipBlock(100);
-        await project.addCompletedCampaignList(projectId, [user1.address]);
         await project.connect(user1).stake(projectId, maxStakeAmount);
         await project.addWhitelist(projectId, [user1.address]);
 
@@ -1083,7 +928,6 @@ describe("Project", () => {
           );
 
         projectId = await project.latestProjectId();
-        await project.addCompletedCampaignList(projectId, [user1.address]);
         await skipBlock(100);
       });
 
@@ -1133,7 +977,6 @@ describe("Project", () => {
           );
 
         projectId = await project.latestProjectId();
-        await project.addCompletedCampaignList(projectId, [user1.address]);
         await skipBlock(100);
       });
 
@@ -1181,7 +1024,6 @@ describe("Project", () => {
 
         projectId = await project.latestProjectId();
         await skipBlock(100);
-        await project.addCompletedCampaignList(projectId, [user1.address]);
         await project.connect(user1).stake(projectId, maxStakeAmount);
         await project.addWhitelist(projectId, [user1.address]);
 
@@ -1248,7 +1090,6 @@ describe("Project", () => {
 
         projectId = await project.latestProjectId();
         await skipBlock(100);
-        await project.addCompletedCampaignList(projectId, [user1.address]);
         await project.connect(user1).stake(projectId, maxStakeAmount);
         await project.addWhitelist(projectId, [user1.address]);
 
