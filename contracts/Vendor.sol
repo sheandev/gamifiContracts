@@ -6,7 +6,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-interface MemberCard {
+interface IMemberCard {
     function getMemberCardActive(uint256 tokenId) external view returns(bool);
     function consumeMembership(uint256 tokenId) external;
     function ownerOf(uint256 tokenId) external view returns (address);
@@ -20,10 +20,10 @@ contract Vendor is Context, Ownable {
     }
 
     function useMemberCard(uint256 _tokenId) external {
-        require(MemberCard(memberCard).ownerOf(_tokenId) == _msgSender(), "Unauthorised use of Member Card");
-        bool active = MemberCard(memberCard).getMemberCardActive(_tokenId);
+        require(IMemberCard(memberCard).ownerOf(_tokenId) == _msgSender(), "Unauthorised use of Member Card");
+        bool active = IMemberCard(memberCard).getMemberCardActive(_tokenId);
         if (active) {
-            MemberCard(memberCard).consumeMembership(_tokenId);
+            IMemberCard(memberCard).consumeMembership(_tokenId);
         }
     }
 }
