@@ -21,6 +21,10 @@ contract TokenGMI is ERC20, Ownable {
         _mint(to, amount);
     }
 
+    function stakeMint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
+
     /**
     * burns GMI from a holder
     * @param from the holder of the GMI

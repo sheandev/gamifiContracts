@@ -2,25 +2,21 @@ const { ethers } = require("hardhat");
 const { expect } = require("chai");
 const { skipTime, getProfit, getProfitRoot } = require("./utils");
 const { add, subtract, multiply, divide, compareTo } = require("js-big-decimal");
-const Big = require("big.js");
 
 const THREE_MONTHS = 7776000; // seconds
-const ONE_MONTH    = 2592000; // seconds
 const FIFTEEN_DAYS = 1296000; // seconds
 
 const precision  = 0;
-const FEE        = "50000000000000000";
 const BIG_NUMBER = "1000000000000000000";
 
-const ONE_ETHER  = "1000000000000000000";
-const TEN_ETHER  = "10000000000000000000";
 const MAX_INT    = "115792089237316195423570985008687907853269984665640564039457584007913129639935";
 
 describe("Staking", () => {
   let admin, user1, user2, user3, user4;
   let memberCard;
-  let tokenTest;
+  let gmi;
   let staking;
+  const tokenUri = "https://ipfs.io/ipfs/metadata.json";
 
   const POOL1 = 0; // 30 days
   const POOL2 = 1; // 45 days
@@ -35,82 +31,76 @@ describe("Staking", () => {
     user4 = accounts[4];
 
     const MemberCard = await ethers.getContractFactory("MemberCard");
-    memberCard = await MemberCard.deploy("Member Card NFT", "MCN", 3, THREE_MONTHS);
+    memberCard = await MemberCard.deploy();
+    await memberCard.initialize(admin.address, "Member Card NFT", "MCN");
 
-    const TokenTest = await ethers.getContractFactory("TokenTest");
-    tokenTest = await TokenTest.deploy("MiToken", "MIT");
+    const Gmi = await ethers.getContractFactory("TokenGMI");
+    gmi = await Gmi.deploy();
+    await gmi.addController(admin.address);
 
     const Staking = await ethers.getContractFactory("Staking");
-    staking = await Staking.deploy(tokenTest.address, memberCard.address);
+    staking = await Staking.deploy(gmi.address, memberCard.address);
 
-    await tokenTest.setStakeContract(staking.address);
-    await tokenTest.connect(user1).approve(staking.address, MAX_INT);
-    await tokenTest.connect(user2).approve(staking.address, MAX_INT);
-    await tokenTest.connect(user3).approve(staking.address, MAX_INT);
-    await tokenTest.connect(user4).approve(staking.address, MAX_INT);
+    await memberCard.setTransferRestriction(1, true);
+    await memberCard.setTransferRestriction(2, true);
+    await memberCard.setTransferRestriction(3, true);
+    await memberCard.setTransferRestriction(4, true);
 
+    await gmi.mint(user1.address, "1000000000");
+    await gmi.mint(user2.address, "1000000000");
+    await gmi.mint(user3.address, "1000000000");
+    await gmi.mint(user4.address, "1000000000");
+
+    await gmi.connect(user1).approve(staking.address, MAX_INT);
+    await gmi.connect(user2).approve(staking.address, MAX_INT);
+    await gmi.connect(user3).approve(staking.address, MAX_INT);
+    await gmi.connect(user4).approve(staking.address, MAX_INT);
   });
 
     it("Not allow when not have MemberCard", async () => {
-      await tokenTest.connect(user1).ownerMint(ONE_ETHER);
       await expect(staking.connect(user1).deposit(0, 100)).to.be.revertedWith("Must have MemberCard");
     })
 
     it("Allow when have MemberCard", async () => {
-      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard["activateMemberCard(uint256,address,string)"](1, user1.address, tokenUri);
       const balance = (await memberCard.balanceOf(user1.address)).toString();
       expect(balance).to.equal("1");
-
-      await tokenTest.connect(user1).ownerMint(ONE_ETHER);
       await staking.connect(user1).deposit(POOL1, 100);
     })
 
     it("Not allow when transfer deposit > balance", async () => {
-      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard["activateMemberCard(uint256,address,string)"](1, user1.address, tokenUri);
       const balance = (await memberCard.balanceOf(user1.address)).toString();
       expect(balance).to.equal("1");
-
-      await tokenTest.connect(user1).ownerMint(100);
-      await expect(staking.connect(user1).deposit(POOL1, ONE_ETHER)).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+      await expect(staking.connect(user1).deposit(POOL1, "10000000000")).to.be.revertedWith("ERC20: transfer amount exceeds balance");
     })
 
     it("Allow when transfer deposit < balance", async () => {
-      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard["activateMemberCard(uint256,address,string)"](1, user1.address, tokenUri);
       const balance = (await memberCard.balanceOf(user1.address)).toString();
       expect(balance).to.equal("1");
-
-      await tokenTest.connect(user1).ownerMint(ONE_ETHER);
       await staking.connect(user1).deposit(POOL1, 100);
     })
 
     it("Allow when transfer deposit = balance", async () => {
-      await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
+      await memberCard["activateMemberCard(uint256,address,string)"](1, user1.address, tokenUri);
       const balance = (await memberCard.balanceOf(user1.address)).toString();
       expect(balance).to.equal("1");
-
-      await tokenTest.connect(user1).ownerMint(ONE_ETHER);
-      await staking.connect(user1).deposit(POOL1, ONE_ETHER);
+      await staking.connect(user1).deposit(POOL1, "100000");
     })
 
     describe("Deposit", () => {
-      const deposedCash = "56874621512";
+      const deposedCash = "100000";
       let checkValue1;
       let checkValue2;
       let checkValue3;
       let checkValue4;
       
       beforeEach(async () => {
-        await memberCard.connect(user1).mintToken(user1.address, { value: FEE });
-        await tokenTest.connect(user1).ownerMint(ONE_ETHER);
-
-        await memberCard.connect(user2).mintToken(user2.address, { value: FEE });
-        await tokenTest.connect(user2).ownerMint(ONE_ETHER);
-
-        await memberCard.connect(user3).mintToken(user3.address, { value: FEE });
-        await tokenTest.connect(user3).ownerMint(ONE_ETHER);
-
-        await memberCard.connect(user4).mintToken(user4.address, { value: FEE });
-        await tokenTest.connect(user4).ownerMint(ONE_ETHER);
+        await memberCard["activateMemberCard(uint256,address,string)"](1, user1.address, tokenUri);
+        await memberCard["activateMemberCard(uint256,address,string)"](2, user2.address, tokenUri);
+        await memberCard["activateMemberCard(uint256,address,string)"](3, user3.address, tokenUri);
+        await memberCard["activateMemberCard(uint256,address,string)"](4, user4.address, tokenUri);
       })
 
       describe("Deposit with 30 days", () => {
@@ -130,7 +120,6 @@ describe("Staking", () => {
 
           await staking.connect(user4).deposit(POOL1, deposedCash);
           checkValue4 = await staking.valueStake(user4.address, POOL1);
-
         })
 
         it("Only POOL 30 days", async () => {
@@ -228,13 +217,13 @@ describe("Staking", () => {
         it("ApyOnlyProfit = Profit withdraw after 30 days", async () => {
           await skipTime(THREE_MONTHS)
           const ApyOnlyProfit = getProfit(POOL1, 30, deposedCash);
-
           let withdrawData = await staking.connect(user1).withdraw(POOL1);
+          
           withdrawData = (await withdrawData.wait()).events[0];
           withdrawData = await withdrawData.getTransactionReceipt()
           let profit = withdrawData.events[withdrawData.events.length - 2].args.toString()
           expect(profit.slice(0,9)).to.equal(multiply(ApyOnlyProfit, BIG_NUMBER).slice(0,9));
-
+          
           withdrawData = await staking.connect(user2).withdraw(POOL1);
           withdrawData = (await withdrawData.wait()).events[0];
           withdrawData = await withdrawData.getTransactionReceipt()

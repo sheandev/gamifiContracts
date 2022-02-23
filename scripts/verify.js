@@ -1,10 +1,10 @@
 const hre = require("hardhat");
-const contractAddress = require("../contracts.json");
+const contracts = require("../contracts.json");
 
 async function main() {
   try {
     await hre.run("verify:verify", {
-      address: contractAddress.memberCard,
+      address: contracts.memberCard,
     });
   } catch (err) {
     console.log("err :>> ", err);
@@ -12,8 +12,8 @@ async function main() {
   
   try {
     await hre.run("verify:verify", {
-      address: contractAddress.vendor,
-      constructorArguments: [contractAddress.memberCard]
+      address: contracts.vendor,
+      constructorArguments: [contracts.memberCard]
     });
   } catch (err) {
     console.log("err :>> ", err);
@@ -21,7 +21,7 @@ async function main() {
 
   try {
     await hre.run("verify:verify", {
-      address: contractAddress.gmi,
+      address: contracts.gmi,
     });
   } catch (err) {
     console.log("err :>> ", err);
@@ -29,8 +29,8 @@ async function main() {
   
   try {
     await hre.run("verify:verify", {
-      address: contractAddress.busd,
-      constructorArguments: [[contractAddress.admin]],
+      address: contracts.busd,
+      constructorArguments: [[contracts.admin]],
     });
   } catch (err) {
     console.log("err :>> ", err);
@@ -38,8 +38,8 @@ async function main() {
 
   try {
     await hre.run("verify:verify", {
-      address: contractAddress.project,
-      constructorArguments: [contractAddress.gmi, contractAddress.busd],
+      address: contracts.project,
+      constructorArguments: [contracts.gmi, contracts.busd],
     });
   } catch (err) {
     console.log("err :>> ", err);
@@ -47,8 +47,8 @@ async function main() {
 
   try {
     await hre.run("verify:verify", {
-      address: contractAddress.staking,
-      constructorArguments: [contractAddress.gmi, contractAddress.memberCard],
+      address: contracts.staking,
+      constructorArguments: [contracts.gmi, contracts.memberCard],
     });
   } catch (err) {
     console.log("err :>> ", err);
@@ -56,7 +56,7 @@ async function main() {
 
   try {
     await hre.run("verify:verify", {
-      address: contractAddress.vesting,
+      address: contracts.vesting,
     });
   } catch (err) {
     console.log("err :>> ", err);

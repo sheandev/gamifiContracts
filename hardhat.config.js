@@ -23,17 +23,12 @@ const config = {
     hardhat: {
       accounts: { count: 100 },
     },
-    polygon_testnet: {
-      url: process.env.MUMBAI_URL,
-      accounts: [process.env.PRIVATE_KEY_MUMBAI],
-    },
     binance_testnet: {
-      url: process.env.BINANCE_URL,
-      accounts: [process.env.PRIVATE_KEY_BINANCE],
+      url: 'https://data-seed-prebsc-1-s2.binance.org:8545/',
+      accounts: [process.env.DEPLOY_ACCOUNT],
     },
   },
   etherscan: {
-    // apiKey: process.env.POLYGONSCAN_API_KEY,
     apiKey: process.env.BINANCE_API_KEY,
   },
   solidity: {
