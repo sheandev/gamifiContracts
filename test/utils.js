@@ -1,4 +1,5 @@
 const Big = require("big.js");
+const ethers = require("hardhat");
 
 const skipTime = async (seconds) => {
   await network.provider.send("evm_increaseTime", [seconds]);
@@ -27,9 +28,22 @@ const getProfitRoot = (pool, days, deposedCash, round) => {
     .toString();
 };
 
+const skipBlock = async (blockNumber) => {
+  for (let index = 0; index < blockNumber; index++) {
+    await hre.ethers.provider.send('evm_mine');
+  }
+};
+
+const getCurrentBlock = async () => {
+  const latestBlock = await hre.ethers.provider.getBlock("latest");
+  return latestBlock.number;
+};
+
 module.exports = {
   skipTime,
   setTime,
   getProfit,
-  getProfitRoot
+  getProfitRoot,
+  skipBlock,
+  getCurrentBlock
 }
