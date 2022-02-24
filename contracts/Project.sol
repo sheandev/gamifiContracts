@@ -226,7 +226,10 @@ contract Project is Ownable {
     /// @dev    This method can called by anyone
     /// @param  _projectId  id of the project
     function claimBack(uint256 _projectId) external validProject(_projectId) {
-        require(block.number >= projects[_projectId].fundingInfo.endBlockNumber, "Funding has not ended yet");
+        uint256 currentBlockNumber = block.number;
+        uint256 endBlockNumberFunding = projects[_projectId].fundingInfo.endBlockNumber;
+        require(currentBlockNumber >= endBlockNumberFunding, "Funding has not ended yet");
+        require(((currentBlockNumber - endBlockNumberFunding) * 3) >= 86400, "Funding is Processing");
 
         UserInfo storage user = userInfo[_projectId][_msgSender()];
         uint256 claimableAmount = user.stakedAmount;

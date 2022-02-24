@@ -1038,18 +1038,38 @@ describe("Project", () => {
         ).to.revertedWith('Funding has not ended yet');
       });
 
-      it('Nothing to claim back', async () => {
+      it('Lock claim back 24h after Funding', async () => {
+        const tokenBalanceOfProject_before = await token.balanceOf(project.address);
+        const tokenBalanceOfUser_before = await token.balanceOf(user1.address);
+
         await skipBlock(100);
+        await expect(project.connect(user1).claimBack(projectId)).to.revertedWith("Funding is Processing");
+
+        await skipBlock(30000);
+        await project.connect(user1).claimBack(projectId);
+
+        const tokenBalanceOfProject_after = await token.balanceOf(project.address);
+        const tokenBalanceOfUser_after = await token.balanceOf(user1.address);
+
+        expect(tokenBalanceOfProject_before.sub(tokenBalanceOfProject_after)).to.be.equal(maxStakeAmount);
+        expect(tokenBalanceOfUser_after.sub(tokenBalanceOfUser_before)).to.be.equal(maxStakeAmount);
+
+        const userInfo = await project.getUserInfo(projectId, user1.address);
+        expect(userInfo.isClaimedBack).to.be.true;
+      })
+
+      it('Nothing to claim back', async () => {
+        await skipBlock(30000);
         await expect(
           project.connect(user2).claimBack(projectId)
         ).to.revertedWith('Nothing to claim back');
       });
 
-      it('Claim success', async () => {
+      it('Claim back success', async () => {
         const tokenBalanceOfProject_before = await token.balanceOf(project.address);
         const tokenBalanceOfUser_before = await token.balanceOf(user1.address);
 
-        await skipBlock(100);
+        await skipBlock(30000);
         await project.connect(user1).claimBack(projectId);
 
         const tokenBalanceOfProject_after = await token.balanceOf(project.address);
