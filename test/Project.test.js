@@ -11,6 +11,9 @@ const fundingMinAllocation  = '10000000000000000000'; // 10 USD
 const fundingAllocationRate = '500000000000000000'; // rate is 0.5 / mean that stake 1 GMI => can funding 0.5 USD
 const estimateTokenAllocationRate = 1000;
 const blackHoleAddress = "0x0000000000000000000000000000000000000000";
+const ONE_DAY = 86400;
+const timeBlockMined = 3;
+const timeClaimBackLocked = ONE_DAY;
 
 describe("Project", () => {
     beforeEach(async () => {
@@ -29,7 +32,7 @@ describe("Project", () => {
         busd = await CashTestToken.deploy([admin.address, user1.address, user2.address, user3.address]);
 
         const Project = await ethers.getContractFactory("Project");
-        project = await Project.deploy(token.address, busd.address);
+        project = await Project.deploy(token.address, busd.address, timeBlockMined, timeClaimBackLocked);
 
         await token.addController(admin.address);
         await token.mint(user1.address, '1000000000000000000000000'); // mint 1000,000 token GMI

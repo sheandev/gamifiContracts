@@ -38,7 +38,9 @@ async function main() {
   await busd.deployed();
   console.log("Busd       deployed to:", busd.address);
 
-  const project = await Project.deploy(gmi.address, busd.address);
+  const timeBlockMined = 3;
+  const timeClaimBackLocked = 86400; //24 hour
+  const project = await Project.deploy(gmi.address, busd.address, timeBlockMined, timeClaimBackLocked);
   await project.deployed();
   console.log("Project    deployed to:", project.address);
 
@@ -56,6 +58,8 @@ async function main() {
     vendor: vendor.address,
     gmi: gmi.address,
     busd: busd.address,
+    timeBlockMined: timeBlockMined,
+    timeClaimBackLocked: timeClaimBackLocked,
     project: project.address,
     staking: staking.address,
     vesting: vesting.address

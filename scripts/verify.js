@@ -39,7 +39,7 @@ async function main() {
   try {
     await hre.run("verify:verify", {
       address: contracts.project,
-      constructorArguments: [contracts.gmi, contracts.busd],
+      constructorArguments: [contracts.gmi, contracts.busd, contracts.timeBlockMined, contracts.timeClaimBackLocked],
     });
   } catch (err) {
     console.log("err :>> ", err);

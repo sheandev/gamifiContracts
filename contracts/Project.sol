@@ -52,6 +52,11 @@ contract Project is Ownable {
     uint256 public latestProjectId;
     uint256[] public projectIds;
 
+    // estimate time mined for each block
+    uint256 private timeBlockMined; // seconds
+    
+    uint256 private timeClaimBackLocked; // seconds
+
     // projectId => project info
     mapping(uint256 => ProjectInfo) public projects;
 
@@ -75,14 +80,16 @@ contract Project is Ownable {
     event Funding(address account, uint256 indexed projectId, uint256 indexed amount, uint256 tokenAllocationAmount);
     event WithdrawFunding(address account, uint256 indexed projectId, uint256 indexed amount);
 
-    constructor(IERC20 _gmi, IERC20 _busd) {
+    constructor(IERC20 _gmi, IERC20 _busd, uint256 _timeBlockMined, uint256 _timeClaimBackLocked) {
         gmi = _gmi;
         busd = _busd;
+        timeBlockMined = _timeBlockMined;
+        timeClaimBackLocked = _timeClaimBackLocked;
     }
 
     modifier validProject(uint256 _projectId) {
         require(projects[_projectId].id != 0 && projects[_projectId].id <= latestProjectId, "Invalid project id");
-        _; 
+        _;
     }
 
     function createProject(
@@ -229,7 +236,7 @@ contract Project is Ownable {
         uint256 currentBlockNumber = block.number;
         uint256 endBlockNumberFunding = projects[_projectId].fundingInfo.endBlockNumber;
         require(currentBlockNumber >= endBlockNumberFunding, "Funding has not ended yet");
-        require(((currentBlockNumber - endBlockNumberFunding) * 3) >= 86400, "Funding is Processing");
+        require(((currentBlockNumber - endBlockNumberFunding) * timeBlockMined) >= timeClaimBackLocked, "Funding is Processing");
 
         UserInfo storage user = userInfo[_projectId][_msgSender()];
         uint256 claimableAmount = user.stakedAmount;
@@ -344,5 +351,13 @@ contract Project is Ownable {
     function estimateTokenAllocation(uint256 _projectId, uint256 _fundingAmount) public view returns (uint256) {
         ProjectInfo memory project = projects[_projectId];
         return Formula.mulDiv(_fundingAmount, Formula.SCALE, project.fundingInfo.estimateTokenAllocationRate);
+    }
+
+    function setTimeBlockMined(uint256 _timeBlockMined) public onlyOwner {
+        timeBlockMined = _timeBlockMined;
+    }
+
+    function setTimeClaimBackLocked(uint256 _timeClaimBackLocked) public onlyOwner {
+        timeClaimBackLocked = _timeClaimBackLocked;
     }
 }
