@@ -22,35 +22,35 @@ contract Project is Ownable {
         uint256 minStakeAmount;
         uint256 maxStakeAmount;
         uint256 stakedTotalAmount;
-        address[] stakedAccounts;
+        uint256 whitelistedStakedTotalAmount;
     }
 
     struct FundingInfo {
-        address fundingReceiver;
         uint256 startBlockNumber;
         uint256 endBlockNumber;
         uint256 minAllocation;
         uint256 estimateTokenAllocationRate;
-        uint256 allocationRate;
         uint256 fundedTotalAmount;
-        address[] fundedAccounts;
+        address fundingReceiver;
         bool isWithdrawnFund;
+    }
+
+    struct ClaimBackInfo {
+        uint256 startBlockNumber;
     }
 
     struct ProjectInfo {
         uint256 id;
-        address owner;
-        address tokenAddress;
         uint256 allocationSize;
         StakeInfo stakeInfo;
         FundingInfo fundingInfo;
+        ClaimBackInfo claimBackInfo;
     }
 
     IERC20 public immutable gmi;
     IERC20 public immutable busd;
 
     uint256 public latestProjectId;
-    uint256[] public projectIds;
 
     // projectId => project info
     mapping(uint256 => ProjectInfo) public projects;
@@ -64,14 +64,14 @@ contract Project is Ownable {
     event SetStakingBlockNumber(uint256 indexed projectId, uint256 blockStart, uint256 blockEnd);
     event SetMinStakeAmount(uint256 indexed projectId, uint256 minStakeAmount);
     event SetMaxStakeAmount(uint256 indexed projectId, uint256 maxStakeAmount);
+    event SetClaimBackStartBlockNumber(uint256 indexed projectId, uint256 blockStart);
     event SetFundingBlockNumber(uint256 indexed projectId, uint256 blockStart, uint256 blockEnd);
     event SetFundingMinAllocation(uint256 indexed projectId, uint256 minAllocation);
-    event SetFundingAllocationRate(uint256 indexed projectId, uint256 fundingAllocationRate);
     event SetFundingReceiver(uint256 indexed projectId, address fundingReceiver);
     event Stake(address account, uint256 indexed projectId, uint256 indexed amount);
     event ClaimBack(address account, uint256 indexed projectId, uint256 indexed amount);
     event AddedToWhitelist(uint256 indexed projectId, address[] accounts);
-    event RemovedFromWhitelist(uint256 indexed projectId, address indexed account);
+    event RemovedFromWhitelist(uint256 indexed projectId, address[] accounts);
     event Funding(address account, uint256 indexed projectId, uint256 indexed amount, uint256 tokenAllocationAmount);
     event WithdrawFunding(address account, uint256 indexed projectId, uint256 indexed amount);
 
@@ -86,9 +86,7 @@ contract Project is Ownable {
     }
 
     function createProject(
-        address _tokenAddress,
         uint256 _allocationSize,
-        uint256 _estimateTokenAllocationRate,
         uint256 _stakingStartBlockNumber,
         uint256 _stakingEndBlockNumber,
         uint256 _minStakeAmount,
@@ -96,20 +94,21 @@ contract Project is Ownable {
         uint256 _fundingStartBlockNumber,
         uint256 _fundingEndBlockNumber,
         uint256 _fundingMinAllocation,
-        uint256 _fundingAllocationRate,
-        address _fundingReceiver
+        uint256 _estimateTokenAllocationRate,
+        address _fundingReceiver,
+        uint256 _claimBackStartBlockNumber
     ) external onlyOwner {
         require(_stakingStartBlockNumber > block.number &&
                 _stakingStartBlockNumber < _stakingEndBlockNumber &&
                 _fundingStartBlockNumber > _stakingEndBlockNumber &&
-                _fundingStartBlockNumber < _fundingEndBlockNumber, "Invalid block number");
+                _fundingStartBlockNumber < _fundingEndBlockNumber &&
+                _fundingEndBlockNumber < _claimBackStartBlockNumber, "Invalid block number");
         require(_minStakeAmount <= _maxStakeAmount, "Invalid stake min amount");
         require(_fundingReceiver != address(0), "Invalid funding receiver address");
 
         latestProjectId++;
         ProjectInfo memory project;
         project.id = latestProjectId;
-        project.tokenAddress = _tokenAddress;
         project.allocationSize = _allocationSize;
         project.stakeInfo.startBlockNumber = _stakingStartBlockNumber;
         project.stakeInfo.endBlockNumber = _stakingEndBlockNumber;
@@ -118,12 +117,11 @@ contract Project is Ownable {
         project.fundingInfo.startBlockNumber = _fundingStartBlockNumber;
         project.fundingInfo.endBlockNumber = _fundingEndBlockNumber;
         project.fundingInfo.minAllocation = _fundingMinAllocation;
-        project.fundingInfo.allocationRate = _fundingAllocationRate;
         project.fundingInfo.estimateTokenAllocationRate = _estimateTokenAllocationRate;
         project.fundingInfo.fundingReceiver = _fundingReceiver;
+        project.claimBackInfo.startBlockNumber = _claimBackStartBlockNumber;
 
         projects[latestProjectId] = project;
-        projectIds.push(latestProjectId);
         emit CreateProject(project);
     }
 
@@ -134,11 +132,11 @@ contract Project is Ownable {
         emit SetAllocationSize(_projectId, _allocationSize);
     }
 
-    function setEstimateTokenAllocationRate(uint256 _projectId, uint256 _estimateTokenAllocationRate) external onlyOwner validProject(_projectId) {
-        require(_estimateTokenAllocationRate > 0, "Invalid project estimate token allocation rate");
+    function setEstimateTokenAllocationRate(uint256 _projectId, uint256 _rate) external onlyOwner validProject(_projectId) {
+        require(_rate > 0, "Invalid project estimate token allocation rate");
 
-        projects[_projectId].fundingInfo.estimateTokenAllocationRate = _estimateTokenAllocationRate;
-        emit SetEstimateTokenAllocationRate(_projectId, _estimateTokenAllocationRate);
+        projects[_projectId].fundingInfo.estimateTokenAllocationRate = _rate;
+        emit SetEstimateTokenAllocationRate(_projectId, _rate);
     }
 
     function setStakingBlockNumber(uint256 _projectId, uint256 _blockStart, uint256 _blockEnd) external onlyOwner validProject(_projectId) {
@@ -152,43 +150,48 @@ contract Project is Ownable {
         emit SetStakingBlockNumber(_projectId, _blockStart, _blockEnd);
     }
 
-    function setMinStakeAmount(uint256 _projectId, uint256 _minStakeAmount) external onlyOwner validProject(_projectId) {
-        require(_minStakeAmount > 0 && _minStakeAmount <= projects[_projectId].stakeInfo.maxStakeAmount, "Invalid min of stake amount");
+    function setMinStakeAmount(uint256 _projectId, uint256 _amount) external onlyOwner validProject(_projectId) {
+        StakeInfo storage stakeInfo = projects[_projectId].stakeInfo;
+        require(_amount > 0 && _amount <= stakeInfo.maxStakeAmount, "Invalid min of stake amount");
 
-        projects[_projectId].stakeInfo.minStakeAmount = _minStakeAmount;
-        emit SetMinStakeAmount(_projectId, _minStakeAmount);
+        stakeInfo.minStakeAmount = _amount;
+        emit SetMinStakeAmount(_projectId, _amount);
     }
 
-    function setMaxStakeAmount(uint256 _projectId, uint256 _maxStakeAmount) external onlyOwner validProject(_projectId) {
-        require(_maxStakeAmount > 0, "Invalid limit of stake amount");
+    function setMaxStakeAmount(uint256 _projectId, uint256 _amount) external onlyOwner validProject(_projectId) {
+        require(_amount > 0, "Invalid limit of stake amount");
 
-        projects[_projectId].stakeInfo.maxStakeAmount = _maxStakeAmount;
-        emit SetMaxStakeAmount(_projectId, _maxStakeAmount);
+        projects[_projectId].stakeInfo.maxStakeAmount = _amount;
+        emit SetMaxStakeAmount(_projectId, _amount);
     }
 
     function setFundingBlockNumber(uint256 _projectId, uint256 _blockStart, uint256 _blockEnd) external onlyOwner validProject(_projectId) {
         ProjectInfo storage project = projects[_projectId];
         require(_blockStart > block.number &&
+                _blockStart > project.stakeInfo.endBlockNumber &&
                 _blockStart < _blockEnd &&
-                _blockStart > project.stakeInfo.endBlockNumber, "Invalid block number");
+                _blockEnd < project.claimBackInfo.startBlockNumber,
+                "Invalid block number");
 
         project.fundingInfo.startBlockNumber = _blockStart;
         project.fundingInfo.endBlockNumber = _blockEnd;
         emit SetFundingBlockNumber(_projectId, _blockStart, _blockEnd);
     }
 
-    function setFundingMinAllocation(uint256 _projectId, uint256 _minAllocation) external onlyOwner validProject(_projectId) {
-        require(_minAllocation > 0, "Invalid project funding min allocation");
+    function setClaimBackStartBlockNumber(uint256 _projectId, uint256 _blockStart) external onlyOwner validProject(_projectId) {
+        ProjectInfo storage project = projects[_projectId];
+        require(_blockStart > block.number &&
+                _blockStart > project.fundingInfo.endBlockNumber, "Invalid block number");
 
-        projects[_projectId].fundingInfo.minAllocation = _minAllocation;
-        emit SetFundingMinAllocation(_projectId, _minAllocation);
+        project.claimBackInfo.startBlockNumber = _blockStart;
+        emit SetClaimBackStartBlockNumber(_projectId, _blockStart);
     }
 
-    function setFundingAllocationRate(uint256 _projectId, uint256 _fundingAllocationRate) external onlyOwner validProject(_projectId) {
-        require(_fundingAllocationRate > 0, "Invalid project funding allocation rate");
+    function setFundingMinAllocation(uint256 _projectId, uint256 _amount) external onlyOwner validProject(_projectId) {
+        require(_amount > 0, "Invalid project funding min allocation");
 
-        projects[_projectId].fundingInfo.allocationRate = _fundingAllocationRate;
-        emit SetFundingAllocationRate(_projectId, _fundingAllocationRate);
+        projects[_projectId].fundingInfo.minAllocation = _amount;
+        emit SetFundingMinAllocation(_projectId, _amount);
     }
 
     function setFundingReceiver(uint256 _projectId, address _fundingReceiver) external onlyOwner validProject(_projectId) {
@@ -206,18 +209,13 @@ contract Project is Ownable {
         require(block.number >= stakeInfo.startBlockNumber, "Staking has not started yet");
         require(block.number <= stakeInfo.endBlockNumber, "Staking has ended");
 
-        require(_amount != 0 && _amount >= stakeInfo.minStakeAmount, "Not enough stake amount");
+        require(_amount >= stakeInfo.minStakeAmount, "Not enough stake amount");
         require(_amount <= stakeInfo.maxStakeAmount, "Amount exceed limit stake amount");
 
         gmi.transferFrom(_msgSender(), address(this), _amount);
 
-        UserInfo storage user = userInfo[_projectId][_msgSender()];
-
-        if (user.stakedAmount == 0) {
-            stakeInfo.stakedAccounts.push(_msgSender());
-        }
+        userInfo[_projectId][_msgSender()].stakedAmount += _amount;
         stakeInfo.stakedTotalAmount += _amount;
-        user.stakedAmount += _amount;
 
         emit Stake(_msgSender(), _projectId, _amount);
     }
@@ -226,7 +224,7 @@ contract Project is Ownable {
     /// @dev    This method can called by anyone
     /// @param  _projectId  id of the project
     function claimBack(uint256 _projectId) external validProject(_projectId) {
-        require(block.number >= projects[_projectId].fundingInfo.endBlockNumber, "Funding has not ended yet");
+        require(block.number >= projects[_projectId].claimBackInfo.startBlockNumber, "Claiming back has not started yet");
 
         UserInfo storage user = userInfo[_projectId][_msgSender()];
         uint256 claimableAmount = user.stakedAmount;
@@ -239,20 +237,40 @@ contract Project is Ownable {
     }
 
     function addWhitelist(uint256 _projectId, address[] memory _accounts) external onlyOwner validProject(_projectId) {
+        require(block.number > projects[_projectId].stakeInfo.endBlockNumber, "Staking has not ended yet");
+        require(_accounts.length > 0, "Account list is empty");
+
         for (uint256 i = 0; i < _accounts.length; i++) {
             address account = _accounts[i];
             require(account != address(0), "Invalid account");
 
             UserInfo storage user = userInfo[_projectId][account];
+            if (user.isAddedWhitelist) continue;
+            require(user.stakedAmount > 0, "Account did not stake yet");
 
             user.isAddedWhitelist = true;
+            projects[_projectId].stakeInfo.whitelistedStakedTotalAmount += user.stakedAmount;
         }
         emit AddedToWhitelist(_projectId, _accounts);
     }
 
-    function removeFromWhitelist(uint256 _projectId, address _account) public onlyOwner validProject(_projectId) {
-        userInfo[_projectId][_account].isAddedWhitelist = false;
-        emit RemovedFromWhitelist(_projectId, _account);
+    function removeFromWhitelist(uint256 _projectId, address[] memory _accounts) public onlyOwner validProject(_projectId) {
+        require(block.number > projects[_projectId].stakeInfo.endBlockNumber, "Staking has not ended yet");
+        require(_accounts.length > 0, "Account list is empty");
+
+        for (uint256 i = 0; i < _accounts.length; i++) {
+            address account = _accounts[i];
+            require(account != address(0), "Invalid account");
+
+            UserInfo storage user = userInfo[_projectId][account];
+            if (!user.isAddedWhitelist) continue;
+
+            user.isAddedWhitelist = false;
+            if (projects[_projectId].stakeInfo.whitelistedStakedTotalAmount >= user.stakedAmount) {
+                projects[_projectId].stakeInfo.whitelistedStakedTotalAmount -= user.stakedAmount;
+            }
+        }
+        emit RemovedFromWhitelist(_projectId, _accounts);
     }
 
     /// @notice fund amount of USD to funding
@@ -273,11 +291,8 @@ contract Project is Ownable {
         busd.transferFrom(_msgSender(), address(this), _amount);
 
         UserInfo storage user = userInfo[_projectId][_msgSender()];
-        if (user.fundedAmount == 0) {
-            fundingInfo.fundedAccounts.push(_msgSender());
-        }
-        fundingInfo.fundedTotalAmount += _amount;
         user.fundedAmount += _amount;
+        fundingInfo.fundedTotalAmount += _amount;
 
         uint256 tokenAllocationAmount = estimateTokenAllocation(_projectId, _amount);
         user.tokenAllocationAmount += tokenAllocationAmount;
@@ -285,8 +300,8 @@ contract Project is Ownable {
         emit Funding(_msgSender(), _projectId, _amount, tokenAllocationAmount);
     }
 
-    /// @notice receive amount USD from contract
-    /// @dev    this method can called by owner
+    /// @notice Send funded USD to project funding receiver
+    /// @dev    this method only called by owner
     /// @param  _projectId  id of the project
     function withdrawFunding(uint256 _projectId) external onlyOwner validProject(_projectId) {
         FundingInfo storage fundingInfo = projects[_projectId].fundingInfo;
@@ -294,7 +309,7 @@ contract Project is Ownable {
         require(!fundingInfo.isWithdrawnFund, "Already withdrawn fund");
 
         uint256 _amount = fundingInfo.fundedTotalAmount;
-        require(_amount > 0, "Not enough amount");
+        require(_amount > 0, "Nothing to withdraw");
 
         busd.transfer(fundingInfo.fundingReceiver, _amount);
         fundingInfo.isWithdrawnFund = true;
@@ -302,15 +317,15 @@ contract Project is Ownable {
         emit WithdrawFunding(fundingInfo.fundingReceiver, _projectId, _amount);
     }
 
-    function getProjectInfo(uint256 _projectId) public validProject(_projectId) view returns (ProjectInfo memory result) {
+    function getProjectInfo(uint256 _projectId) public view returns (ProjectInfo memory result) {
         result = projects[_projectId];
     }
 
-    function getStakeInfo(uint256 _projectId) public validProject(_projectId) view returns (StakeInfo memory result) {
+    function getStakeInfo(uint256 _projectId) public view returns (StakeInfo memory result) {
         result = projects[_projectId].stakeInfo;
     }
 
-    function getFundingInfo(uint256 _projectId) public validProject(_projectId) view returns (FundingInfo memory result) {
+    function getFundingInfo(uint256 _projectId) public view returns (FundingInfo memory result) {
         result = projects[_projectId].fundingInfo;
     }
 
@@ -324,22 +339,29 @@ contract Project is Ownable {
 
     function getFundingMaxAllocation(uint256 _projectId, address _account) public view returns(uint256) {
         UserInfo memory user = userInfo[_projectId][_account];
-        uint256 stakedAmount = user.stakedAmount;
-        if (stakedAmount == 0) return 0;
-
         ProjectInfo memory project = projects[_projectId];
-        uint256 allocationSize = project.allocationSize;
 
-        uint256 maxAllocationAmount = Formula.mulDivFixedPoint(stakedAmount, project.fundingInfo.allocationRate);
-        if (maxAllocationAmount > allocationSize) {
-            return allocationSize;
+        uint256 stakedAmount = user.stakedAmount;
+        if (stakedAmount == 0 || project.stakeInfo.whitelistedStakedTotalAmount == 0) return 0;
+
+        uint256 maxAllocableAmount = Formula.mulDiv(
+            stakedAmount,
+            project.allocationSize,
+            project.stakeInfo.whitelistedStakedTotalAmount
+        );
+        uint256 allocableAmount = maxAllocableAmount - user.fundedAmount;
+        uint256 remainingAllocationSize = project.allocationSize - project.fundingInfo.fundedTotalAmount;
+
+        if (allocableAmount > remainingAllocationSize) {
+            return remainingAllocationSize;
         }
 
-        return maxAllocationAmount;
+        return allocableAmount;
     }
 
     function estimateTokenAllocation(uint256 _projectId, uint256 _fundingAmount) public view returns (uint256) {
-        ProjectInfo memory project = projects[_projectId];
-        return Formula.mulDiv(_fundingAmount, Formula.SCALE, project.fundingInfo.estimateTokenAllocationRate);
+        uint256 rate = projects[_projectId].fundingInfo.estimateTokenAllocationRate;
+        require(rate > 0, "Did not set estimate token allocation rate yet");
+        return Formula.mulDiv(_fundingAmount, Formula.SCALE, rate);
     }
 }
