@@ -33,6 +33,7 @@ describe("Project", () => {
 
         await token.addController(admin.address);
         await token.mint(user1.address, '1000000000000000000000000'); // mint 1000,000 token GMI
+        await token.mint(user2.address, '1000000000000000000000000'); // mint 1000,000 token GMI
 
         await token.connect(user1).approve(project.address, MAX_UINT256.toString());
         await busd.connect(user1).approve(project.address, MAX_UINT256.toString());
@@ -55,7 +56,6 @@ describe("Project", () => {
             .connect(admin)
             .createProject(
               allocationSize,
-              estimateTokenAllocationRate,
               stakingStartBlockNumber,
               stakingEndBlockNumber,
               minStakeAmount,
@@ -63,7 +63,7 @@ describe("Project", () => {
               fundingStartBlockNumber,
               fundingEndBlockNumber,
               fundingMinAllocation,
-              fundingAllocationRate,
+              estimateTokenAllocationRate,
               user1.address,
               claimBackStartBlockNumber
             );
@@ -84,7 +84,6 @@ describe("Project", () => {
               .connect(user1)
               .createProject(
                 allocationSize,
-                estimateTokenAllocationRate,
                 stakingStartBlockNumber,
                 stakingEndBlockNumber,
                 minStakeAmount,
@@ -92,7 +91,7 @@ describe("Project", () => {
                 fundingStartBlockNumber,
                 fundingEndBlockNumber,
                 fundingMinAllocation,
-                fundingAllocationRate,
+                estimateTokenAllocationRate,
                 user1.address,
                 claimBackStartBlockNumber
               )
@@ -112,7 +111,6 @@ describe("Project", () => {
               .connect(admin)
               .createProject(
                 allocationSize,
-                estimateTokenAllocationRate,
                 currentBlock - 1,
                 stakingEndBlockNumber,
                 minStakeAmount,
@@ -120,7 +118,7 @@ describe("Project", () => {
                 fundingStartBlockNumber,
                 fundingEndBlockNumber,
                 fundingMinAllocation,
-                fundingAllocationRate,
+                estimateTokenAllocationRate,
                 user1.address,
                 claimBackStartBlockNumber
               )
@@ -132,7 +130,6 @@ describe("Project", () => {
               .connect(admin)
               .createProject(
                 allocationSize,
-                estimateTokenAllocationRate,
                 currentBlock,
                 stakingEndBlockNumber,
                 minStakeAmount,
@@ -140,7 +137,7 @@ describe("Project", () => {
                 fundingStartBlockNumber,
                 fundingEndBlockNumber,
                 fundingMinAllocation,
-                fundingAllocationRate,
+                estimateTokenAllocationRate,
                 user1.address,
                 claimBackStartBlockNumber
               )
@@ -160,7 +157,6 @@ describe("Project", () => {
               .connect(admin)
               .createProject(
                 allocationSize,
-                estimateTokenAllocationRate,
                 stakingEndBlockNumber + 1,
                 stakingEndBlockNumber,
                 minStakeAmount,
@@ -168,7 +164,7 @@ describe("Project", () => {
                 fundingStartBlockNumber,
                 fundingEndBlockNumber,
                 fundingMinAllocation,
-                fundingAllocationRate,
+                estimateTokenAllocationRate,
                 user1.address,
                 claimBackStartBlockNumber
               )
@@ -179,7 +175,6 @@ describe("Project", () => {
               .connect(admin)
               .createProject(
                 allocationSize,
-                estimateTokenAllocationRate,
                 stakingEndBlockNumber,
                 stakingEndBlockNumber,
                 minStakeAmount,
@@ -187,7 +182,7 @@ describe("Project", () => {
                 fundingStartBlockNumber,
                 fundingEndBlockNumber,
                 fundingMinAllocation,
-                fundingAllocationRate,
+                estimateTokenAllocationRate,
                 user1.address,
                 claimBackStartBlockNumber
               )
@@ -207,7 +202,6 @@ describe("Project", () => {
               .connect(admin)
               .createProject(
                 allocationSize,
-                estimateTokenAllocationRate,
                 stakingStartBlockNumber,
                 stakingEndBlockNumber,
                 minStakeAmount,
@@ -215,7 +209,7 @@ describe("Project", () => {
                 stakingEndBlockNumber - 1,
                 fundingEndBlockNumber,
                 fundingMinAllocation,
-                fundingAllocationRate,
+                estimateTokenAllocationRate,
                 user1.address,
                 claimBackStartBlockNumber
               )
@@ -226,7 +220,6 @@ describe("Project", () => {
               .connect(admin)
               .createProject(
                 allocationSize,
-                estimateTokenAllocationRate,
                 stakingStartBlockNumber,
                 stakingEndBlockNumber,
                 minStakeAmount,
@@ -234,7 +227,7 @@ describe("Project", () => {
                 stakingEndBlockNumber,
                 fundingEndBlockNumber,
                 fundingMinAllocation,
-                fundingAllocationRate,
+                estimateTokenAllocationRate,
                 user1.address,
                 claimBackStartBlockNumber
               )
@@ -254,7 +247,6 @@ describe("Project", () => {
               .connect(admin)
               .createProject(
                 allocationSize,
-                estimateTokenAllocationRate,
                 stakingStartBlockNumber,
                 stakingEndBlockNumber,
                 minStakeAmount,
@@ -262,7 +254,7 @@ describe("Project", () => {
                 fundingEndBlockNumber + 1,
                 fundingEndBlockNumber,
                 fundingMinAllocation,
-                fundingAllocationRate,
+                estimateTokenAllocationRate,
                 user1.address,
                 claimBackStartBlockNumber
               )
@@ -273,7 +265,6 @@ describe("Project", () => {
               .connect(admin)
               .createProject(
                 allocationSize,
-                estimateTokenAllocationRate,
                 stakingStartBlockNumber,
                 stakingEndBlockNumber,
                 minStakeAmount,
@@ -281,7 +272,7 @@ describe("Project", () => {
                 fundingEndBlockNumber,
                 fundingEndBlockNumber,
                 fundingMinAllocation,
-                fundingAllocationRate,
+                estimateTokenAllocationRate,
                 user1.address,
                 claimBackStartBlockNumber
               )
@@ -302,7 +293,6 @@ describe("Project", () => {
             .connect(admin)
             .createProject(
               allocationSize,
-              estimateTokenAllocationRate,
               stakingStartBlockNumber,
               stakingEndBlockNumber,
               minStakeAmount,
@@ -310,7 +300,7 @@ describe("Project", () => {
               fundingStartBlockNumber,
               fundingEndBlockNumber,
               fundingMinAllocation,
-              fundingAllocationRate,
+              estimateTokenAllocationRate,
               user1.address,
               claimBackStartBlockNumber
             )).revertedWith("Invalid stake min amount")
@@ -330,7 +320,6 @@ describe("Project", () => {
           .connect(admin)
           .createProject(
             allocationSize,
-            estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
             minStakeAmount,
@@ -338,7 +327,7 @@ describe("Project", () => {
             fundingStartBlockNumber,
             fundingEndBlockNumber,
             fundingMinAllocation,
-            fundingAllocationRate,
+            estimateTokenAllocationRate,
             user1.address,
             claimBackStartBlockNumber
           );
@@ -407,7 +396,6 @@ describe("Project", () => {
           .connect(admin)
           .createProject(
             allocationSize,
-            estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
             minStakeAmount,
@@ -415,7 +403,7 @@ describe("Project", () => {
             fundingStartBlockNumber,
             fundingEndBlockNumber,
             fundingMinAllocation,
-            fundingAllocationRate,
+            estimateTokenAllocationRate,
             user1.address,
             claimBackStartBlockNumber
           );
@@ -481,13 +469,12 @@ describe("Project", () => {
         stakingEndBlockNumber = stakingStartBlockNumber + 100;
         fundingStartBlockNumber = stakingEndBlockNumber + 100;
         fundingEndBlockNumber = fundingStartBlockNumber + 100;
+        claimBackStartBlockNumber = fundingEndBlockNumber + 100;
 
         await project
           .connect(admin)
           .createProject(
-            token.address,
             allocationSize,
-            estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
             minStakeAmount,
@@ -495,8 +482,9 @@ describe("Project", () => {
             fundingStartBlockNumber,
             fundingEndBlockNumber,
             fundingMinAllocation,
-            fundingAllocationRate,
-            user1.address
+            estimateTokenAllocationRate,
+            user1.address,
+            claimBackStartBlockNumber
           );
       });
 
@@ -525,13 +513,12 @@ describe("Project", () => {
         stakingEndBlockNumber = stakingStartBlockNumber + 100;
         fundingStartBlockNumber = stakingEndBlockNumber + 100;
         fundingEndBlockNumber = fundingStartBlockNumber + 100;
+        claimBackStartBlockNumber = fundingEndBlockNumber + 100;
 
         await project
           .connect(admin)
           .createProject(
-            token.address,
             allocationSize,
-            estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
             minStakeAmount,
@@ -539,8 +526,9 @@ describe("Project", () => {
             fundingStartBlockNumber,
             fundingEndBlockNumber,
             fundingMinAllocation,
-            fundingAllocationRate,
-            user1.address
+            estimateTokenAllocationRate,
+            user1.address,
+            claimBackStartBlockNumber
           );
       });
 
@@ -569,13 +557,12 @@ describe("Project", () => {
         stakingEndBlockNumber = stakingStartBlockNumber + 100;
         fundingStartBlockNumber = stakingEndBlockNumber + 100;
         fundingEndBlockNumber = fundingStartBlockNumber + 100;
+        claimBackStartBlockNumber = fundingEndBlockNumber + 100;
 
         await project
           .connect(admin)
           .createProject(
-            token.address,
             allocationSize,
-            estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
             minStakeAmount,
@@ -583,8 +570,9 @@ describe("Project", () => {
             fundingStartBlockNumber,
             fundingEndBlockNumber,
             fundingMinAllocation,
-            fundingAllocationRate,
-            user1.address
+            estimateTokenAllocationRate,
+            user1.address,
+            claimBackStartBlockNumber
           );
       });
 
@@ -614,13 +602,12 @@ describe("Project", () => {
         stakingEndBlockNumber = stakingStartBlockNumber + 100;
         fundingStartBlockNumber = stakingEndBlockNumber + 100;
         fundingEndBlockNumber = fundingStartBlockNumber + 100;
+        claimBackStartBlockNumber = fundingEndBlockNumber + 100;
 
         await project
           .connect(admin)
           .createProject(
-            token.address,
             allocationSize,
-            estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
             minStakeAmount,
@@ -628,8 +615,9 @@ describe("Project", () => {
             fundingStartBlockNumber,
             fundingEndBlockNumber,
             fundingMinAllocation,
-            fundingAllocationRate,
-            user1.address
+            estimateTokenAllocationRate,
+            user1.address,
+            claimBackStartBlockNumber
           );
       });
 
@@ -658,13 +646,12 @@ describe("Project", () => {
         stakingEndBlockNumber = stakingStartBlockNumber + 100;
         fundingStartBlockNumber = stakingEndBlockNumber + 100;
         fundingEndBlockNumber = fundingStartBlockNumber + 100;
+        claimBackStartBlockNumber = fundingEndBlockNumber + 100;
 
         await project
           .connect(admin)
           .createProject(
-            token.address,
             allocationSize,
-            estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
             minStakeAmount,
@@ -672,8 +659,9 @@ describe("Project", () => {
             fundingStartBlockNumber,
             fundingEndBlockNumber,
             fundingMinAllocation,
-            fundingAllocationRate,
-            user1.address
+            estimateTokenAllocationRate,
+            user1.address,
+            claimBackStartBlockNumber
           );
       });
 
@@ -702,13 +690,12 @@ describe("Project", () => {
         stakingEndBlockNumber = stakingStartBlockNumber + 100;
         fundingStartBlockNumber = stakingEndBlockNumber + 100;
         fundingEndBlockNumber = fundingStartBlockNumber + 100;
+        claimBackStartBlockNumber = fundingEndBlockNumber + 100;
 
         await project
           .connect(admin)
           .createProject(
-            token.address,
             allocationSize,
-            estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
             minStakeAmount,
@@ -716,8 +703,9 @@ describe("Project", () => {
             fundingStartBlockNumber,
             fundingEndBlockNumber,
             fundingMinAllocation,
-            fundingAllocationRate,
-            user1.address
+            estimateTokenAllocationRate,
+            user1.address,
+            claimBackStartBlockNumber
           );
 
         projectId = await project.latestProjectId();
@@ -775,7 +763,7 @@ describe("Project", () => {
       });
     });
 
-    describe.only('funding', () => {
+    describe('funding', () => {
       beforeEach(async () => {
         currentBlock = await getCurrentBlock();
         stakingStartBlockNumber = currentBlock + 100;
@@ -880,13 +868,12 @@ describe("Project", () => {
         stakingEndBlockNumber = stakingStartBlockNumber + 100;
         fundingStartBlockNumber = stakingEndBlockNumber + 100;
         fundingEndBlockNumber = fundingStartBlockNumber + 100;
+        claimBackStartBlockNumber = fundingEndBlockNumber + 100;
 
         await project
           .connect(admin)
           .createProject(
-            token.address,
             allocationSize,
-            estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
             minStakeAmount,
@@ -894,31 +881,46 @@ describe("Project", () => {
             fundingStartBlockNumber,
             fundingEndBlockNumber,
             fundingMinAllocation,
-            fundingAllocationRate,
-            user1.address
+            estimateTokenAllocationRate,
+            user1.address,
+            claimBackStartBlockNumber
           );
 
         projectId = await project.latestProjectId();
         await skipBlock(100);
+
+        await project.connect(user1).stake(projectId, maxStakeAmount);
+        await skipBlock(100);
       });
 
       it("Only owner", async () => {
-        await project.connect(user1).stake(projectId, maxStakeAmount);
         await expect(project.connect(user1).addWhitelist(projectId, [user1.address])).revertedWith("caller is not the owner");
-        expect(await project.connect(admin).addWhitelist(projectId, [user1.address])).ok
+        expect(await project.isAddedWhitelist(projectId, user1.address)).equal(false);
+      })
+
+      it("Account list is empty", async () => {
+        await expect(project.connect(admin).addWhitelist(projectId, [])).revertedWith("Account list is empty");
       })
 
       it("Invalid account", async () => {
         await expect(project.connect(admin).addWhitelist(projectId, [blackHoleAddress])).revertedWith("Invalid account");
-        await project.connect(user1).stake(projectId, maxStakeAmount);
-        await expect(project.connect(admin).addWhitelist(projectId, [user1.address])).ok;
+      })
+
+      it("Account did not stake yet", async () => {
+        await expect(project.connect(admin).addWhitelist(projectId, [user2.address])).revertedWith("Account did not stake yet");
+        expect(await project.isAddedWhitelist(projectId, user1.address)).equal(false);
       })
 
       it("Success", async () => {
-        expect(await project.connect(user1).isAddedWhitelist(projectId, user1.address)).equal(false);
-        await project.connect(user1).stake(projectId, maxStakeAmount);
-        expect(await project.connect(admin).addWhitelist(projectId, [user1.address])).ok;
-        expect(await project.connect(user1).isAddedWhitelist(projectId, user1.address)).equal(true);
+        expect(await project.isAddedWhitelist(projectId, user1.address)).equal(false);
+        const stakeInfo_before = await project.getStakeInfo(projectId);
+
+        await project.connect(admin).addWhitelist(projectId, [user1.address]);
+
+        const stakeInfo_after = await project.getStakeInfo(projectId);
+        expect(stakeInfo_after.whitelistedStakedTotalAmount.sub(stakeInfo_before.whitelistedStakedTotalAmount)).to.be.equal(maxStakeAmount);
+
+        expect(await project.isAddedWhitelist(projectId, user1.address)).equal(true);
       })
     })
 
@@ -929,13 +931,12 @@ describe("Project", () => {
         stakingEndBlockNumber = stakingStartBlockNumber + 100;
         fundingStartBlockNumber = stakingEndBlockNumber + 100;
         fundingEndBlockNumber = fundingStartBlockNumber + 100;
+        claimBackStartBlockNumber = fundingEndBlockNumber + 100;
 
         await project
           .connect(admin)
           .createProject(
-            token.address,
             allocationSize,
-            estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
             minStakeAmount,
@@ -943,28 +944,40 @@ describe("Project", () => {
             fundingStartBlockNumber,
             fundingEndBlockNumber,
             fundingMinAllocation,
-            fundingAllocationRate,
-            user1.address
+            estimateTokenAllocationRate,
+            user1.address,
+            claimBackStartBlockNumber
           );
 
         projectId = await project.latestProjectId();
         await skipBlock(100);
+        await project.connect(user1).stake(projectId, maxStakeAmount);
+        await project.connect(user2).stake(projectId, maxStakeAmount);
+        await skipBlock(100);
+        await project.connect(admin).addWhitelist(projectId, [user1.address, user2.address]);
       });
 
       it("Only owner", async () => {
-        await project.connect(user1).stake(projectId, maxStakeAmount);
-        expect(await project.connect(admin).addWhitelist(projectId, [user1.address])).ok;
-        await expect(project.connect(user1).removeFromWhitelist(projectId, user1.address)).revertedWith("caller is not the owner");
-        expect(await project.connect(admin).removeFromWhitelist(projectId, user1.address)).ok
+        await expect(project.connect(user1).removeFromWhitelist(projectId, [user1.address])).revertedWith("caller is not the owner");
+      })
+
+      it("Account list is empty", async () => {
+        await expect(project.connect(admin).removeFromWhitelist(projectId, [])).revertedWith("Account list is empty");
       })
 
       it("Success", async () => {
-        expect(await project.connect(user1).isAddedWhitelist(projectId, user1.address)).equal(false);
-        await project.connect(user1).stake(projectId, maxStakeAmount);
-        expect(await project.connect(admin).addWhitelist(projectId, [user1.address])).ok;
-        expect(await project.connect(user1).isAddedWhitelist(projectId, user1.address)).equal(true);
-        expect(await project.connect(admin).removeFromWhitelist(projectId, user1.address)).ok;
-        expect(await project.connect(user1).isAddedWhitelist(projectId, user1.address)).equal(false);
+        expect(await project.isAddedWhitelist(projectId, user1.address)).to.be.true;
+        expect(await project.isAddedWhitelist(projectId, user2.address)).to.be.true;
+        const stakeInfo_before = await project.getStakeInfo(projectId);
+
+        await project.connect(admin).removeFromWhitelist(projectId, [user1.address, user2.address, user3.address]);
+
+        const stakeInfo_after = await project.getStakeInfo(projectId);
+        expect(stakeInfo_before.whitelistedStakedTotalAmount.sub(stakeInfo_after.whitelistedStakedTotalAmount)).to.be.equal('20000000000000000000000');
+
+        expect(await project.isAddedWhitelist(projectId, user1.address)).to.be.false;
+        expect(await project.isAddedWhitelist(projectId, user2.address)).to.be.false;
+        expect(await project.isAddedWhitelist(projectId, user3.address)).to.be.false;
       })
     })
 
@@ -975,13 +988,12 @@ describe("Project", () => {
         stakingEndBlockNumber = stakingStartBlockNumber + 100;
         fundingStartBlockNumber = stakingEndBlockNumber + 100;
         fundingEndBlockNumber = fundingStartBlockNumber + 100;
+        claimBackStartBlockNumber = fundingEndBlockNumber + 100;
 
         await project
           .connect(admin)
           .createProject(
-            token.address,
             allocationSize,
-            estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
             minStakeAmount,
@@ -989,24 +1001,28 @@ describe("Project", () => {
             fundingStartBlockNumber,
             fundingEndBlockNumber,
             fundingMinAllocation,
-            fundingAllocationRate,
-            user1.address
+            estimateTokenAllocationRate,
+            user1.address,
+            claimBackStartBlockNumber
           );
 
         projectId = await project.latestProjectId();
         await skipBlock(100);
         await project.connect(user1).stake(projectId, maxStakeAmount);
+        await skipBlock(100);
+
         await project.addWhitelist(projectId, [user1.address]);
 
         fundingMaxAllocation = await project.getFundingMaxAllocation(projectId, user1.address);
-        await skipBlock(200);
+        await skipBlock(100);
         await project.connect(user1).funding(projectId, fundingMaxAllocation);
+        await skipBlock(190);
       });
 
-      it('Funding has not ended yet', async () => {
+      it('Claiming back has not started yet', async () => {
         await expect(
           project.connect(user1).claimBack(projectId)
-        ).to.revertedWith('Funding has not ended yet');
+        ).to.revertedWith('Claiming back has not started yet');
       });
 
       it('Nothing to claim back', async () => {
@@ -1041,13 +1057,12 @@ describe("Project", () => {
         stakingEndBlockNumber = stakingStartBlockNumber + 100;
         fundingStartBlockNumber = stakingEndBlockNumber + 100;
         fundingEndBlockNumber = fundingStartBlockNumber + 100;
+        claimBackStartBlockNumber = fundingEndBlockNumber + 100;
 
         await project
           .connect(admin)
           .createProject(
-            token.address,
             allocationSize,
-            estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
             minStakeAmount,
@@ -1055,17 +1070,19 @@ describe("Project", () => {
             fundingStartBlockNumber,
             fundingEndBlockNumber,
             fundingMinAllocation,
-            fundingAllocationRate,
-            fundingReceiver.address
+            estimateTokenAllocationRate,
+            fundingReceiver.address,
+            claimBackStartBlockNumber
           );
 
         projectId = await project.latestProjectId();
         await skipBlock(100);
         await project.connect(user1).stake(projectId, maxStakeAmount);
+        await skipBlock(100);
         await project.addWhitelist(projectId, [user1.address]);
 
         fundingMaxAllocation = await project.getFundingMaxAllocation(projectId, user1.address);
-        await skipBlock(200);
+        await skipBlock(100);
         await project.connect(user1).funding(projectId, fundingMaxAllocation);
       });
 
@@ -1090,13 +1107,12 @@ describe("Project", () => {
         stakingEndBlockNumber = stakingStartBlockNumber + 100;
         fundingStartBlockNumber = stakingEndBlockNumber + 100;
         fundingEndBlockNumber = fundingStartBlockNumber + 100;
+        claimBackStartBlockNumber = fundingEndBlockNumber + 100;
 
         await project
           .connect(admin)
           .createProject(
-            token.address,
             allocationSize,
-            estimateTokenAllocationRate,
             stakingStartBlockNumber,
             stakingEndBlockNumber,
             minStakeAmount,
@@ -1104,15 +1120,16 @@ describe("Project", () => {
             fundingStartBlockNumber,
             fundingEndBlockNumber,
             fundingMinAllocation,
-            fundingAllocationRate,
-            fundingReceiver.address
+            estimateTokenAllocationRate,
+            fundingReceiver.address,
+            claimBackStartBlockNumber
           );
 
         await skipBlock(400);
         projectId = await project.latestProjectId();
         await expect(
           project.connect(admin).withdrawFunding(projectId)
-        ).to.revertedWith('Not enough amount');
+        ).to.revertedWith('Nothing to withdraw');
       });
 
       it('Withdraw success', async () => {

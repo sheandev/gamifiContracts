@@ -81,7 +81,7 @@ contract Project is Ownable {
     }
 
     modifier validProject(uint256 _projectId) {
-        require(projects[_projectId].id != 0 && projects[_projectId].id <= latestProjectId, "Invalid project id");
+        require(projects[_projectId].id > 0 && projects[_projectId].id <= latestProjectId, "Invalid project id");
         _; 
     }
 
@@ -342,7 +342,7 @@ contract Project is Ownable {
         ProjectInfo memory project = projects[_projectId];
 
         uint256 stakedAmount = user.stakedAmount;
-        if (stakedAmount == 0 || project.stakeInfo.whitelistedStakedTotalAmount == 0) return 0;
+        if (!user.isAddedWhitelist || stakedAmount == 0 || project.stakeInfo.whitelistedStakedTotalAmount == 0) return 0;
 
         uint256 maxAllocableAmount = Formula.mulDiv(
             stakedAmount,
