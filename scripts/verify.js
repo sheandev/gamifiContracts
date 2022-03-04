@@ -1,5 +1,5 @@
 const hre = require("hardhat");
-const contracts = require("../contracts.json");
+const contracts = require("../contracts-verify.json");
 
 async function main() {
   try {
@@ -39,7 +39,7 @@ async function main() {
   try {
     await hre.run("verify:verify", {
       address: contracts.project,
-      constructorArguments: [contracts.gmi, contracts.busd],
+      // constructorArguments: [contracts.gmi, contracts.busd],
     });
   } catch (err) {
     console.log("err :>> ", err);
@@ -57,6 +57,14 @@ async function main() {
   try {
     await hre.run("verify:verify", {
       address: contracts.vesting,
+    });
+  } catch (err) {
+    console.log("err :>> ", err);
+  }
+
+  try {
+    await hre.run("verify:verify", {
+      address: contracts.vestingTGE,
     });
   } catch (err) {
     console.log("err :>> ", err);
