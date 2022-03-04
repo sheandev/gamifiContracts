@@ -2,12 +2,15 @@
 pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./libraries/Formula.sol";
 import "./libraries/Config.sol";
 
 contract Project is Initializable, OwnableUpgradeable {
+    using SafeERC20Upgradeable for IERC20Upgradeable;
+
     struct UserInfo {
         bool isAddedWhitelist;
         bool isClaimedBack;
@@ -71,8 +74,8 @@ contract Project is Initializable, OwnableUpgradeable {
     event SetFundingReceiver(uint256 indexed projectId, address indexed fundingReceiver);
     event Stake(address indexed account, uint256 indexed projectId, uint256 indexed amount);
     event ClaimBack(address indexed account, uint256 indexed projectId, uint256 indexed amount);
-    event AddedToWhitelist(uint256 indexed projectId, address[] accounts);
-    event RemovedFromWhitelist(uint256 indexed projectId, address[] accounts);
+    event AddedToWhitelist(uint256 indexed projectId, address[] indexed accounts);
+    event RemovedFromWhitelist(uint256 indexed projectId, address[] indexed accounts);
     event Funding(address indexed account, uint256 indexed projectId, uint256 indexed amount, uint256 tokenAllocationAmount);
     event WithdrawFunding(address indexed account, uint256 indexed projectId, uint256 indexed amount);
 
@@ -215,7 +218,7 @@ contract Project is Initializable, OwnableUpgradeable {
         require(_amount >= stakeInfo.minStakeAmount, "Not enough stake amount");
         require(_amount <= stakeInfo.maxStakeAmount, "Amount exceed limit stake amount");
 
-        gmi.transferFrom(_msgSender(), address(this), _amount);
+        gmi.safeTransferFrom(_msgSender(), address(this), _amount);
 
         userInfo[_projectId][_msgSender()].stakedAmount += _amount;
         stakeInfo.stakedTotalAmount += _amount;
@@ -234,7 +237,7 @@ contract Project is Initializable, OwnableUpgradeable {
         require(claimableAmount > 0, "Nothing to claim back");
 
         user.isClaimedBack = true;
-        gmi.transfer(_msgSender(), claimableAmount);
+        gmi.safeTransfer(_msgSender(), claimableAmount);
 
         emit ClaimBack(_msgSender(), _projectId, claimableAmount);
     }
@@ -291,7 +294,7 @@ contract Project is Initializable, OwnableUpgradeable {
         uint256 fundingMaxAllocation = getFundingMaxAllocation(_projectId, _msgSender());
         require(_amount <= fundingMaxAllocation, "Amount exceed max allocation");
 
-        busd.transferFrom(_msgSender(), address(this), _amount);
+        busd.safeTransferFrom(_msgSender(), address(this), _amount);
 
         UserInfo storage user = userInfo[_projectId][_msgSender()];
         user.fundedAmount += _amount;
@@ -315,7 +318,7 @@ contract Project is Initializable, OwnableUpgradeable {
         uint256 _amount = fundingInfo.fundedTotalAmount;
         require(_amount > 0, "Nothing to withdraw");
 
-        busd.transfer(fundingInfo.fundingReceiver, _amount);
+        busd.safeTransfer(fundingInfo.fundingReceiver, _amount);
         fundingInfo.isWithdrawnFund = true;
 
         emit WithdrawFunding(fundingInfo.fundingReceiver, _projectId, _amount);

@@ -6,13 +6,12 @@ import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./libraries/Formula.sol";
-import "hardhat/console.sol";
 
 contract VestingTGE is Initializable, OwnableUpgradeable {
     using SafeMathUpgradeable for uint256;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    IERC20Upgradeable private _token;
+    IERC20Upgradeable public token;
 
     struct Vest {
         address owner;
@@ -24,16 +23,19 @@ contract VestingTGE is Initializable, OwnableUpgradeable {
         uint256 claimed;
     }
 
-    mapping(address => Vest) private _vests;
+    event InitiateVests(address[] indexed accounts, uint256[] amounts, uint256[] initials, uint256 _totalAmount, uint256 indexed _cliff, uint256 indexed _linear);
+    event Claim(address indexed account, uint256 indexed tokenClaimable);
 
-    function initialize(address owner_, IERC20Upgradeable token) public initializer {
+    mapping(address => Vest) public vests;
+
+    function initialize(address owner_, IERC20Upgradeable _token) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _transferOwnership(owner_);
-        _token = token;
+        token = _token;
     }
 
-    function getClaimable() public view returns (uint256) {
-        Vest memory _vest = _vests[_msgSender()];
+    function getClaimable(address _account) public view returns (uint256) {
+        Vest memory _vest = vests[_account];
         uint256 tokenClaimable;
         uint256 timestamp = block.timestamp; // solhint-disable-line not-rely-on-time
 
@@ -64,11 +66,13 @@ contract VestingTGE is Initializable, OwnableUpgradeable {
     }
 
     function claim() external {
-        Vest storage _vest = _vests[_msgSender()];
-        uint256 tokenClaimable = getClaimable();
+        Vest storage _vest = vests[_msgSender()];
+        uint256 tokenClaimable = getClaimable(_msgSender());
         require(tokenClaimable > 0, "Vesting: No token to claim");
         _vest.claimed = _vest.claimed.add(tokenClaimable);
-        _token.safeTransfer(_msgSender(), tokenClaimable);
+        token.safeTransfer(_msgSender(), tokenClaimable);
+
+        emit Claim(_msgSender(), tokenClaimable);
     }
 
     function initiateVests(address[] memory accounts, uint256[] memory amounts, uint256[] memory initials, uint256 _totalAmount, uint256 _cliff, uint256 _linear) external {
@@ -77,19 +81,21 @@ contract VestingTGE is Initializable, OwnableUpgradeable {
         require(_totalAmount > 0, "Vesting: _totalAmount must be > 0"); // solhint-disable-line reason-string
 
         uint256 amount = 0;
-        _token.safeTransferFrom(_msgSender(), address(this), _totalAmount);
+        token.safeTransferFrom(_msgSender(), address(this), _totalAmount);
         for (uint256 i = 0; i < accounts.length; i++) {
             amount = amount.add(amounts[i]);
             initiateVest(accounts[i], amounts[i], initials[i], _cliff, _linear);
         }
-        require(amount == _totalAmount, "Vesting: Bad totalAmount");        
+        require(amount == _totalAmount, "Vesting: Bad totalAmount");  
+
+        emit InitiateVests(accounts, amounts, initials, _totalAmount, _cliff, _linear);
     }
 
     function initiateVest(address owner_, uint256 amount, uint256 initial, uint256 cliff, uint256 linear) private {
         require(owner_ != address(0), "Vesting: owner_ is the zero address"); // solhint-disable-line reason-string
         require(initial < amount, "Vesting: initial amount should be less than total amount."); // solhint-disable-line reason-string
 
-        _vests[owner_] = Vest(
+        vests[owner_] = Vest(
             owner_,
             amount,
             block.timestamp, // solhint-disable-line not-rely-on-time
@@ -98,13 +104,9 @@ contract VestingTGE is Initializable, OwnableUpgradeable {
             linear,
             0
         );
-        _vests[owner_].claimed = _vests[owner_].claimed.add(
-            _vests[owner_].initial
+        vests[owner_].claimed = vests[owner_].claimed.add(
+            vests[owner_].initial
         );
-        _token.safeTransfer(_vests[owner_].owner, _vests[owner_].initial);
-    }
-
-    function getVest() public view returns (Vest memory) {
-        return _vests[_msgSender()];
+        token.safeTransfer(vests[owner_].owner, vests[owner_].initial);
     }
 }

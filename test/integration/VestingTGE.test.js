@@ -85,21 +85,21 @@ describe("VestingTGE - Integration", () => {
     const balanceUser_after = await token.balanceOf(user2.address);
     const balanceVestingTGE_after = await token.balanceOf(vestingTGE.address);
 
-    const vest_user_2 = await vestingTGE.connect(user2).getVest();
+    const vest_user_2 = await vestingTGE.vests(user2.address);
 
     expect(balanceUser_after.toString()).to.equal(add(balanceUser_before, subtract(vest_user_2.claimed, vest_user_2.initial)), 'Invalid balance user2');
     expect(subtract(balanceUser_after, balanceUser_before)).to.equal(subtract(balanceVestingTGE_before, balanceVestingTGE_after), 'Invalid balance vesting');
 
     // user 3
-    const vest_user_3 = await vestingTGE.connect(user3).getVest();
+    const vest_user_3 = await vestingTGE.vests(user3.address);
     expect(vest_user_3.claimed).to.equal(vest_user_3.initial, 'Invalid balance user 3');
 
     // user 4
-    const vest_user_4 = await vestingTGE.connect(user4).getVest();
+    const vest_user_4 = await vestingTGE.vests(user4.address);
     expect(vest_user_4.claimed).to.equal(vest_user_4.initial, 'Invalid balance user 4');
 
     // user 5
-    const vest_user_5 = await vestingTGE.connect(user5).getVest();
+    const vest_user_5 = await vestingTGE.vests(user5.address);
     expect(vest_user_5.claimed).to.equal(vest_user_5.initial, 'Invalid balance user 5');
   });
 
@@ -126,17 +126,17 @@ describe("VestingTGE - Integration", () => {
     expect(balanceUser_2_after.toString()).to.equal(balanceUser_2_before, 'Invalid balance user 2');
 
     // user 3
-    const vest_user_3 = await vestingTGE.connect(user3).getVest();
+    const vest_user_3 = await vestingTGE.vests(user3.address);
     expect(balanceUser_3_after.toString()).to.equal(add(balanceUser_3_before, subtract(vest_user_3.claimed, vest_user_3.initial)), 'Invalid balance user 3');
     expect(subtract(balanceUser_3_after, balanceUser_3_before)).to.equal(subtract(balanceVestingTGE_before, balanceVestingTGE_after), 'Invalid balance vesting');
 
     // user 4
-    const vest_user_4 = await vestingTGE.connect(user4).getVest();
+    const vest_user_4 = await vestingTGE.vests(user4.address);
     expect(balanceUser_4_after.toString()).to.equal(balanceUser_4_before, 'Invalid balance user 4');
     expect(vest_user_4.claimed).to.equal(vest_user_4.initial, 'Invalid balance user 4');
 
     // user 5
-    const vest_user_5 = await vestingTGE.connect(user5).getVest();
+    const vest_user_5 = await vestingTGE.vests(user5.address);
     expect(balanceUser_5_after.toString()).to.equal(balanceUser_5_before, 'Invalid balance user 5');
     expect(vest_user_5.claimed).to.equal(vest_user_5.initial, 'Invalid balance user 5');
   });
@@ -167,13 +167,13 @@ describe("VestingTGE - Integration", () => {
     expect(balanceUser_3_after.toString()).to.equal(balanceUser_3_before, 'Invalid balance user 3');
 
     // user 4
-    const vest_user_4 = await vestingTGE.connect(user4).getVest();
+    const vest_user_4 = await vestingTGE.vests(user4.address);
     expect(balanceUser_4_after.toString()).to.equal(add(balanceUser_4_before, subtract(vest_user_4.claimed, vest_user_4.initial)), 'Invalid balance user 4');
     expect(vest_user_4.claimed).to.equal(vest_user_4.amount, 'Invalid balance user 4');
     expect(subtract(balanceUser_4_after, balanceUser_4_before)).to.equal(subtract(balanceVestingTGE_before, balanceVestingTGE_after), 'Invalid balance vesting');
 
     // user 5
-    const vest_user_5 = await vestingTGE.connect(user5).getVest();
+    const vest_user_5 = await vestingTGE.vests(user5.address);
     expect(balanceUser_5_after.toString()).to.equal(balanceUser_5_before, 'Invalid balance user 5');
     expect(vest_user_5.claimed).to.equal(vest_user_5.initial, 'Invalid balance user 5');
   });
@@ -202,13 +202,13 @@ describe("VestingTGE - Integration", () => {
     expect(balanceUser_3_after).to.equal(balanceUser_3_before, 'Invalid balance user 3');
 
     // user 4
-    const vest_user_4 = await vestingTGE.connect(user4).getVest();
+    const vest_user_4 = await vestingTGE.vests(user4.address);
     expect(balanceUser_4_after).to.equal(balanceUser_4_before, 'Invalid balance user 4');
     expect(vest_user_4.claimed).to.equal(vest_user_4.amount, 'Invalid balance user 4');
 
     // user 5
-    const vest_user_5 = await vestingTGE.connect(user5).getVest();
-    const amountClaimable = await vestingTGE.connect(user5).getClaimable();
+    const vest_user_5 = await vestingTGE.vests(user5.address)
+    const amountClaimable = await vestingTGE.getClaimable(user5.address);
     expect(balanceUser_5_after).to.equal(balanceUser_5_before, 'Invalid balance user 5');
     expect(vest_user_5.claimed).to.equal(vest_user_5.initial, 'Invalid balance user 5');
     expect(amountClaimable.toString()).to.equal(subtract(vest_user_5.amount, vest_user_5.initial), 'Invalid balance user 5');

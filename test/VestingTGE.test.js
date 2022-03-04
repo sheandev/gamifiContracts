@@ -106,7 +106,7 @@ describe("VestingTGE", () => {
       expect(balanceOwner_after.toString()).to.equal(subtract(balanceOwner_before, amount.toString()), 'Invalid balance owner');
       expect(subtract(balanceOwner_before, balanceOwner_after)).to.equal(add(subtract(balanceVestingTGE_after, balanceVestingTGE_before),subtract(balanceUser_after, balanceUser_before)), 'Invalid balance vesting');
 
-      const vest = await vestingTGE.connect(user2).getVest();
+      const vest = await vestingTGE.vests(user2.address);
       expect(vest.owner).to.equal(user2.address, 'Invalid vest owner');
       expect(vest.amount.toString()).to.equal(amount.toString(), 'Invalid vest amount');
 
@@ -131,12 +131,12 @@ describe("VestingTGE", () => {
       // skip 3 months
       await skipTime(7776000);
 
-      const vest = await vestingTGE.connect(user2).getVest();
+      const vest = await vestingTGE.vests(user2.address);
       const subAmount = subtract(vest.amount, vest.initial);
       const addCliff = add(vest.start, vest.cliff);
 
       let date_after = (await hre.ethers.provider.getBlock("latest")).timestamp;
-      let amountAble = await vestingTGE.connect(user2).getClaimable();
+      let amountAble = await vestingTGE.getClaimable(user2.address);
 
       let timePassed = subtract(date_after, addCliff);
       let tokenCliff = divide(multiply(timePassed, subAmount), vest.linear.toString(), 0);
@@ -149,7 +149,7 @@ describe("VestingTGE", () => {
       await skipTime(7776000);
 
       date_after = (await hre.ethers.provider.getBlock("latest")).timestamp;
-      amountAble = await vestingTGE.connect(user2).getClaimable();
+      amountAble = await vestingTGE.getClaimable(user2.address);
 
       timePassed = subtract(date_after, addCliff);
       tokenCliff = divide(multiply(timePassed, subAmount), vest.linear.toString(), 0);
@@ -161,7 +161,7 @@ describe("VestingTGE", () => {
       // skip 4 months
       await skipTime(10372001);
 
-      amountAble = await vestingTGE.connect(user2).getClaimable();
+      amountAble = await vestingTGE.getClaimable(user2.address);
 
       amountAble_cal = subtract(vest.amount, vest.claimed);
       expect(amountAble.toString()).to.equal(amountAble_cal, 'Invalid vest amountable 3');
@@ -195,7 +195,7 @@ describe("VestingTGE", () => {
       const balanceUser_after = await token.balanceOf(user2.address);
       const balanceVestingTGE_after = await token.balanceOf(vestingTGE.address);
 
-      const vest_1 = await vestingTGE.connect(user2).getVest();
+      const vest_1 = await vestingTGE.vests(user2.address);
 
       expect(balanceUser_after.toString()).to.equal(add(balanceUser_before, subtract(vest_1.claimed, vest_1.initial)), 'Invalid balance user2 round 1');
       expect(subtract(balanceUser_after, balanceUser_before)).to.equal(subtract(balanceVestingTGE_before, balanceVestingTGE_after), 'Invalid balance vesting round 1');
@@ -207,7 +207,7 @@ describe("VestingTGE", () => {
       const balanceUser_after_2 = await token.balanceOf(user2.address);
       const balanceVestingTGE_after_2 = await token.balanceOf(vestingTGE.address);
 
-      const vest_2 = await vestingTGE.connect(user2).getVest();
+      const vest_2 = await vestingTGE.vests(user2.address);
       expect(vest_2.claimed.toString()).to.equal(vest_2.amount.toString(), 'Invalid amount user2 round 2');
 
       expect(balanceUser_after_2.toString()).to.equal(add(balanceUser_after, subtract(vest_2.claimed.toString(), vest_1.claimed.toString())), 'Invalid balance user2 round 3');
