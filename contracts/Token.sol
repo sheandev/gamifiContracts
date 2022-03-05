@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 interface AntiBot {
     
@@ -16,7 +17,7 @@ interface AntiBot {
 }
 
 
-contract ERC20 is Context, IERC20 {
+contract GMI is Context, IERC20, Initializable {
     mapping (address => uint256) private _balances;
 
     mapping (address => mapping (address => uint256)) private _allowances;
@@ -27,10 +28,13 @@ contract ERC20 is Context, IERC20 {
     string private _symbol;
     AntiBot private _antiBot;
 
-    constructor (string memory name_, string memory symbol_, AntiBot antiBot_) {
-        _name = name_;
-        _symbol = symbol_;
+    constructor () {}
+
+    function initialize(address owner_, AntiBot antiBot_) public initializer {
+        _name = "Gamifi";
+        _symbol = "GMI";
         _antiBot = antiBot_;
+        _mint(owner_, 1e27);
     }
 
    

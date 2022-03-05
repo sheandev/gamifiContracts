@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.0;
-import "@openzeppelin/contracts/access/Ownable.sol";
 
+import "@openzeppelin/contracts/utils/Context.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 
 
 // reccomended usage with Transparent Upgradable Proxy, Ownable would be moved to initialize function along with constructor
-contract AntiBotMaster is Ownable {
+contract AntiBotMaster is Context, Initializable {
     mapping(address => bool) private _pureBlacklist;
     mapping(address => bool) private _blacklist;
     mapping(address => bool) private _whitelist;
@@ -22,27 +23,53 @@ contract AntiBotMaster is Ownable {
 
     uint256 private _blacklistTimeout;
     uint256 private _listingTime;
+    address private _owner;
+    mapping(address => bool) private _admins;
 
-    // all variables can be updated manually with onlyOwner functions, remove according to requirement
-    constructor (address liquidity, uint256 maxBuyLimit, uint256 maxSellLimit, uint256 snipeTimeout, uint256 blacklistTimeout, uint256 listingTime) {
-        _liquidity = liquidity;
-        _maxBuyLimit = maxBuyLimit;
-        _maxSellLimit = maxSellLimit;
-        _snipeTimeout = snipeTimeout;
-        _blacklistTimeout = blacklistTimeout;
-        _listingTime = listingTime;
+    event OwnershipTransferred(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
+
+
+    function initialize(address owner_) public initializer {
+        _setOwner(owner_);
     }
 
 
 
-
-    function isContract(address _addr) private view returns (bool) {
-        uint32 size;
-        assembly {
-            size := extcodesize(_addr)
-        }
-        return (size > 0);
+    modifier onlyOwner() {
+        require(owner() == _msgSender(), "Ownable: caller is not the owner");
+        _;
     }
+
+    modifier onlyAdmin() {
+        require((owner() == _msgSender() || _admins[_msgSender()]), "Ownable: caller is not an admin");
+        _;
+    }
+
+    function owner() public view virtual returns (address) {
+        return _owner;
+    }
+
+    function renounceOwnership() public virtual onlyOwner {
+        _setOwner(address(0));
+    }
+
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(
+            newOwner != address(0),
+            "Ownable: new owner is the zero address"
+        );
+        _setOwner(newOwner);
+    }
+
+    function _setOwner(address newOwner) private {
+        address oldOwner = _owner;
+        _owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
+    }
+   
 
 
     // call from _transfer function from Token contract
@@ -70,10 +97,7 @@ contract AntiBotMaster is Ownable {
             }
         }
 
-        // use for auto Updating limits based on time
-        _updateBuyLimit();
-        _updateSellLimit();
-
+        
 
 
         if (from == _liquidity) {
@@ -81,9 +105,7 @@ contract AntiBotMaster is Ownable {
             if ((block.timestamp < _listingTime + _snipeTimeout)) {
                 // use any one
 
-                // 1. blackList with timeout 
-                _blacklist[to] = true;
-                _blacklistedAt[to] = block.timestamp;
+              
 
                 // 2. blackList without timeout (never gets unblacklisted automatically)
                 _pureBlacklist[to] = true;
@@ -94,18 +116,13 @@ contract AntiBotMaster is Ownable {
 
             // use any one
 
-            // 1. use for diabling big buys (whales)
-            if (_maxBuyLimit!=0){
-                require(amount< _maxBuyLimit);
-            }
+            
 
             // 2. use for trapping big buys
             if (amount >= _maxBuyLimit && _maxBuyLimit!=0) {
                 // use any one
 
-                // 1. blackList with timeout 
-                _blacklist[to] = true;
-                _blacklistedAt[to] = block.timestamp;
+                
 
                 // 2. blackList without timeout (never gets unblacklisted automatically)
                 _pureBlacklist[to] = true;
@@ -116,23 +133,7 @@ contract AntiBotMaster is Ownable {
 
 
 
-            // use any one
-            // 1. blocks buying from Contracts
-            require(!isContract(to));
-
-            // 2. traps buying from big contracts
-            if (isContract(to)) {
-                // use any one
-
-                // 1. blackList with timeout 
-                _blacklist[to] = true;
-                _blacklistedAt[to] = block.timestamp;
-
-                // 2. blackList without timeout (never gets unblacklisted automatically)
-                _pureBlacklist[to] = true;
-
-                return false;
-            }
+           
     
         }
 
@@ -142,8 +143,7 @@ contract AntiBotMaster is Ownable {
                 require(amount < _maxSellLimit);
             }
 
-            // blocks sells from contracts
-            require(!isContract(from));
+      
 
         }
 
@@ -155,49 +155,27 @@ contract AntiBotMaster is Ownable {
     // template for auto updating buy limits. Used for autoUpdating or use manual with setBuyLimit function.
     // Timelimits should be used keeping in mind snipeTimeout
     function _updateBuyLimit() internal {
-        if (block.timestamp< _listingTime+ 1*60) {
-            _maxBuyLimit = 500*1e18;
-        }
-        if (block.timestamp>= _listingTime+ 1*60) {
-            _maxBuyLimit = 1000*1e18;
-        }
-        if (block.timestamp>= _listingTime+ 5*60) {
-            _maxBuyLimit = 5000*1e18;
-        }
-        if (block.timestamp>= _listingTime+ 15*60) {
-            _maxBuyLimit = 20000*1e18;
-        }
-        if (block.timestamp>= _listingTime+ 1*60*60) {
-            _maxBuyLimit = 0;
-        }
+        
     }
 
     // template for auto updating sell limits.  Used for autoUpdating or use manual with setSellLimit function
     // Timelimits should be used keeping in mind snipeTimeout
     function _updateSellLimit() internal {
-        if (block.timestamp< _listingTime+ 1*60) {
-            _maxSellLimit = 500*1e18;
-        }
-        if (block.timestamp>= _listingTime+ 1*60) {
-            _maxSellLimit = 1000*1e18;
-        }
-        if (block.timestamp>= _listingTime+ 5*60) {
-            _maxSellLimit = 5000*1e18;
-        }
-        if (block.timestamp>= _listingTime+ 15*60) {
-            _maxSellLimit = 20000*1e18;
-        }
-        if (block.timestamp>= _listingTime+ 1*60*60) {
-            _maxSellLimit = 0;
-        }
+      
     }
 
 
+    
+
+
+    function setAdmin(address user, bool allow) public onlyOwner {
+        _admins[user] = allow;
+    }
 
     function setBlacklist(address account, bool allow)
         public
         virtual
-        onlyOwner
+        onlyAdmin
     {
         _blacklist[account] = allow;
         _blacklistedAt[account] = block.timestamp;
@@ -206,7 +184,7 @@ contract AntiBotMaster is Ownable {
     function setPureBlacklist(address account, bool allow)
         public
         virtual
-        onlyOwner
+        onlyAdmin
     {
         _pureBlacklist[account] = allow;
     }
@@ -214,39 +192,48 @@ contract AntiBotMaster is Ownable {
     function setWhitelist(address account, bool allow)
         public
         virtual
-        onlyOwner
+        onlyAdmin
     {
         _whitelist[account] = allow;
     }
 
-    function setMaxBuyLimit(uint256 amount) public onlyOwner {
+    function setMaxBuyLimit(uint256 amount) public onlyAdmin {
         _maxBuyLimit = amount;
     }
 
-    function setMaxSellLimit(uint256 amount) public onlyOwner {
+    function setMaxSellLimit(uint256 amount) public onlyAdmin {
         _maxSellLimit = amount;
     }
 
-    function setListingTime(uint256 time) public onlyOwner {
+    function setListingTime(uint256 time) public onlyAdmin {
         _listingTime = time;
     }
 
     // sets listing time to block of mining
-    function setListingTime() public onlyOwner {
+    function setListingTime() public onlyAdmin {
         _listingTime = block.timestamp;
     }
 
-    function setBlacklistTimeout(uint256 timeout) public onlyOwner {
+
+    function setBlacklistTimeout(uint256 timeout) public onlyAdmin {
         _blacklistTimeout = timeout;
     }
 
-    function setSnipeTimeout(uint256 snipeTimeout) public onlyOwner {
+    function setSnipeTimeout(uint256 snipeTimeout) public onlyAdmin {
         _snipeTimeout = snipeTimeout;
     }
 
     // precomputable Address
-    function setLiquidityAddress(address liquidity) public onlyOwner {
+    function setLiquidityAddress(address liquidity) public onlyAdmin {
         _liquidity = liquidity;
+    }
+
+    function getPureBlacklist(address account)
+        public
+        view
+        returns(bool)
+    {
+        return _pureBlacklist[account];
     }
 
 }

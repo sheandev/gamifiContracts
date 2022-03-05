@@ -11,6 +11,8 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 
 /**
  * @dev Implementation of https://eips.ethereum.org/EIPS/eip-721[ERC721] Non-Fungible Token Standard, including
@@ -45,10 +47,20 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable 
     // Mapping from owner to operator approvals
     mapping(address => mapping(address => bool)) private _operatorApprovals;
 
+    mapping(address => mapping(uint256 => uint256)) private _ownedTokens;
+    mapping(uint256 => uint256) private _ownedTokensIndex;
+    uint256[] private _allTokens;
+    mapping(uint256 => uint256) private _allTokensIndex;
+
     mapping(uint256 => string) private _tokenURIs;
 
+    uint256 private _buyFees;
 
     address private _owner;
+
+    uint256 private _currentBatch;
+
+    mapping(address => mapping(uint256 => bool)) private _batchParticipation;
 
     mapping(uint256 => Membership) private _membership;
 
@@ -57,6 +69,16 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable 
     mapping(uint256 => bool) private _transferRestriction;
 
     mapping(address => bool) private _vendors;
+
+    uint256 private _tokenCounter;
+
+    uint256 private _maxTokenCounter;
+
+    IERC20 private _paymentToken;
+
+    address private treasury;
+
+    mapping(address => bool) private _admins;
 
 
 
@@ -69,14 +91,22 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable 
     constructor() {}
 
     function initialize(address owner_, string memory name_, string memory symbol_) public initializer {
+        _paymentToken = IERC20(0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56);
         _setOwner(owner_);
+        treasury = 0x35b119730F79881DAc623dc51c831C6A04cAB5f3;
          _name = name_;
         _symbol = symbol_;
+        _buyFees = 1e20;
         
     }
 
     modifier onlyOwner() {
         require(owner() == _msgSender(), "Ownable: caller is not the owner");
+        _;
+    }
+
+    modifier onlyAdmin() {
+        require((owner() == _msgSender() || _admins[_msgSender()]), "Ownable: caller is not an admin");
         _;
     }
 
@@ -104,34 +134,50 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable 
         emit OwnershipTransferred(oldOwner, newOwner);
     }
 
+    function setAdmin(address user, bool allow) public onlyOwner {
+        _admins[user] = allow;
+    }
+    
+    
 
 
 
 
     // custom functions
 
-    function setFreezeStatus(uint256 tokenId, bool frozen) public virtual onlyOwner {
+    function setTreasury(address account) public virtual onlyAdmin {
+        treasury = account;
+    }
+    
+
+    function setFreezeStatus(uint256 tokenId, bool frozen) public virtual onlyAdmin {
         _frozen[tokenId] = frozen;
     }
 
-    function setStartTime(uint256 tokenId, uint256 time) public virtual onlyOwner {
+    function setStartTime(uint256 tokenId, uint256 time) public virtual onlyAdmin {
         _membership[tokenId].startTime = time;
     }
 
-    function setExpireTime(uint256 tokenId, uint256 time) public virtual onlyOwner {
+    function setExpireTime(uint256 tokenId, uint256 time) public virtual onlyAdmin {
         _membership[tokenId].expireTime = time;
     }
 
-    function setCounter(uint256 tokenId, uint256 counter) public virtual onlyOwner {
+    function setCounter(uint256 tokenId, uint256 counter) public virtual onlyAdmin {
         _membership[tokenId].counter = counter;
     }
 
-    function setTransferRestriction(uint256 tokenId, bool allow) public virtual onlyOwner {
+    function setTransferRestriction(uint256 tokenId, bool allow) public virtual onlyAdmin {
         _transferRestriction[tokenId] = allow;
     }
 
-    function setVendor(address vendor, bool allow) public virtual onlyOwner {
+    function setVendor(address vendor, bool allow) public virtual onlyAdmin {
         _vendors[vendor] = allow;
+    }
+
+    function setNewBatchTokens(uint256 tokensToAdd) public virtual onlyAdmin {
+        _maxTokenCounter = tokensToAdd;
+        _currentBatch = _currentBatch+1;
+
     }
 
     // assumes blind Trust on vendor contract as they are part of the ecosystem
@@ -144,16 +190,20 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable 
 
     }
 
-    function activateMemberCard(uint256 startTime, uint256 expireTime, uint256 counter, uint256 tokenId, address user, string memory tokenURI_) public virtual onlyOwner {
+    function mintMemberCard(uint256 startTime, uint256 expireTime, uint256 counter, address user, string memory tokenURI_) public virtual onlyAdmin {
+        uint256 tokenId = _tokenCounter;
         _mint(user, tokenId);
         _setTokenURI(tokenId, tokenURI_);
         _membership[tokenId] = Membership(startTime, expireTime, counter);
+        _tokenCounter++;
     }
 
-    function activateMemberCard(uint256 tokenId, address user, string memory tokenURI_) public virtual onlyOwner {
+    function mintMemberCard(address user, string memory tokenURI_) public virtual onlyAdmin {
+        uint256 tokenId = _tokenCounter;
         _mint(user, tokenId);
         _setTokenURI(tokenId, tokenURI_);
         _membership[tokenId] = Membership(block.timestamp, block.timestamp + 90 days, 3);
+        _tokenCounter++;
     }
 
     function getMemberCardActive(uint256 tokenId) public view returns(bool) {
@@ -173,7 +223,54 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable 
         return _membership[tokenId].counter;
     }
 
+    function getTokenCounter() public view returns(uint256) {
+        return _maxTokenCounter;
+    }
 
+    function isMember(address user) public view returns(bool) {
+        uint256 balance = MemberCard.balanceOf(user);
+        bool member;
+        uint256 tid;
+        for (uint256 i = 0; i < balance; i++){
+            tid = tokenOfOwnerByIndex(user, i);
+            bool allow = getMemberCardActive(tid);
+            if (allow) {
+                member = true;
+            }
+        }
+        return member;
+    }
+
+
+
+    function activateMemberCard(uint256 tokenId, uint256 startTime, uint256 expireTime, uint256 counter, string memory tokenURI_) public virtual onlyAdmin {
+        _setTokenURI(tokenId, tokenURI_);
+        _membership[tokenId] = Membership(startTime, expireTime, counter);
+    }
+
+    function buy() public virtual {
+        require(!_batchParticipation[_msgSender()][_currentBatch], "User already own an active Access Key in the current Batch.");
+        uint256 tokenId = _tokenCounter;
+        require(tokenId < _maxTokenCounter, "No more NFTs can be bought in the current batch.");
+        _paymentToken.transferFrom(_msgSender(), treasury, _buyFees);
+        _mint(_msgSender(), tokenId);
+        _batchParticipation[_msgSender()][_currentBatch] = true;
+        _tokenCounter++;
+
+    }
+
+    function prize(address user) onlyAdmin public virtual {
+        require(!_batchParticipation[user][_currentBatch], "User already own an active Access Key in the current Batch.");
+        uint256 tokenId = _tokenCounter;
+        require(tokenId < _maxTokenCounter, "No more NFTs can be bought in the current batch.");
+        _mint(user, tokenId);
+        _batchParticipation[user][_currentBatch] = true;
+        _tokenCounter++;
+
+    }
+
+
+    
 
 
 
@@ -561,6 +658,82 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable 
         }
     }
 
+    function tokenOfOwnerByIndex(address owner_, uint256 index)
+        public
+        view
+        virtual
+        returns (uint256)
+    {
+        require(
+            index < MemberCard.balanceOf(owner_),
+            "ERC721Enumerable: owner index out of bounds"
+        );
+        return _ownedTokens[owner_][index];
+    }
+
+    
+
+    function totalSupply() public view virtual returns (uint256) {
+        return _allTokens.length;
+    }
+
+    function tokenByIndex(uint256 index)
+        public
+        view
+        virtual
+        
+        returns (uint256)
+    {
+        require(
+            index < MemberCard.totalSupply(),
+            "ERC721Enumerable: global index out of bounds"
+        );
+        return _allTokens[index];
+    }
+
+    
+
+    function _addTokenToOwnerEnumeration(address to, uint256 tokenId) private {
+        uint256 length = MemberCard.balanceOf(to);
+        _ownedTokens[to][length] = tokenId;
+        _ownedTokensIndex[tokenId] = length;
+    }
+
+    function _addTokenToAllTokensEnumeration(uint256 tokenId) private {
+        _allTokensIndex[tokenId] = _allTokens.length;
+        _allTokens.push(tokenId);
+    }
+
+    function _removeTokenFromOwnerEnumeration(address from, uint256 tokenId)
+        private
+    {
+        uint256 lastTokenIndex = MemberCard.balanceOf(from) - 1;
+        uint256 tokenIndex = _ownedTokensIndex[tokenId];
+
+        if (tokenIndex != lastTokenIndex) {
+            uint256 lastTokenId = _ownedTokens[from][lastTokenIndex];
+
+            _ownedTokens[from][tokenIndex] = lastTokenId;
+            _ownedTokensIndex[lastTokenId] = tokenIndex;
+        }
+
+        delete _ownedTokensIndex[tokenId];
+        delete _ownedTokens[from][lastTokenIndex];
+    }
+
+    function _removeTokenFromAllTokensEnumeration(uint256 tokenId) private {
+        uint256 lastTokenIndex = _allTokens.length - 1;
+        uint256 tokenIndex = _allTokensIndex[tokenId];
+
+        uint256 lastTokenId = _allTokens[lastTokenIndex];
+
+        _allTokens[tokenIndex] = lastTokenId;
+        _allTokensIndex[lastTokenId] = tokenIndex;
+
+        delete _allTokensIndex[tokenId];
+        _allTokens.pop();
+    }
+
     /**
      * @dev Hook that is called before any token transfer. This includes minting
      * and burning.
@@ -580,8 +753,18 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable 
         address to,
         uint256 tokenId
     ) internal virtual {
-        require(_transferRestriction[tokenId], "NFT cannot be transferred, ask admin to grant approval.");
+        require((_transferRestriction[tokenId] || from == address(0)), "NFT cannot be transferred, ask admin to grant approval.");
         _transferRestriction[tokenId] = false;
+        if (from == address(0)) {
+            _addTokenToAllTokensEnumeration(tokenId);
+        } else if (from != to) {
+            _removeTokenFromOwnerEnumeration(from, tokenId);
+        }
+        if (to == address(0)) {
+            _removeTokenFromAllTokensEnumeration(tokenId);
+        } else if (to != from) {
+            _addTokenToOwnerEnumeration(to, tokenId);
+        }
     }
 
     /**
@@ -600,4 +783,11 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable 
         address to,
         uint256 tokenId
     ) internal virtual {}
+
+
+
+
+    function setBuyFees(uint256 fees) public virtual onlyAdmin {
+        _buyFees = fees;
+    }
 }
