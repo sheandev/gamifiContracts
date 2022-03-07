@@ -29,7 +29,7 @@ describe("Project", () => {
         busd = await CashTestToken.deploy([admin.address, user1.address, user2.address, user3.address]);
 
         const Project = await ethers.getContractFactory("Project");
-        project = await Project.deploy(token.address, busd.address);
+        project = await upgrades.deployProxy(Project, [admin.address, token.address, busd.address]);
 
         await token.addController(admin.address);
         await token.mint(user1.address, '1000000000000000000000000'); // mint 1000,000 token GMI
@@ -416,7 +416,7 @@ describe("Project", () => {
         const blockEnd = blockStart + 10;
         expect(projectInfo.fundingInfo.startBlockNumber).equal(fundingStartBlockNumber, "Invalid block number");
         expect(projectInfo.fundingInfo.endBlockNumber).equal(fundingEndBlockNumber, "Invalid block number");
-        await project.setFundingBlockNumber(1, blockStart, blockEnd);
+        await project.connect(admin).setFundingBlockNumber(1, blockStart, blockEnd);
         projectInfo = await project.getProjectInfo(1);
         expect(projectInfo.fundingInfo.startBlockNumber).equal(blockStart, "Invalid block number");
         expect(projectInfo.fundingInfo.endBlockNumber).equal(blockEnd, "Invalid block number");

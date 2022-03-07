@@ -22,7 +22,7 @@ describe("Project - Integration", () => {
     busd = await CashTestToken.deploy([admin.address, user1.address, user2.address, user3.address, user4.address]);
 
     const Project = await ethers.getContractFactory("Project");
-    project = await Project.deploy(token.address, busd.address);
+    project = await upgrades.deployProxy(Project, [admin.address, token.address, busd.address]);
 
     await token.addController(admin.address);
     await token.mint(user1.address, '1000000000000000000000000'); // mint 1000,000 token GMI

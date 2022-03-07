@@ -17,6 +17,8 @@ require("@nomiclabs/hardhat-solhint");
 // Verify and public source code on etherscan
 require('@nomiclabs/hardhat-etherscan');
 
+require('@openzeppelin/hardhat-upgrades');
+
 const config = {
   defaultNetwork: "hardhat",
   networks: {

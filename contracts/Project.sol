@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.4;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./libraries/Formula.sol";
 import "./libraries/Config.sol";
 
-contract Project is Ownable {
+contract Project is Initializable, OwnableUpgradeable {
+    using SafeERC20Upgradeable for IERC20Upgradeable;
+
     struct UserInfo {
         bool isAddedWhitelist;
         bool isClaimedBack;
@@ -42,13 +45,14 @@ contract Project is Ownable {
     struct ProjectInfo {
         uint256 id;
         uint256 allocationSize;
+        uint256 totalTokenAllocated;
         StakeInfo stakeInfo;
         FundingInfo fundingInfo;
         ClaimBackInfo claimBackInfo;
     }
 
-    IERC20 public immutable gmi;
-    IERC20 public immutable busd;
+    IERC20Upgradeable public gmi;
+    IERC20Upgradeable public busd;
 
     uint256 public latestProjectId;
 
@@ -59,23 +63,25 @@ contract Project is Ownable {
     mapping(uint256 => mapping(address => UserInfo)) public userInfo;
 
     event CreateProject(ProjectInfo project);
-    event SetAllocationSize(uint256 indexed _projectId, uint256 allocationSize);
-    event SetEstimateTokenAllocationRate(uint256 indexed _projectId, uint256 estimateTokenAllocationRate);
-    event SetStakingBlockNumber(uint256 indexed projectId, uint256 blockStart, uint256 blockEnd);
-    event SetMinStakeAmount(uint256 indexed projectId, uint256 minStakeAmount);
-    event SetMaxStakeAmount(uint256 indexed projectId, uint256 maxStakeAmount);
-    event SetClaimBackStartBlockNumber(uint256 indexed projectId, uint256 blockStart);
-    event SetFundingBlockNumber(uint256 indexed projectId, uint256 blockStart, uint256 blockEnd);
-    event SetFundingMinAllocation(uint256 indexed projectId, uint256 minAllocation);
-    event SetFundingReceiver(uint256 indexed projectId, address fundingReceiver);
-    event Stake(address account, uint256 indexed projectId, uint256 indexed amount);
-    event ClaimBack(address account, uint256 indexed projectId, uint256 indexed amount);
-    event AddedToWhitelist(uint256 indexed projectId, address[] accounts);
-    event RemovedFromWhitelist(uint256 indexed projectId, address[] accounts);
-    event Funding(address account, uint256 indexed projectId, uint256 indexed amount, uint256 tokenAllocationAmount);
-    event WithdrawFunding(address account, uint256 indexed projectId, uint256 indexed amount);
+    event SetAllocationSize(uint256 indexed _projectId, uint256 indexed allocationSize);
+    event SetEstimateTokenAllocationRate(uint256 indexed _projectId, uint256 indexed estimateTokenAllocationRate);
+    event SetStakingBlockNumber(uint256 indexed projectId, uint256 indexed blockStart, uint256 indexed blockEnd);
+    event SetMinStakeAmount(uint256 indexed projectId, uint256 indexed minStakeAmount);
+    event SetMaxStakeAmount(uint256 indexed projectId, uint256 indexed maxStakeAmount);
+    event SetClaimBackStartBlockNumber(uint256 indexed projectId, uint256 indexed blockStart);
+    event SetFundingBlockNumber(uint256 indexed projectId, uint256 indexed blockStart, uint256 indexed blockEnd);
+    event SetFundingMinAllocation(uint256 indexed projectId, uint256 indexed minAllocation);
+    event SetFundingReceiver(uint256 indexed projectId, address indexed fundingReceiver);
+    event Stake(address indexed account, uint256 indexed projectId, uint256 indexed amount);
+    event ClaimBack(address indexed account, uint256 indexed projectId, uint256 indexed amount);
+    event AddedToWhitelist(uint256 indexed projectId, address[] indexed accounts);
+    event RemovedFromWhitelist(uint256 indexed projectId, address[] indexed accounts);
+    event Funding(address indexed account, uint256 indexed projectId, uint256 indexed amount, uint256 tokenAllocationAmount);
+    event WithdrawFunding(address indexed account, uint256 indexed projectId, uint256 indexed amount);
 
-    constructor(IERC20 _gmi, IERC20 _busd) {
+    function initialize(address owner_, IERC20Upgradeable _gmi, IERC20Upgradeable _busd) public initializer {
+        OwnableUpgradeable.__Ownable_init();
+        _transferOwnership(owner_);
         gmi = _gmi;
         busd = _busd;
     }
@@ -212,7 +218,7 @@ contract Project is Ownable {
         require(_amount >= stakeInfo.minStakeAmount, "Not enough stake amount");
         require(_amount <= stakeInfo.maxStakeAmount, "Amount exceed limit stake amount");
 
-        gmi.transferFrom(_msgSender(), address(this), _amount);
+        gmi.safeTransferFrom(_msgSender(), address(this), _amount);
 
         userInfo[_projectId][_msgSender()].stakedAmount += _amount;
         stakeInfo.stakedTotalAmount += _amount;
@@ -231,7 +237,7 @@ contract Project is Ownable {
         require(claimableAmount > 0, "Nothing to claim back");
 
         user.isClaimedBack = true;
-        gmi.transfer(_msgSender(), claimableAmount);
+        gmi.safeTransfer(_msgSender(), claimableAmount);
 
         emit ClaimBack(_msgSender(), _projectId, claimableAmount);
     }
@@ -288,7 +294,7 @@ contract Project is Ownable {
         uint256 fundingMaxAllocation = getFundingMaxAllocation(_projectId, _msgSender());
         require(_amount <= fundingMaxAllocation, "Amount exceed max allocation");
 
-        busd.transferFrom(_msgSender(), address(this), _amount);
+        busd.safeTransferFrom(_msgSender(), address(this), _amount);
 
         UserInfo storage user = userInfo[_projectId][_msgSender()];
         user.fundedAmount += _amount;
@@ -296,6 +302,7 @@ contract Project is Ownable {
 
         uint256 tokenAllocationAmount = estimateTokenAllocation(_projectId, _amount);
         user.tokenAllocationAmount += tokenAllocationAmount;
+        projects[_projectId].totalTokenAllocated += tokenAllocationAmount;
 
         emit Funding(_msgSender(), _projectId, _amount, tokenAllocationAmount);
     }
@@ -311,7 +318,7 @@ contract Project is Ownable {
         uint256 _amount = fundingInfo.fundedTotalAmount;
         require(_amount > 0, "Nothing to withdraw");
 
-        busd.transfer(fundingInfo.fundingReceiver, _amount);
+        busd.safeTransfer(fundingInfo.fundingReceiver, _amount);
         fundingInfo.isWithdrawnFund = true;
 
         emit WithdrawFunding(fundingInfo.fundingReceiver, _projectId, _amount);
