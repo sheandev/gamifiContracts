@@ -75,7 +75,7 @@ contract VestingTGE is Initializable, OwnableUpgradeable {
         emit Claim(_msgSender(), tokenClaimable);
     }
 
-    function initiateVests(address[] memory accounts, uint256[] memory amounts, uint256[] memory initials, uint256 _totalAmount, uint256 _cliff, uint256 _linear) external {
+    function initiateVests(address[] memory accounts, uint256[] memory amounts, uint256[] memory initials, uint256 _totalAmount, uint256 _cliff, uint256 _linear) external onlyOwner {
         require(accounts.length > 0 && amounts.length > 0 && initials.length > 0, "Vesting: Bad length"); // solhint-disable-line reason-string
         require(accounts.length == amounts.length && amounts.length == initials.length, "Vesting: Mismatched inputs"); // solhint-disable-line reason-string
         require(_totalAmount > 0, "Vesting: _totalAmount must be > 0"); // solhint-disable-line reason-string
