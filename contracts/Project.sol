@@ -7,6 +7,8 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./libraries/Formula.sol";
 import "./libraries/Config.sol";
+import "./Vendor.sol";
+import "hardhat/console.sol";
 
 contract Project is Initializable, OwnableUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -14,6 +16,7 @@ contract Project is Initializable, OwnableUpgradeable {
     struct UserInfo {
         bool isAddedWhitelist;
         bool isClaimedBack;
+        bool isUsedMemberCard;
         uint256 stakedAmount;
         uint256 fundedAmount;
         uint256 tokenAllocationAmount;
@@ -53,6 +56,7 @@ contract Project is Initializable, OwnableUpgradeable {
 
     IERC20Upgradeable public gmi;
     IERC20Upgradeable public busd;
+    IMemberCard public memberCard;
 
     uint256 public latestProjectId;
 
@@ -73,17 +77,19 @@ contract Project is Initializable, OwnableUpgradeable {
     event SetFundingMinAllocation(uint256 indexed projectId, uint256 indexed minAllocation);
     event SetFundingReceiver(uint256 indexed projectId, address indexed fundingReceiver);
     event Stake(address indexed account, uint256 indexed projectId, uint256 indexed amount);
+    event StakeWithMemberCard(address indexed account, uint256 indexed projectId, uint256 indexed tokenId);
     event ClaimBack(address indexed account, uint256 indexed projectId, uint256 indexed amount);
     event AddedToWhitelist(uint256 indexed projectId, address[] indexed accounts);
     event RemovedFromWhitelist(uint256 indexed projectId, address[] indexed accounts);
     event Funding(address indexed account, uint256 indexed projectId, uint256 indexed amount, uint256 tokenAllocationAmount);
     event WithdrawFunding(address indexed account, uint256 indexed projectId, uint256 indexed amount);
 
-    function initialize(address owner_, IERC20Upgradeable _gmi, IERC20Upgradeable _busd) public initializer {
+    function initialize(address owner_, IERC20Upgradeable _gmi, IERC20Upgradeable _busd, IMemberCard _memberCard) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _transferOwnership(owner_);
         gmi = _gmi;
         busd = _busd;
+        memberCard = IMemberCard(_memberCard);
     }
 
     modifier validProject(uint256 _projectId) {
@@ -224,6 +230,31 @@ contract Project is Initializable, OwnableUpgradeable {
         stakeInfo.stakedTotalAmount += _amount;
 
         emit Stake(_msgSender(), _projectId, _amount);
+    }
+
+    /// @notice stake member card NFT to Staking Pool
+    /// @dev    this method can called by anyone
+    /// @param  _projectId  id of the project
+    /// @param  _tokenId  id of the member card to be staked
+    function stakeWithMemberCard(uint256 _projectId, uint256 _tokenId) external validProject(_projectId) {
+        StakeInfo storage stakeInfo = projects[_projectId].stakeInfo;
+
+        require(block.number >= stakeInfo.startBlockNumber, "Staking has not started yet");
+        require(block.number <= stakeInfo.endBlockNumber, "Staking has ended");
+
+        require(memberCard.ownerOf(_tokenId) == _msgSender(), "Unauthorised use of Member Card");
+        bool active = memberCard.getMemberCardActive(_tokenId);
+        require(active, "Invalid member card");
+
+        require(gmi.balanceOf(_msgSender()) >= stakeInfo.minStakeAmount, "Token balance is not enough");
+
+        memberCard.consumeMembership(_tokenId);
+
+        userInfo[_projectId][_msgSender()].stakedAmount += stakeInfo.maxStakeAmount;
+        userInfo[_projectId][_msgSender()].isUsedMemberCard = true;
+        stakeInfo.stakedTotalAmount += stakeInfo.maxStakeAmount;
+
+        emit StakeWithMemberCard(_msgSender(), _projectId, _tokenId);
     }
 
     /// @notice claimBack amount of GMI tokens from staked GMI before

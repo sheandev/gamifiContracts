@@ -3,6 +3,7 @@ const { expect } = require("chai");
 const { getCurrentBlock, skipBlock } = require("./utils");
 const { MAX_UINT256 } = require("@openzeppelin/test-helpers/src/constants");
 const Big = require('big.js');
+const { divide } = require("js-big-decimal");
 
 const allocationSize        = '100000000000000000000000'; // 100,000 USD
 const minStakeAmount        = '1000000000000000000000'; // 1000 GMI
@@ -28,8 +29,14 @@ describe("Project", () => {
         const CashTestToken = await ethers.getContractFactory("CashTestToken");
         busd = await CashTestToken.deploy([admin.address, user1.address, user2.address, user3.address]);
 
+        const MemberCard = await ethers.getContractFactory("MemberCard");
+        memberCard = await MemberCard.deploy();
+        await memberCard.initialize(admin.address, "NFT", "NFT");
+
         const Project = await ethers.getContractFactory("Project");
-        project = await upgrades.deployProxy(Project, [admin.address, token.address, busd.address]);
+        project = await upgrades.deployProxy(Project, [admin.address, token.address, busd.address, memberCard.address]);
+
+        await memberCard.setVendor(project.address, true);
 
         await token.addController(admin.address);
         await token.mint(user1.address, '1000000000000000000000000'); // mint 1000,000 token GMI
@@ -37,9 +44,9 @@ describe("Project", () => {
 
         await token.connect(user1).approve(project.address, MAX_UINT256.toString());
         await busd.connect(user1).approve(project.address, MAX_UINT256.toString());
-        await token.connect(user2).approve(project.address, MAX_UINT256.toString())
-        await token.connect(user3).approve(project.address, MAX_UINT256.toString())
-        await token.connect(user4).approve(project.address, MAX_UINT256.toString())
+        await token.connect(user2).approve(project.address, MAX_UINT256.toString());
+        await token.connect(user3).approve(project.address, MAX_UINT256.toString());
+        await token.connect(user4).approve(project.address, MAX_UINT256.toString());
     })
 
     describe("createProject", () => {
@@ -754,6 +761,93 @@ describe("Project", () => {
 
         expect(tokenBalanceOfProject_after.sub(tokenBalanceOfProject_before)).to.be.equal(maxStakeAmount);
         expect(tokenBalanceOfUser_before.sub(tokenBalanceOfUser_after)).to.be.equal(maxStakeAmount);
+
+        const stakeInfo = await project.getStakeInfo(projectId);
+        expect(stakeInfo.stakedTotalAmount).to.be.equal(maxStakeAmount);
+
+        const userInfo = await project.getUserInfo(projectId, user1.address);
+        expect(userInfo.stakedAmount).to.be.equal(maxStakeAmount);
+      });
+    });
+
+    describe('stakeWithMemberCard', () => {
+      beforeEach(async () => {
+        currentBlock = await getCurrentBlock();
+        stakingStartBlockNumber = currentBlock + 100;
+        stakingEndBlockNumber = stakingStartBlockNumber + 100;
+        fundingStartBlockNumber = stakingEndBlockNumber + 100;
+        fundingEndBlockNumber = fundingStartBlockNumber + 100;
+        claimBackStartBlockNumber = fundingEndBlockNumber + 100;
+
+        await project
+          .connect(admin)
+          .createProject(
+            allocationSize,
+            stakingStartBlockNumber,
+            stakingEndBlockNumber,
+            minStakeAmount,
+            maxStakeAmount,
+            fundingStartBlockNumber,
+            fundingEndBlockNumber,
+            fundingMinAllocation,
+            estimateTokenAllocationRate,
+            user1.address,
+            claimBackStartBlockNumber
+          );
+
+        projectId = await project.latestProjectId();
+        await memberCard.mintMemberCard(user1.address, "");  
+        await memberCard.mintMemberCard(user3.address, "");  
+        await token.connect(admin).mint(user3.address, "999000000000000000000");  
+      });
+
+      it('Staking has not started yet', async () => {
+        await expect(
+          project.connect(user1).stakeWithMemberCard(projectId, 1)
+        ).to.revertedWith('Staking has not started yet');
+      });
+
+      it('Staking has ended', async () => {
+        await skipBlock(200);
+        await expect(
+          project.connect(user1).stakeWithMemberCard(projectId, 1)
+        ).to.revertedWith('Staking has ended');
+      });
+
+      it('Unauthorised use of Member Card', async () => {     
+        await skipBlock(100);
+        await expect(
+          project.connect(user2).stakeWithMemberCard(projectId, 0)
+        ).to.revertedWith('Unauthorised use of Member Card');
+      });
+
+      it('Invalid member card', async () => {
+        await memberCard.connect(admin).setExpireTime(0, divide(Date.now(), 1000, 0));
+        await skipBlock(100);
+        await expect(
+          project.connect(user1).stakeWithMemberCard(projectId, 0)
+        ).to.revertedWith('Invalid member card');
+      });
+
+      it('Token balance is not enough', async () => {
+        await skipBlock(100);
+        await expect(
+          project.connect(user3).stakeWithMemberCard(projectId, 1)
+        ).to.revertedWith('Token balance is not enough');
+      });
+
+      it('Stake success', async () => {
+        const tokenBalanceOfProject_before = await token.balanceOf(project.address);
+        const tokenBalanceOfUser_before = await token.balanceOf(user1.address);
+
+        await skipBlock(100);
+        await project.connect(user1).stakeWithMemberCard(projectId, 0);
+
+        const tokenBalanceOfProject_after = await token.balanceOf(project.address);
+        const tokenBalanceOfUser_after = await token.balanceOf(user1.address);
+
+        expect(tokenBalanceOfProject_after).to.be.equal(tokenBalanceOfProject_before);
+        expect(tokenBalanceOfUser_before).to.be.equal(tokenBalanceOfUser_after);
 
         const stakeInfo = await project.getStakeInfo(projectId);
         expect(stakeInfo.stakedTotalAmount).to.be.equal(maxStakeAmount);
