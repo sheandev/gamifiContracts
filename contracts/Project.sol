@@ -7,8 +7,12 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./libraries/Formula.sol";
 import "./libraries/Config.sol";
-import "./Vendor.sol";
-import "hardhat/console.sol";
+
+interface IMemberCard {
+    function getMemberCardActive(uint256 tokenId) external view returns(bool);
+    function consumeMembership(uint256 tokenId) external;
+    function ownerOf(uint256 tokenId) external view returns (address);
+}
 
 contract Project is Initializable, OwnableUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
