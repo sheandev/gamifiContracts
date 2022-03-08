@@ -16,10 +16,11 @@ contract Project is Initializable, OwnableUpgradeable {
     struct UserInfo {
         bool isAddedWhitelist;
         bool isClaimedBack;
-        bool isUsedMemberCard;
         uint256 stakedAmount;
         uint256 fundedAmount;
         uint256 tokenAllocationAmount;
+        uint256 allocationPortion;
+        uint256 usedMemberCard;
     }
 
     struct StakeInfo {
@@ -28,7 +29,6 @@ contract Project is Initializable, OwnableUpgradeable {
         uint256 minStakeAmount;
         uint256 maxStakeAmount;
         uint256 stakedTotalAmount;
-        uint256 whitelistedStakedTotalAmount;
     }
 
     struct FundingInfo {
@@ -49,6 +49,7 @@ contract Project is Initializable, OwnableUpgradeable {
         uint256 id;
         uint256 allocationSize;
         uint256 totalTokenAllocated;
+        uint256 whitelistedTotalPortion;
         StakeInfo stakeInfo;
         FundingInfo fundingInfo;
         ClaimBackInfo claimBackInfo;
@@ -227,6 +228,7 @@ contract Project is Initializable, OwnableUpgradeable {
         gmi.safeTransferFrom(_msgSender(), address(this), _amount);
 
         userInfo[_projectId][_msgSender()].stakedAmount += _amount;
+        userInfo[_projectId][_msgSender()].allocationPortion += _amount;
         stakeInfo.stakedTotalAmount += _amount;
 
         emit Stake(_msgSender(), _projectId, _amount);
@@ -250,8 +252,8 @@ contract Project is Initializable, OwnableUpgradeable {
 
         memberCard.consumeMembership(_tokenId);
 
-        userInfo[_projectId][_msgSender()].stakedAmount += stakeInfo.maxStakeAmount;
-        userInfo[_projectId][_msgSender()].isUsedMemberCard = true;
+        userInfo[_projectId][_msgSender()].allocationPortion += stakeInfo.maxStakeAmount;
+        userInfo[_projectId][_msgSender()].usedMemberCard++;
         stakeInfo.stakedTotalAmount += stakeInfo.maxStakeAmount;
 
         emit StakeWithMemberCard(_msgSender(), _projectId, _tokenId);
@@ -283,10 +285,10 @@ contract Project is Initializable, OwnableUpgradeable {
 
             UserInfo storage user = userInfo[_projectId][account];
             if (user.isAddedWhitelist) continue;
-            require(user.stakedAmount > 0, "Account did not stake yet");
+            require(user.allocationPortion > 0, "Account did not stake yet");
 
             user.isAddedWhitelist = true;
-            projects[_projectId].stakeInfo.whitelistedStakedTotalAmount += user.stakedAmount;
+            projects[_projectId].whitelistedTotalPortion += user.allocationPortion;
         }
         emit AddedToWhitelist(_projectId, _accounts);
     }
@@ -303,8 +305,8 @@ contract Project is Initializable, OwnableUpgradeable {
             if (!user.isAddedWhitelist) continue;
 
             user.isAddedWhitelist = false;
-            if (projects[_projectId].stakeInfo.whitelistedStakedTotalAmount >= user.stakedAmount) {
-                projects[_projectId].stakeInfo.whitelistedStakedTotalAmount -= user.stakedAmount;
+            if (projects[_projectId].whitelistedTotalPortion >= user.allocationPortion) {
+                projects[_projectId].whitelistedTotalPortion -= user.allocationPortion;
             }
         }
         emit RemovedFromWhitelist(_projectId, _accounts);
@@ -379,13 +381,13 @@ contract Project is Initializable, OwnableUpgradeable {
         UserInfo memory user = userInfo[_projectId][_account];
         ProjectInfo memory project = projects[_projectId];
 
-        uint256 stakedAmount = user.stakedAmount;
-        if (!user.isAddedWhitelist || stakedAmount == 0 || project.stakeInfo.whitelistedStakedTotalAmount == 0) return 0;
+        uint256 allocationPortion = user.allocationPortion;
+        if (!user.isAddedWhitelist || allocationPortion == 0 || project.whitelistedTotalPortion == 0) return 0;
 
         uint256 maxAllocableAmount = Formula.mulDiv(
-            stakedAmount,
+            allocationPortion,
             project.allocationSize,
-            project.stakeInfo.whitelistedStakedTotalAmount
+            project.whitelistedTotalPortion
         );
         uint256 allocableAmount = maxAllocableAmount - user.fundedAmount;
         uint256 remainingAllocationSize = project.allocationSize - project.fundingInfo.fundedTotalAmount;

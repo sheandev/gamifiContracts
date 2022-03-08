@@ -3,7 +3,7 @@ const { expect } = require("chai");
 const { getCurrentBlock, skipBlock } = require("./utils");
 const { MAX_UINT256 } = require("@openzeppelin/test-helpers/src/constants");
 const Big = require('big.js');
-const { divide } = require("js-big-decimal");
+const { add, divide } = require("js-big-decimal");
 
 const allocationSize        = '100000000000000000000000'; // 100,000 USD
 const minStakeAmount        = '1000000000000000000000'; // 1000 GMI
@@ -465,7 +465,7 @@ describe("Project", () => {
         const blockEnd = blockStart + 10;
         await expect(project.connect(admin).setFundingBlockNumber(1, projectInfo.stakeInfo.endBlockNumber - 10, blockEnd)).revertedWith("Invalid block number");
         await expect(project.connect(admin).setFundingBlockNumber(1, projectInfo.stakeInfo.endBlockNumber, projectInfo.stakeInfo.endBlockNumber)).revertedWith("Invalid block number");
-        expect(await project.connect(admin).setFundingBlockNumber(1, blockStart, blockEnd)).ok;
+        expect(await project.connect(admin).setFundingBlockNumber(1, add(projectInfo.stakeInfo.endBlockNumber, '1'), add(projectInfo.stakeInfo.endBlockNumber, '10'))).ok;
       });
     });
 
@@ -853,7 +853,9 @@ describe("Project", () => {
         expect(stakeInfo.stakedTotalAmount).to.be.equal(maxStakeAmount);
 
         const userInfo = await project.getUserInfo(projectId, user1.address);
-        expect(userInfo.stakedAmount).to.be.equal(maxStakeAmount);
+        expect(userInfo.stakedAmount).to.be.equal('0');
+        expect(userInfo.allocationPortion).to.be.equal(maxStakeAmount);
+        expect(userInfo.usedMemberCard).to.be.equal('1');
       });
     });
 
@@ -1007,12 +1009,12 @@ describe("Project", () => {
 
       it("Success", async () => {
         expect(await project.isAddedWhitelist(projectId, user1.address)).equal(false);
-        const stakeInfo_before = await project.getStakeInfo(projectId);
+        const projectInfo_before = await project.getProjectInfo(projectId);
 
         await project.connect(admin).addWhitelist(projectId, [user1.address]);
 
-        const stakeInfo_after = await project.getStakeInfo(projectId);
-        expect(stakeInfo_after.whitelistedStakedTotalAmount.sub(stakeInfo_before.whitelistedStakedTotalAmount)).to.be.equal(maxStakeAmount);
+        const projectInfo_after = await project.getProjectInfo(projectId);
+        expect(projectInfo_after.whitelistedTotalPortion.sub(projectInfo_before.whitelistedTotalPortion)).to.be.equal(maxStakeAmount);
 
         expect(await project.isAddedWhitelist(projectId, user1.address)).equal(true);
       })
@@ -1062,12 +1064,12 @@ describe("Project", () => {
       it("Success", async () => {
         expect(await project.isAddedWhitelist(projectId, user1.address)).to.be.true;
         expect(await project.isAddedWhitelist(projectId, user2.address)).to.be.true;
-        const stakeInfo_before = await project.getStakeInfo(projectId);
+        const projectInfo_before = await project.getProjectInfo(projectId);
 
         await project.connect(admin).removeFromWhitelist(projectId, [user1.address, user2.address, user3.address]);
-
-        const stakeInfo_after = await project.getStakeInfo(projectId);
-        expect(stakeInfo_before.whitelistedStakedTotalAmount.sub(stakeInfo_after.whitelistedStakedTotalAmount)).to.be.equal('20000000000000000000000');
+   
+        const projectInfo_after = await project.getProjectInfo(projectId);
+        expect(projectInfo_before.whitelistedTotalPortion.sub(projectInfo_after.whitelistedTotalPortion)).to.be.equal('20000000000000000000000');
 
         expect(await project.isAddedWhitelist(projectId, user1.address)).to.be.false;
         expect(await project.isAddedWhitelist(projectId, user2.address)).to.be.false;

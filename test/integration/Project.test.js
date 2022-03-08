@@ -91,7 +91,7 @@ describe("Project - Integration", () => {
     expect(projectInfo.stakeInfo.minStakeAmount).to.equal(minStakeAmount);
     expect(projectInfo.stakeInfo.maxStakeAmount).to.equal(maxStakeAmount);
     expect(projectInfo.stakeInfo.stakedTotalAmount).to.equal(0);
-    expect(projectInfo.stakeInfo.whitelistedStakedTotalAmount).to.equal(0);
+    expect(projectInfo.whitelistedTotalPortion).to.equal(0);
     expect(projectInfo.fundingInfo.startBlockNumber).to.equal(fundingStartBlockNumber);
     expect(projectInfo.fundingInfo.endBlockNumber).to.equal(fundingEndBlockNumber);
     expect(projectInfo.fundingInfo.minAllocation).to.equal(fundingMinAllocation);
@@ -134,42 +134,47 @@ describe("Project - Integration", () => {
 
     const user1Info = await project.getUserInfo(projectId, user1.address);
     expect(user1Info.isClaimedBack).to.be.false;
-    expect(user1Info.isUsedMemberCard).to.be.false;
+    expect(user1Info.usedMemberCard).to.equal('0');
     expect(user1Info.stakedAmount).to.equal('1000000000000000000000');
+    expect(user1Info.allocationPortion).to.equal('1000000000000000000000');
     expect(user1Info.fundedAmount).to.equal('0');
     expect(user1Info.tokenAllocationAmount).to.equal('0');
 
     const user2Info = await project.getUserInfo(projectId, user2.address);
     expect(user2Info.isClaimedBack).to.be.false;
-    expect(user2Info.isUsedMemberCard).to.be.false;
+    expect(user2Info.usedMemberCard).to.equal('0');
     expect(user2Info.stakedAmount).to.equal('2000000000000000000000');
+    expect(user2Info.allocationPortion).to.equal('2000000000000000000000');
     expect(user2Info.fundedAmount).to.equal('0');
     expect(user2Info.tokenAllocationAmount).to.equal('0');
 
     const user3Info = await project.getUserInfo(projectId, user3.address);
     expect(user3Info.isClaimedBack).to.be.false;
-    expect(user3Info.isUsedMemberCard).to.be.false;
+    expect(user3Info.usedMemberCard).to.equal('0');
     expect(user3Info.stakedAmount).to.equal('6000000000000000000000');
+    expect(user3Info.allocationPortion).to.equal('6000000000000000000000');
     expect(user3Info.fundedAmount).to.equal('0');
     expect(user3Info.tokenAllocationAmount).to.equal('0');
 
     const user4Info = await project.getUserInfo(projectId, user4.address);
     expect(user4Info.isClaimedBack).to.be.false;
-    expect(user4Info.isUsedMemberCard).to.be.false;
+    expect(user4Info.usedMemberCard).to.equal('0');
     expect(user4Info.stakedAmount).to.equal('10000000000000000000000');
+    expect(user4Info.allocationPortion).to.equal('10000000000000000000000');
     expect(user4Info.fundedAmount).to.equal('0');
     expect(user4Info.tokenAllocationAmount).to.equal('0');
 
     const user5Info = await project.getUserInfo(projectId, user5.address);
     expect(user5Info.isClaimedBack).to.be.false;
-    expect(user5Info.isUsedMemberCard).to.be.true;
-    expect(user5Info.stakedAmount).to.equal('10000000000000000000000');
+    expect(user5Info.usedMemberCard).to.equal('1');
+    expect(user5Info.stakedAmount).to.equal('0');
+    expect(user5Info.allocationPortion).to.equal('10000000000000000000000');
     expect(user5Info.fundedAmount).to.equal('0');
     expect(user5Info.tokenAllocationAmount).to.equal('0');
 
     const projectInfo = await project.getProjectInfo(projectId);
     expect(projectInfo.stakeInfo.stakedTotalAmount).to.equal('29000000000000000000000');
-    expect(projectInfo.stakeInfo.whitelistedStakedTotalAmount).to.equal(0);
+    expect(projectInfo.whitelistedTotalPortion).to.equal(0);
     expect(projectInfo.fundingInfo.fundedTotalAmount).to.equal(0);
     expect(projectInfo.fundingInfo.isWithdrawnFund).to.be.false;
 
@@ -191,8 +196,8 @@ describe("Project - Integration", () => {
       user5.address
     ]);
 
-    const stakeInfo = await project.getStakeInfo(projectId);
-    expect(stakeInfo.whitelistedStakedTotalAmount).to.equal('29000000000000000000000');
+    const projectInfo = await project.getProjectInfo(projectId);
+    expect(projectInfo.whitelistedTotalPortion).to.equal('29000000000000000000000');
 
     expect(await project.isAddedWhitelist(projectId, user1.address)).to.be.true;
     expect(await project.isAddedWhitelist(projectId, user2.address)).to.be.true;
@@ -206,8 +211,8 @@ describe("Project - Integration", () => {
       user2.address,
     ]);
 
-    const stakeInfo = await project.getStakeInfo(projectId);
-    expect(stakeInfo.whitelistedStakedTotalAmount).to.equal('27000000000000000000000');
+    const projectInfo = await project.getProjectInfo(projectId);
+    expect(projectInfo.whitelistedTotalPortion).to.equal('27000000000000000000000');
 
     expect(await project.isAddedWhitelist(projectId, user1.address)).to.be.true;
     expect(await project.isAddedWhitelist(projectId, user2.address)).to.be.false;
@@ -256,8 +261,9 @@ describe("Project - Integration", () => {
 
     const user1Info = await project.getUserInfo(projectId, user1.address);
     expect(user1Info.isClaimedBack).to.be.false;
-    expect(user1Info.isUsedMemberCard).to.be.false;
+    expect(user1Info.usedMemberCard).to.equal('0');
     expect(user1Info.stakedAmount).to.equal('1000000000000000000000');
+    expect(user1Info.allocationPortion).to.equal('1000000000000000000000');
     expect(user1Info.fundedAmount).to.equal(fundingMaxAllocation_user1);
     expect(user1Info.tokenAllocationAmount).to.equal(fundingMaxAllocation_user1.mul(10)); // div(0.1) <=> mul(10)
 
@@ -287,8 +293,9 @@ describe("Project - Integration", () => {
 
     const user3Info = await project.getUserInfo(projectId, user3.address);
     expect(user3Info.isClaimedBack).to.be.false;
-    expect(user3Info.isUsedMemberCard).to.be.false;
+    expect(user3Info.usedMemberCard).to.equal('0');
     expect(user3Info.stakedAmount).to.equal('6000000000000000000000');
+    expect(user3Info.allocationPortion).to.equal('6000000000000000000000');
     expect(user3Info.fundedAmount).to.equal(fundingMaxAllocation_user3);
     expect(user3Info.tokenAllocationAmount).to.equal(fundingMaxAllocation_user3.mul(10)); // div(0.1) <=> mul(10)
 
@@ -318,8 +325,9 @@ describe("Project - Integration", () => {
 
     const user4Info = await project.getUserInfo(projectId, user4.address);
     expect(user4Info.isClaimedBack).to.be.false;
-    expect(user4Info.isUsedMemberCard).to.be.false;
+    expect(user4Info.usedMemberCard).to.equal('0');
     expect(user4Info.stakedAmount).to.equal('10000000000000000000000');
+    expect(user4Info.allocationPortion).to.equal('10000000000000000000000');
     expect(user4Info.fundedAmount).to.equal('10000000000000000000000');
     expect(user4Info.tokenAllocationAmount).to.equal('100000000000000000000000'); // 10k div(0.1) <=> 10k mul(10) = 100k
 
@@ -346,8 +354,9 @@ describe("Project - Integration", () => {
 
     const user4Info = await project.getUserInfo(projectId, user4.address);
     expect(user4Info.isClaimedBack).to.be.false;
-    expect(user4Info.isUsedMemberCard).to.be.false;
+    expect(user4Info.usedMemberCard).to.equal('0');
     expect(user4Info.stakedAmount).to.equal('10000000000000000000000');
+    expect(user4Info.allocationPortion).to.equal('10000000000000000000000');
     expect(user4Info.fundedAmount).to.equal(fundingMaxAllocation_user4);
     expect(user4Info.tokenAllocationAmount).to.equal(fundingMaxAllocation_user4.mul(10)); // 10k div(0.1) <=> 10k mul(10) = 100k
 
@@ -377,8 +386,9 @@ describe("Project - Integration", () => {
 
     const user5Info = await project.getUserInfo(projectId, user5.address);
     expect(user5Info.isClaimedBack).to.be.false;
-    expect(user5Info.isUsedMemberCard).to.be.true;
-    expect(user5Info.stakedAmount).to.equal('10000000000000000000000');
+    expect(user5Info.usedMemberCard).to.equal('1');
+    expect(user5Info.stakedAmount).to.equal('0');
+    expect(user5Info.allocationPortion).to.equal('10000000000000000000000');
     expect(user5Info.fundedAmount).to.equal(fundingMaxAllocation_user5);
     expect(user5Info.tokenAllocationAmount).to.equal(fundingMaxAllocation_user5.mul(10)); // div(0.1) <=> mul(10)
 
@@ -408,6 +418,9 @@ describe("Project - Integration", () => {
     await project.connect(user2).claimBack(projectId);
     await project.connect(user3).claimBack(projectId);
     await project.connect(user4).claimBack(projectId);
+    await expect(
+      project.connect(user5).claimBack(projectId)
+    ).revertedWith("Nothing to claim back");
 
     const user1TokenBalance_after = await token.balanceOf(user1.address);
     const user2TokenBalance_after = await token.balanceOf(user2.address);
@@ -459,7 +472,7 @@ describe("Project - Integration", () => {
     expect(projectInfo.stakeInfo.minStakeAmount).to.equal(minStakeAmount);
     expect(projectInfo.stakeInfo.maxStakeAmount).to.equal(maxStakeAmount);
     expect(projectInfo.stakeInfo.stakedTotalAmount).to.equal('29000000000000000000000');
-    expect(projectInfo.stakeInfo.whitelistedStakedTotalAmount).to.equal('27000000000000000000000');
+    expect(projectInfo.whitelistedTotalPortion).to.equal('27000000000000000000000');
     expect(projectInfo.fundingInfo.startBlockNumber).to.equal(fundingStartBlockNumber);
     expect(projectInfo.fundingInfo.endBlockNumber).to.equal(fundingEndBlockNumber);
     expect(projectInfo.fundingInfo.minAllocation).to.equal(fundingMinAllocation);
