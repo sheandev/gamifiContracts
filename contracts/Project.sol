@@ -78,7 +78,7 @@ contract Project is Initializable, OwnableUpgradeable {
     event SetFundingMinAllocation(uint256 indexed projectId, uint256 indexed minAllocation);
     event SetFundingReceiver(uint256 indexed projectId, address indexed fundingReceiver);
     event Stake(address indexed account, uint256 indexed projectId, uint256 indexed amount);
-    event StakeWithMemberCard(address indexed account, uint256 indexed projectId, uint256 indexed tokenId);
+    event StakeWithMemberCard(address indexed account, uint256 indexed projectId, uint256 indexed tokenId, uint256 portion);
     event ClaimBack(address indexed account, uint256 indexed projectId, uint256 indexed amount);
     event AddedToWhitelist(uint256 indexed projectId, address[] indexed accounts);
     event RemovedFromWhitelist(uint256 indexed projectId, address[] indexed accounts);
@@ -256,7 +256,7 @@ contract Project is Initializable, OwnableUpgradeable {
         userInfo[_projectId][_msgSender()].usedMemberCard++;
         stakeInfo.stakedTotalAmount += stakeInfo.maxStakeAmount;
 
-        emit StakeWithMemberCard(_msgSender(), _projectId, _tokenId);
+        emit StakeWithMemberCard(_msgSender(), _projectId, _tokenId, stakeInfo.maxStakeAmount);
     }
 
     /// @notice claimBack amount of GMI tokens from staked GMI before
