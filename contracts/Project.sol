@@ -8,6 +8,12 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./libraries/Formula.sol";
 import "./libraries/Config.sol";
 
+interface IMemberCard {
+    function getMemberCardActive(uint256 tokenId) external view returns(bool);
+    function consumeMembership(uint256 tokenId) external;
+    function ownerOf(uint256 tokenId) external view returns (address);
+}
+
 contract Project is Initializable, OwnableUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -17,6 +23,8 @@ contract Project is Initializable, OwnableUpgradeable {
         uint256 stakedAmount;
         uint256 fundedAmount;
         uint256 tokenAllocationAmount;
+        uint256 allocatedPortion;
+        uint256 usedMemberCard;
     }
 
     struct StakeInfo {
@@ -25,7 +33,6 @@ contract Project is Initializable, OwnableUpgradeable {
         uint256 minStakeAmount;
         uint256 maxStakeAmount;
         uint256 stakedTotalAmount;
-        uint256 whitelistedStakedTotalAmount;
     }
 
     struct FundingInfo {
@@ -46,6 +53,7 @@ contract Project is Initializable, OwnableUpgradeable {
         uint256 id;
         uint256 allocationSize;
         uint256 totalTokenAllocated;
+        uint256 whitelistedTotalPortion;
         StakeInfo stakeInfo;
         FundingInfo fundingInfo;
         ClaimBackInfo claimBackInfo;
@@ -53,6 +61,7 @@ contract Project is Initializable, OwnableUpgradeable {
 
     IERC20Upgradeable public gmi;
     IERC20Upgradeable public busd;
+    IMemberCard public memberCard;
 
     uint256 public latestProjectId;
 
@@ -73,17 +82,19 @@ contract Project is Initializable, OwnableUpgradeable {
     event SetFundingMinAllocation(uint256 indexed projectId, uint256 indexed minAllocation);
     event SetFundingReceiver(uint256 indexed projectId, address indexed fundingReceiver);
     event Stake(address indexed account, uint256 indexed projectId, uint256 indexed amount);
+    event StakeWithMemberCard(address indexed account, uint256 indexed projectId, uint256 indexed tokenId, uint256 portion);
     event ClaimBack(address indexed account, uint256 indexed projectId, uint256 indexed amount);
     event AddedToWhitelist(uint256 indexed projectId, address[] indexed accounts);
     event RemovedFromWhitelist(uint256 indexed projectId, address[] indexed accounts);
     event Funding(address indexed account, uint256 indexed projectId, uint256 indexed amount, uint256 tokenAllocationAmount);
     event WithdrawFunding(address indexed account, uint256 indexed projectId, uint256 indexed amount);
 
-    function initialize(address owner_, IERC20Upgradeable _gmi, IERC20Upgradeable _busd) public initializer {
+    function initialize(address owner_, IERC20Upgradeable _gmi, IERC20Upgradeable _busd, IMemberCard _memberCard) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _transferOwnership(owner_);
         gmi = _gmi;
         busd = _busd;
+        memberCard = IMemberCard(_memberCard);
     }
 
     modifier validProject(uint256 _projectId) {
@@ -206,6 +217,13 @@ contract Project is Initializable, OwnableUpgradeable {
         emit SetFundingReceiver(_projectId, _fundingReceiver);
     }
 
+    function setContracts(address _gmi, address _busd, address _memberCard) external onlyOwner {
+        require(_gmi != address(0) && _busd != address(0) && _memberCard != address(0), "Invalid contract address");
+        gmi = IERC20Upgradeable(_gmi);
+        busd = IERC20Upgradeable(_busd);
+        memberCard = IMemberCard(_memberCard);
+    }
+
     /// @notice stake amount of GMI tokens to Staking Pool
     /// @dev    this method can called by anyone
     /// @param  _projectId  id of the project
@@ -221,9 +239,34 @@ contract Project is Initializable, OwnableUpgradeable {
         gmi.safeTransferFrom(_msgSender(), address(this), _amount);
 
         userInfo[_projectId][_msgSender()].stakedAmount += _amount;
+        userInfo[_projectId][_msgSender()].allocatedPortion += _amount;
         stakeInfo.stakedTotalAmount += _amount;
 
         emit Stake(_msgSender(), _projectId, _amount);
+    }
+
+    /// @notice stake member card NFT to Staking Pool
+    /// @dev    this method can called by anyone
+    /// @param  _projectId  id of the project
+    /// @param  _tokenId  id of the member card to be staked
+    function stakeWithMemberCard(uint256 _projectId, uint256 _tokenId) external validProject(_projectId) {
+        StakeInfo storage stakeInfo = projects[_projectId].stakeInfo;
+
+        require(block.number >= stakeInfo.startBlockNumber, "Staking has not started yet");
+        require(block.number <= stakeInfo.endBlockNumber, "Staking has ended");
+
+        require(memberCard.ownerOf(_tokenId) == _msgSender(), "Unauthorised use of Member Card");
+        bool active = memberCard.getMemberCardActive(_tokenId);
+        require(active, "Invalid member card");
+
+        require(gmi.balanceOf(_msgSender()) >= stakeInfo.minStakeAmount, "Token balance is not enough");
+
+        memberCard.consumeMembership(_tokenId);
+
+        userInfo[_projectId][_msgSender()].allocatedPortion += stakeInfo.maxStakeAmount;
+        userInfo[_projectId][_msgSender()].usedMemberCard++;
+
+        emit StakeWithMemberCard(_msgSender(), _projectId, _tokenId, stakeInfo.maxStakeAmount);
     }
 
     /// @notice claimBack amount of GMI tokens from staked GMI before
@@ -252,10 +295,10 @@ contract Project is Initializable, OwnableUpgradeable {
 
             UserInfo storage user = userInfo[_projectId][account];
             if (user.isAddedWhitelist) continue;
-            require(user.stakedAmount > 0, "Account did not stake yet");
+            require(user.allocatedPortion > 0, "Account did not stake yet");
 
             user.isAddedWhitelist = true;
-            projects[_projectId].stakeInfo.whitelistedStakedTotalAmount += user.stakedAmount;
+            projects[_projectId].whitelistedTotalPortion += user.allocatedPortion;
         }
         emit AddedToWhitelist(_projectId, _accounts);
     }
@@ -272,8 +315,8 @@ contract Project is Initializable, OwnableUpgradeable {
             if (!user.isAddedWhitelist) continue;
 
             user.isAddedWhitelist = false;
-            if (projects[_projectId].stakeInfo.whitelistedStakedTotalAmount >= user.stakedAmount) {
-                projects[_projectId].stakeInfo.whitelistedStakedTotalAmount -= user.stakedAmount;
+            if (projects[_projectId].whitelistedTotalPortion >= user.allocatedPortion) {
+                projects[_projectId].whitelistedTotalPortion -= user.allocatedPortion;
             }
         }
         emit RemovedFromWhitelist(_projectId, _accounts);
@@ -348,13 +391,13 @@ contract Project is Initializable, OwnableUpgradeable {
         UserInfo memory user = userInfo[_projectId][_account];
         ProjectInfo memory project = projects[_projectId];
 
-        uint256 stakedAmount = user.stakedAmount;
-        if (!user.isAddedWhitelist || stakedAmount == 0 || project.stakeInfo.whitelistedStakedTotalAmount == 0) return 0;
+        uint256 allocatedPortion = user.allocatedPortion;
+        if (!user.isAddedWhitelist || allocatedPortion == 0 || project.whitelistedTotalPortion == 0) return 0;
 
         uint256 maxAllocableAmount = Formula.mulDiv(
-            stakedAmount,
+            allocatedPortion,
             project.allocationSize,
-            project.stakeInfo.whitelistedStakedTotalAmount
+            project.whitelistedTotalPortion
         );
         uint256 allocableAmount = maxAllocableAmount - user.fundedAmount;
         uint256 remainingAllocationSize = project.allocationSize - project.fundingInfo.fundedTotalAmount;
