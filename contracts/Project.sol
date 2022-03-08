@@ -23,7 +23,7 @@ contract Project is Initializable, OwnableUpgradeable {
         uint256 stakedAmount;
         uint256 fundedAmount;
         uint256 tokenAllocationAmount;
-        uint256 allocationPortion;
+        uint256 allocatedPortion;
         uint256 usedMemberCard;
     }
 
@@ -217,6 +217,13 @@ contract Project is Initializable, OwnableUpgradeable {
         emit SetFundingReceiver(_projectId, _fundingReceiver);
     }
 
+    function setContracts(address _gmi, address _busd, address _memberCard) external onlyOwner {
+        require(_gmi != address(0) && _busd != address(0) && _memberCard != address(0), "Invalid contract address");
+        gmi = IERC20Upgradeable(_gmi);
+        busd = IERC20Upgradeable(_busd);
+        memberCard = IMemberCard(_memberCard);
+    }
+
     /// @notice stake amount of GMI tokens to Staking Pool
     /// @dev    this method can called by anyone
     /// @param  _projectId  id of the project
@@ -232,7 +239,7 @@ contract Project is Initializable, OwnableUpgradeable {
         gmi.safeTransferFrom(_msgSender(), address(this), _amount);
 
         userInfo[_projectId][_msgSender()].stakedAmount += _amount;
-        userInfo[_projectId][_msgSender()].allocationPortion += _amount;
+        userInfo[_projectId][_msgSender()].allocatedPortion += _amount;
         stakeInfo.stakedTotalAmount += _amount;
 
         emit Stake(_msgSender(), _projectId, _amount);
@@ -256,9 +263,8 @@ contract Project is Initializable, OwnableUpgradeable {
 
         memberCard.consumeMembership(_tokenId);
 
-        userInfo[_projectId][_msgSender()].allocationPortion += stakeInfo.maxStakeAmount;
+        userInfo[_projectId][_msgSender()].allocatedPortion += stakeInfo.maxStakeAmount;
         userInfo[_projectId][_msgSender()].usedMemberCard++;
-        stakeInfo.stakedTotalAmount += stakeInfo.maxStakeAmount;
 
         emit StakeWithMemberCard(_msgSender(), _projectId, _tokenId, stakeInfo.maxStakeAmount);
     }
@@ -289,10 +295,10 @@ contract Project is Initializable, OwnableUpgradeable {
 
             UserInfo storage user = userInfo[_projectId][account];
             if (user.isAddedWhitelist) continue;
-            require(user.allocationPortion > 0, "Account did not stake yet");
+            require(user.allocatedPortion > 0, "Account did not stake yet");
 
             user.isAddedWhitelist = true;
-            projects[_projectId].whitelistedTotalPortion += user.allocationPortion;
+            projects[_projectId].whitelistedTotalPortion += user.allocatedPortion;
         }
         emit AddedToWhitelist(_projectId, _accounts);
     }
@@ -309,8 +315,8 @@ contract Project is Initializable, OwnableUpgradeable {
             if (!user.isAddedWhitelist) continue;
 
             user.isAddedWhitelist = false;
-            if (projects[_projectId].whitelistedTotalPortion >= user.allocationPortion) {
-                projects[_projectId].whitelistedTotalPortion -= user.allocationPortion;
+            if (projects[_projectId].whitelistedTotalPortion >= user.allocatedPortion) {
+                projects[_projectId].whitelistedTotalPortion -= user.allocatedPortion;
             }
         }
         emit RemovedFromWhitelist(_projectId, _accounts);
@@ -385,11 +391,11 @@ contract Project is Initializable, OwnableUpgradeable {
         UserInfo memory user = userInfo[_projectId][_account];
         ProjectInfo memory project = projects[_projectId];
 
-        uint256 allocationPortion = user.allocationPortion;
-        if (!user.isAddedWhitelist || allocationPortion == 0 || project.whitelistedTotalPortion == 0) return 0;
+        uint256 allocatedPortion = user.allocatedPortion;
+        if (!user.isAddedWhitelist || allocatedPortion == 0 || project.whitelistedTotalPortion == 0) return 0;
 
         uint256 maxAllocableAmount = Formula.mulDiv(
-            allocationPortion,
+            allocatedPortion,
             project.allocationSize,
             project.whitelistedTotalPortion
         );

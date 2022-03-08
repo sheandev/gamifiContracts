@@ -1,7 +1,7 @@
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
 const { getCurrentBlock, skipBlock } = require("./utils");
-const { MAX_UINT256 } = require("@openzeppelin/test-helpers/src/constants");
+const { MAX_UINT256, ZERO_ADDRESS } = require("@openzeppelin/test-helpers/src/constants");
 const Big = require('big.js');
 const { add, divide } = require("js-big-decimal");
 
@@ -690,6 +690,25 @@ describe("Project", () => {
      })
     })
 
+    describe("setContracts", () => {
+      it("Only owner", async () => {
+        await expect(project.connect(user1).setContracts(user1.address, user2.address, user3.address)).revertedWith("caller is not the owner");
+      })
+
+      it("Invalid contract address", async () => {
+        await expect(project.connect(admin).setContracts(ZERO_ADDRESS, user2.address, user3.address)).revertedWith("Invalid contract address");
+        await expect(project.connect(admin).setContracts(user1.address, user2.address, ZERO_ADDRESS)).revertedWith("Invalid contract address");
+        await expect(project.connect(admin).setContracts(user1.address, ZERO_ADDRESS, user2.address)).revertedWith("Invalid contract address");
+      })
+
+      it("Success", async () => {
+        await project.connect(admin).setContracts(user1.address, user2.address, user3.address);
+        expect(await project.gmi()).equal(user1.address);
+        expect(await project.busd()).equal(user2.address);
+        expect(await project.memberCard()).equal(user3.address);
+     })
+    })
+
     describe('stake', () => {
       beforeEach(async () => {
         currentBlock = await getCurrentBlock();
@@ -850,11 +869,11 @@ describe("Project", () => {
         expect(tokenBalanceOfUser_before).to.be.equal(tokenBalanceOfUser_after);
 
         const stakeInfo = await project.getStakeInfo(projectId);
-        expect(stakeInfo.stakedTotalAmount).to.be.equal(maxStakeAmount);
+        expect(stakeInfo.stakedTotalAmount).to.be.equal('0');
 
         const userInfo = await project.getUserInfo(projectId, user1.address);
         expect(userInfo.stakedAmount).to.be.equal('0');
-        expect(userInfo.allocationPortion).to.be.equal(maxStakeAmount);
+        expect(userInfo.allocatedPortion).to.be.equal(maxStakeAmount);
         expect(userInfo.usedMemberCard).to.be.equal('1');
       });
     });
