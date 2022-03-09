@@ -28,6 +28,8 @@ contract VestingTGE is Initializable, OwnableUpgradeable {
 
     mapping(address => Vest) public vests;
 
+    bool public isVestingStarted;
+
     function initialize(address owner_, IERC20Upgradeable _token) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _transferOwnership(owner_);
@@ -87,6 +89,8 @@ contract VestingTGE is Initializable, OwnableUpgradeable {
             initiateVest(accounts[i], amounts[i], initials[i], _cliff, _linear);
         }
         require(amount == _totalAmount, "Vesting: Bad totalAmount");  
+
+        isVestingStarted = true;
 
         emit InitiateVests(accounts, amounts, initials, _totalAmount, _cliff, _linear);
     }

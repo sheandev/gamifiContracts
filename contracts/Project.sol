@@ -266,6 +266,8 @@ contract Project is Initializable, OwnableUpgradeable {
         userInfo[_projectId][_msgSender()].allocatedPortion += stakeInfo.maxStakeAmount;
         userInfo[_projectId][_msgSender()].usedMemberCard++;
 
+        addUserToWhitelist(_projectId, _msgSender());
+
         emit StakeWithMemberCard(_msgSender(), _projectId, _tokenId, stakeInfo.maxStakeAmount);
     }
 
@@ -285,26 +287,27 @@ contract Project is Initializable, OwnableUpgradeable {
         emit ClaimBack(_msgSender(), _projectId, claimableAmount);
     }
 
-    function addWhitelist(uint256 _projectId, address[] memory _accounts) external onlyOwner validProject(_projectId) {
-        require(block.number > projects[_projectId].stakeInfo.endBlockNumber, "Staking has not ended yet");
+    function addUsersToWhitelist(uint256 _projectId, address[] memory _accounts) external onlyOwner validProject(_projectId) {
         require(_accounts.length > 0, "Account list is empty");
 
         for (uint256 i = 0; i < _accounts.length; i++) {
-            address account = _accounts[i];
-            require(account != address(0), "Invalid account");
-
-            UserInfo storage user = userInfo[_projectId][account];
-            if (user.isAddedWhitelist) continue;
-            require(user.allocatedPortion > 0, "Account did not stake yet");
-
-            user.isAddedWhitelist = true;
-            projects[_projectId].whitelistedTotalPortion += user.allocatedPortion;
+            addUserToWhitelist(_projectId, _accounts[i]);
         }
+
         emit AddedToWhitelist(_projectId, _accounts);
     }
 
-    function removeFromWhitelist(uint256 _projectId, address[] memory _accounts) public onlyOwner validProject(_projectId) {
-        require(block.number > projects[_projectId].stakeInfo.endBlockNumber, "Staking has not ended yet");
+    function addUserToWhitelist(uint256 _projectId, address _account) private validProject(_projectId) {
+        require(_account != address(0), "Invalid account");
+
+        UserInfo storage user = userInfo[_projectId][_account];
+        require(user.allocatedPortion > 0, "Account did not stake yet");
+
+        user.isAddedWhitelist = true;
+        projects[_projectId].whitelistedTotalPortion += user.allocatedPortion;
+    }
+
+    function removeUsersFromWhitelist(uint256 _projectId, address[] memory _accounts) external onlyOwner validProject(_projectId) {
         require(_accounts.length > 0, "Account list is empty");
 
         for (uint256 i = 0; i < _accounts.length; i++) {

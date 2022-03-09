@@ -41,10 +41,14 @@ describe("VestingTGE - Integration", () => {
     const amount_initial = divide(amount.toString(), '10', 0);
     const total_amount = multiply('4', amount.toString());
 
+    expect(await vestingTGE.isVestingStarted()).to.be.false;
+
     let transaction = await vestingTGE.connect(owner).initiateVests([user2.address, user3.address, user4.address, user5.address],
       [amount.toString(), amount.toString(), amount.toString(), amount.toString()],
       [amount_initial, amount_initial, amount_initial, amount_initial],
       total_amount, CLIFF, LINEAR);
+
+    expect(await vestingTGE.isVestingStarted()).to.be.true;
 
     let blockNumber = (await ethers.provider.getTransaction(transaction.hash)).blockNumber;
     const date = (await hre.ethers.provider.getBlock(blockNumber)).timestamp;

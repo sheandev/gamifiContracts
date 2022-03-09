@@ -33,6 +33,7 @@ describe("VestingTGE", () => {
     it("Should assign the owner successfully", async function () {
       const _owner = await vestingTGE.owner();
       expect(_owner).to.equal(owner.address, 'owner is not correctly');
+      expect(await vestingTGE.isVestingStarted()).to.be.false;
     });
   });
 
@@ -49,6 +50,8 @@ describe("VestingTGE", () => {
       await expect(
         vestingTGE.connect(owner).initiateVests([user2.address], ['100'], [], '100', CLIFF, LINEAR)
       ).to.be.revertedWith('Vesting: Bad length');
+
+      expect(await vestingTGE.isVestingStarted()).to.be.false;
     });
 
     it('Should catch error Vesting: Mismatched inputs', async () => {
@@ -63,6 +66,8 @@ describe("VestingTGE", () => {
       await expect(
         vestingTGE.connect(owner).initiateVests([user2.address], ['100'], ['10', '10'], '100', CLIFF, LINEAR)
       ).to.be.revertedWith('Vesting: Mismatched inputs');
+
+      expect(await vestingTGE.isVestingStarted()).to.be.false;
     });
 
     it('Should catch error Vesting: Bad totalAmount', async () => {
@@ -73,18 +78,24 @@ describe("VestingTGE", () => {
       await expect(
         vestingTGE.connect(owner).initiateVests([user2.address], ['90'], ['9'], '100', CLIFF, LINEAR)
       ).to.be.revertedWith('Vesting: Bad totalAmount');
+
+      expect(await vestingTGE.isVestingStarted()).to.be.false;
     });
 
     it('Should catch error Vesting: owner_ is the zero address', async () => {
       await expect(
         vestingTGE.connect(owner).initiateVests([ZERO_ADDRESS], ['100'], ['10'], '100', CLIFF, LINEAR)
       ).to.be.revertedWith('Vesting: owner_ is the zero address');
+
+      expect(await vestingTGE.isVestingStarted()).to.be.false;
     });
 
     it('Should catch error Vesting: initial amount should be less than total amount.', async () => {
       await expect(
         vestingTGE.connect(owner).initiateVests([user2.address], ['100'], ['200'], '100', CLIFF, LINEAR)
       ).to.be.revertedWith('Vesting: initial amount should be less than total amount.');
+
+      expect(await vestingTGE.isVestingStarted()).to.be.false;
     });
 
     it('Should initiateVests successfully', async () => {
@@ -118,6 +129,8 @@ describe("VestingTGE", () => {
       expect(vest.cliff.toString()).to.equal(CLIFF, 'Invalid vest cliff');
 
       expect(vest.linear.toString()).to.equal(LINEAR, 'Invalid vest linear');
+
+      expect(await vestingTGE.isVestingStarted()).to.be.true;
     });
   });
 
