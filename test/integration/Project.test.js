@@ -174,7 +174,7 @@ describe("Project - Integration", () => {
 
     const projectInfo = await project.getProjectInfo(projectId);
     expect(projectInfo.stakeInfo.stakedTotalAmount).to.equal('19000000000000000000000');
-    expect(projectInfo.whitelistedTotalPortion).to.equal(0);
+    expect(projectInfo.whitelistedTotalPortion).to.equal('10000000000000000000000');
     expect(projectInfo.fundingInfo.fundedTotalAmount).to.equal(0);
     expect(projectInfo.fundingInfo.isWithdrawnFund).to.be.false;
 
@@ -182,18 +182,17 @@ describe("Project - Integration", () => {
     expect(await project.isAddedWhitelist(projectId, user2.address)).to.be.false;
     expect(await project.isAddedWhitelist(projectId, user3.address)).to.be.false;
     expect(await project.isAddedWhitelist(projectId, user4.address)).to.be.false;
-    expect(await project.isAddedWhitelist(projectId, user5.address)).to.be.false;
+    expect(await project.isAddedWhitelist(projectId, user5.address)).to.be.true;
 
     await skipBlock(100);
   });
 
-  it("Add user 1, 2, 3, 4, 5 to whitelist", async () => {
-    await project.connect(admin).addWhitelist(projectId, [
+  it("Add user 1, 2, 3, 4 to whitelist", async () => {
+    await project.connect(admin).addUsersToWhitelist(projectId, [
       user1.address,
       user2.address,
       user3.address,
-      user4.address,
-      user5.address
+      user4.address
     ]);
 
     const projectInfo = await project.getProjectInfo(projectId);
@@ -207,7 +206,7 @@ describe("Project - Integration", () => {
   });
 
   it("Remove user 2 out of whitelist", async () => {
-    await project.connect(admin).removeFromWhitelist(projectId, [
+    await project.connect(admin).removeUsersFromWhitelist(projectId, [
       user2.address,
     ]);
 

@@ -907,7 +907,7 @@ describe("Project", () => {
         await skipBlock(100);
         await project.connect(user1).stake(projectId, maxStakeAmount);
         await skipBlock(100);
-        await project.addWhitelist(projectId, [user1.address]);
+        await project.addUsersToWhitelist(projectId, [user1.address]);
       });
 
       it('Funding has not started yet', async () => {
@@ -976,7 +976,7 @@ describe("Project", () => {
       });
     });
 
-    describe("addWhitelist", () => {
+    describe("addUsersToWhitelist", () => {
       beforeEach(async () => {
         currentBlock = await getCurrentBlock();
         stakingStartBlockNumber = currentBlock + 100;
@@ -1009,20 +1009,20 @@ describe("Project", () => {
       });
 
       it("Only owner", async () => {
-        await expect(project.connect(user1).addWhitelist(projectId, [user1.address])).revertedWith("caller is not the owner");
+        await expect(project.connect(user1).addUsersToWhitelist(projectId, [user1.address])).revertedWith("caller is not the owner");
         expect(await project.isAddedWhitelist(projectId, user1.address)).equal(false);
       })
 
       it("Account list is empty", async () => {
-        await expect(project.connect(admin).addWhitelist(projectId, [])).revertedWith("Account list is empty");
+        await expect(project.connect(admin).addUsersToWhitelist(projectId, [])).revertedWith("Account list is empty");
       })
 
       it("Invalid account", async () => {
-        await expect(project.connect(admin).addWhitelist(projectId, [blackHoleAddress])).revertedWith("Invalid account");
+        await expect(project.connect(admin).addUsersToWhitelist(projectId, [blackHoleAddress])).revertedWith("Invalid account");
       })
 
       it("Account did not stake yet", async () => {
-        await expect(project.connect(admin).addWhitelist(projectId, [user2.address])).revertedWith("Account did not stake yet");
+        await expect(project.connect(admin).addUsersToWhitelist(projectId, [user2.address])).revertedWith("Account did not stake yet");
         expect(await project.isAddedWhitelist(projectId, user1.address)).equal(false);
       })
 
@@ -1030,7 +1030,7 @@ describe("Project", () => {
         expect(await project.isAddedWhitelist(projectId, user1.address)).equal(false);
         const projectInfo_before = await project.getProjectInfo(projectId);
 
-        await project.connect(admin).addWhitelist(projectId, [user1.address]);
+        await project.connect(admin).addUsersToWhitelist(projectId, [user1.address]);
 
         const projectInfo_after = await project.getProjectInfo(projectId);
         expect(projectInfo_after.whitelistedTotalPortion.sub(projectInfo_before.whitelistedTotalPortion)).to.be.equal(maxStakeAmount);
@@ -1039,7 +1039,7 @@ describe("Project", () => {
       })
     })
 
-    describe("removeFromWhiteList", () => {
+    describe("removeUsersFromWhitelist", () => {
       beforeEach(async () => {
         currentBlock = await getCurrentBlock();
         stakingStartBlockNumber = currentBlock + 100;
@@ -1069,15 +1069,15 @@ describe("Project", () => {
         await project.connect(user1).stake(projectId, maxStakeAmount);
         await project.connect(user2).stake(projectId, maxStakeAmount);
         await skipBlock(100);
-        await project.connect(admin).addWhitelist(projectId, [user1.address, user2.address]);
+        await project.connect(admin).addUsersToWhitelist(projectId, [user1.address, user2.address]);
       });
 
       it("Only owner", async () => {
-        await expect(project.connect(user1).removeFromWhitelist(projectId, [user1.address])).revertedWith("caller is not the owner");
+        await expect(project.connect(user1).removeUsersFromWhitelist(projectId, [user1.address])).revertedWith("caller is not the owner");
       })
 
       it("Account list is empty", async () => {
-        await expect(project.connect(admin).removeFromWhitelist(projectId, [])).revertedWith("Account list is empty");
+        await expect(project.connect(admin).removeUsersFromWhitelist(projectId, [])).revertedWith("Account list is empty");
       })
 
       it("Success", async () => {
@@ -1085,7 +1085,7 @@ describe("Project", () => {
         expect(await project.isAddedWhitelist(projectId, user2.address)).to.be.true;
         const projectInfo_before = await project.getProjectInfo(projectId);
 
-        await project.connect(admin).removeFromWhitelist(projectId, [user1.address, user2.address, user3.address]);
+        await project.connect(admin).removeUsersFromWhitelist(projectId, [user1.address, user2.address, user3.address]);
    
         const projectInfo_after = await project.getProjectInfo(projectId);
         expect(projectInfo_before.whitelistedTotalPortion.sub(projectInfo_after.whitelistedTotalPortion)).to.be.equal('20000000000000000000000');
@@ -1126,7 +1126,7 @@ describe("Project", () => {
         await project.connect(user1).stake(projectId, maxStakeAmount);
         await skipBlock(100);
 
-        await project.addWhitelist(projectId, [user1.address]);
+        await project.addUsersToWhitelist(projectId, [user1.address]);
 
         fundingMaxAllocation = await project.getFundingMaxAllocation(projectId, user1.address);
         await skipBlock(100);
@@ -1194,7 +1194,7 @@ describe("Project", () => {
         await skipBlock(100);
         await project.connect(user1).stake(projectId, maxStakeAmount);
         await skipBlock(100);
-        await project.addWhitelist(projectId, [user1.address]);
+        await project.addUsersToWhitelist(projectId, [user1.address]);
 
         fundingMaxAllocation = await project.getFundingMaxAllocation(projectId, user1.address);
         await skipBlock(100);
