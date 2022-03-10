@@ -3,7 +3,7 @@ const { expect } = require("chai");
 const { getCurrentBlock, skipBlock } = require("./utils");
 const { MAX_UINT256, ZERO_ADDRESS } = require("@openzeppelin/test-helpers/src/constants");
 const Big = require('big.js');
-const { add, divide } = require("js-big-decimal");
+const { add, divide, multiply } = require("js-big-decimal");
 
 const allocationSize        = '100000000000000000000000'; // 100,000 USD
 const minStakeAmount        = '1000000000000000000000'; // 1000 GMI
@@ -1004,6 +1004,10 @@ describe("Project", () => {
         projectId = await project.latestProjectId();
         await skipBlock(100);
 
+        await memberCard.mintMemberCard(user2.address, "");  
+        await project.connect(user2).stakeWithMemberCard(projectId, '0');
+        await project.connect(user2).stakeWithMemberCard(projectId, '0');
+        await project.connect(user2).stake(projectId, maxStakeAmount);
         await project.connect(user1).stake(projectId, maxStakeAmount);
         await skipBlock(100);
       });
@@ -1022,18 +1026,19 @@ describe("Project", () => {
       })
 
       it("Account did not stake yet", async () => {
-        await expect(project.connect(admin).addUsersToWhitelist(projectId, [user2.address])).revertedWith("Account did not stake yet");
+        await expect(project.connect(admin).addUsersToWhitelist(projectId, [user3.address])).revertedWith("Account did not stake yet");
         expect(await project.isAddedWhitelist(projectId, user1.address)).equal(false);
       })
 
       it("Success", async () => {
         expect(await project.isAddedWhitelist(projectId, user1.address)).equal(false);
+        expect(await project.isAddedWhitelist(projectId, user2.address)).equal(true);
         const projectInfo_before = await project.getProjectInfo(projectId);
 
-        await project.connect(admin).addUsersToWhitelist(projectId, [user1.address]);
+        await project.connect(admin).addUsersToWhitelist(projectId, [user1.address, user2.address]);
 
         const projectInfo_after = await project.getProjectInfo(projectId);
-        expect(projectInfo_after.whitelistedTotalPortion.sub(projectInfo_before.whitelistedTotalPortion)).to.be.equal(maxStakeAmount);
+        expect(projectInfo_after.whitelistedTotalPortion.sub(projectInfo_before.whitelistedTotalPortion)).to.be.equal(multiply(maxStakeAmount, '2'));
 
         expect(await project.isAddedWhitelist(projectId, user1.address)).equal(true);
       })

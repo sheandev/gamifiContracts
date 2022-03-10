@@ -25,8 +25,12 @@ const config = {
     hardhat: {
       accounts: { count: 100 },
     },
-    binance_testnet: {
+    testnet: {
       url: 'https://data-seed-prebsc-1-s2.binance.org:8545/',
+      accounts: [process.env.DEPLOY_ACCOUNT],
+    },
+    mainnet: {
+      url: 'https://bsc-dataseed1.ninicoin.io',
       accounts: [process.env.DEPLOY_ACCOUNT],
     },
   },
