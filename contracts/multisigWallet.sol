@@ -64,7 +64,7 @@ contract MultisigWallet is Context, ReentrancyGuard {
         address voter2 = hash.recover(sig2);
         address voter3 = hash.recover(sig3);
         require(
-            (voter1 != voter2 && voter2 != voter3),
+            (voter1 != voter2 && voter2 != voter3 && voter1 != voter3),
             "MultiSig: Invalid Voters"
         );
         approvals += _voters[voter1];

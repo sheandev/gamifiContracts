@@ -12,6 +12,8 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 
 /**
@@ -19,7 +21,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * the Metadata extension, but not including the Enumerable extension, which is available separately as
  * {ERC721Enumerable}.
  */
-contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable {
+contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable, ReentrancyGuard {
+    using SafeERC20 for IERC20;
     using Address for address;
     using Strings for uint256;
 
@@ -84,6 +87,15 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable 
 
 
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event SetAdmin(address indexed user, bool indexed allow);
+    event SetTreasury(address indexed oldTreasury, address indexed newTreasury);
+    event SetFreezeStatus(uint256 indexed tokenId, bool indexed frozen);
+    event SetStartTime(uint256 indexed tokenId, uint256 indexed time);
+    event SetExpireTime(uint256 indexed tokenId, uint256 indexed time);
+    event SetCounter(uint256 indexed tokenId, uint256 indexed counter);
+    event SetTransferRestriction(uint256 indexed tokenId, bool indexed allow);
+    event SetVendor(address indexed vendor, bool indexed allow);
+    event SetNewBatchTokens(uint256 indexed tokensToAdd);
 
     /**
      * @dev Initializes the contract by setting a `name` and a `symbol` to the token collection.
@@ -136,6 +148,7 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable 
 
     function setAdmin(address user, bool allow) public onlyOwner {
         _admins[user] = allow;
+        emit SetAdmin(user, allow);
     }
     
     
@@ -146,38 +159,46 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable 
     // custom functions
 
     function setTreasury(address account) public virtual onlyAdmin {
+        address oldTreasury = treasury;
         treasury = account;
+        emit SetTreasury(oldTreasury, treasury);
     }
     
 
     function setFreezeStatus(uint256 tokenId, bool frozen) public virtual onlyAdmin {
         _frozen[tokenId] = frozen;
+        emit SetFreezeStatus(tokenId, frozen);
     }
 
     function setStartTime(uint256 tokenId, uint256 time) public virtual onlyAdmin {
         _membership[tokenId].startTime = time;
+        emit SetStartTime(tokenId, time);
     }
 
     function setExpireTime(uint256 tokenId, uint256 time) public virtual onlyAdmin {
         _membership[tokenId].expireTime = time;
+        emit SetExpireTime(tokenId, time);
     }
 
     function setCounter(uint256 tokenId, uint256 counter) public virtual onlyAdmin {
         _membership[tokenId].counter = counter;
+        emit SetCounter(tokenId, counter);
     }
 
     function setTransferRestriction(uint256 tokenId, bool allow) public virtual onlyAdmin {
         _transferRestriction[tokenId] = allow;
+        emit SetTransferRestriction(tokenId, allow);
     }
 
     function setVendor(address vendor, bool allow) public virtual onlyAdmin {
         _vendors[vendor] = allow;
+        emit SetVendor(vendor, allow);
     }
 
     function setNewBatchTokens(uint256 tokensToAdd) public virtual onlyAdmin {
         _maxTokenCounter = tokensToAdd;
         _currentBatch = _currentBatch+1;
-
+        emit SetNewBatchTokens(tokensToAdd);
     }
 
     // assumes blind Trust on vendor contract as they are part of the ecosystem
@@ -235,7 +256,7 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable 
             tid = tokenOfOwnerByIndex(user, i);
             bool allow = getMemberCardActive(tid);
             if (allow) {
-                member = true;
+                return true;
             }
         }
         return member;
@@ -248,11 +269,11 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable 
         _membership[tokenId] = Membership(startTime, expireTime, counter);
     }
 
-    function buy() public virtual {
+    function buy() public virtual nonReentrant {
         require(!_batchParticipation[_msgSender()][_currentBatch], "User already own an active Access Key in the current Batch.");
         uint256 tokenId = _tokenCounter;
         require(tokenId < _maxTokenCounter, "No more NFTs can be bought in the current batch.");
-        _paymentToken.transferFrom(_msgSender(), treasury, _buyFees);
+        _paymentToken.safeTransferFrom(_msgSender(), treasury, _buyFees);
         _mint(_msgSender(), tokenId);
         _batchParticipation[_msgSender()][_currentBatch] = true;
         _tokenCounter++;
@@ -537,8 +558,6 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable 
         _owners[tokenId] = to;
 
         emit Transfer(address(0), to, tokenId);
-
-        _afterTokenTransfer(address(0), to, tokenId);
     }
 
     /**
@@ -563,8 +582,6 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable 
         delete _owners[tokenId];
 
         emit Transfer(owner_, address(0), tokenId);
-
-        _afterTokenTransfer(owner_, address(0), tokenId);
     }
 
     /**
@@ -596,8 +613,6 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable 
         _owners[tokenId] = to;
 
         emit Transfer(from, to, tokenId);
-
-        _afterTokenTransfer(from, to, tokenId);
     }
 
     /**
@@ -766,26 +781,6 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable 
             _addTokenToOwnerEnumeration(to, tokenId);
         }
     }
-
-    /**
-     * @dev Hook that is called after any transfer of tokens. This includes
-     * minting and burning.
-     *
-     * Calling conditions:
-     *
-     * - when `from` and `to` are both non-zero.
-     * - `from` and `to` are never both zero.
-     *
-     * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
-     */
-    function _afterTokenTransfer(
-        address from,
-        address to,
-        uint256 tokenId
-    ) internal virtual {}
-
-
-
 
     function setBuyFees(uint256 fees) public virtual onlyAdmin {
         _buyFees = fees;

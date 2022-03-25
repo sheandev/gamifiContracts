@@ -150,23 +150,7 @@ contract AntiBotMaster is Context, Initializable {
         // if no condition is hit till now
         return true;
     }
-
-
-    // template for auto updating buy limits. Used for autoUpdating or use manual with setBuyLimit function.
-    // Timelimits should be used keeping in mind snipeTimeout
-    function _updateBuyLimit() internal {
-        
-    }
-
-    // template for auto updating sell limits.  Used for autoUpdating or use manual with setSellLimit function
-    // Timelimits should be used keeping in mind snipeTimeout
-    function _updateSellLimit() internal {
-      
-    }
-
-
     
-
 
     function setAdmin(address user, bool allow) public onlyOwner {
         _admins[user] = allow;
