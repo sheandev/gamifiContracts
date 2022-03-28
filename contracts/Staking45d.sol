@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 interface IMemberCard {
     function getMemberCardActive(uint256 tokenId) external view returns (bool);
@@ -17,7 +19,8 @@ interface IMemberCard {
     function isMember(address user) external view returns (bool);
 }
 
-contract Staking45d is Context, Initializable {
+contract Staking45d is Context, Initializable, ReentrancyGuard {
+    using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
     struct UserHistory {
@@ -164,7 +167,7 @@ contract Staking45d is Context, Initializable {
         }
     }
 
-    function deposit(uint256 _amount) public {
+    function deposit(uint256 _amount) public nonReentrant {
         UserInfo storage user = userInfo[_msgSender()];
         if (user.amount > 0) {
             if (_timeStarted <= block.timestamp) {
@@ -191,9 +194,9 @@ contract Staking45d is Context, Initializable {
                 _timeStarted.add(_poolDuration) >= block.timestamp,
                 "Staking: Staking has already ended."
             );
-            _stakeToken.transferFrom(_msgSender(), address(this), _amount);
             user.amount = user.amount.add(_amount);
             _stakedAmount = _stakedAmount.add(_amount);
+            _stakeToken.safeTransferFrom(_msgSender(), address(this), _amount);
             user.indexLength = user.indexLength.add(1);
             user.userHistory.push(UserHistory(user.amount, block.timestamp));
         }
@@ -204,7 +207,7 @@ contract Staking45d is Context, Initializable {
         else return b;
     }
 
-    function withdraw(uint256 _amount) public {
+    function withdraw(uint256 _amount) public nonReentrant {
         require(
             _timeStarted.add(_poolDuration) <= block.timestamp,
             "Staking: StakingPool has not expired yet.."
@@ -228,7 +231,7 @@ contract Staking45d is Context, Initializable {
                         pending = pending / 100;
                     }
                     user.pendingRewards = 0;
-                    _rewardToken.transfer(_msgSender(), pending);
+                    _rewardToken.safeTransfer(_msgSender(), pending);
                 }
             }
         }
@@ -240,22 +243,22 @@ contract Staking45d is Context, Initializable {
                 "Staking: Cannot unstake more than staked amount."
             );
 
-            _stakeToken.transfer(_msgSender(), _amount);
             user.amount = user.amount.sub(_amount);
             _stakedAmount = _stakedAmount.sub(_amount);
+            _stakeToken.safeTransfer(_msgSender(), _amount);
             user.indexLength = user.indexLength.add(1);
             user.userHistory.push(UserHistory(user.amount, block.timestamp));
         }
     }
 
-    function EmergencyWithdraw() public onlyOwner {
+    function EmergencyWithdraw() public onlyOwner nonReentrant {
         if (_rewardToken == _stakeToken) {
-            _rewardToken.transfer(
+            _rewardToken.safeTransfer(
                 owner(),
                 _rewardToken.balanceOf(address(this)).sub(_stakedAmount)
             );
         } else {
-            _rewardToken.transfer(
+            _rewardToken.safeTransfer(
                 owner(),
                 _rewardToken.balanceOf(address(this))
             );
