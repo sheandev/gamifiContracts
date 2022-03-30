@@ -23,7 +23,7 @@ contract VestingTGE is Initializable, OwnableUpgradeable {
         uint256 claimed;
     }
 
-    event InitiateVests(address[] indexed accounts, uint256[] amounts, uint256[] initials, uint256 _totalAmount, uint256 indexed _cliff, uint256 indexed _linear);
+    event InitiateVests(address[] indexed accounts, uint256[] amounts, uint256 tgePercent, uint256 _totalAmount, uint256 indexed _cliff, uint256 indexed _linear);
     event Claim(address indexed account, uint256 indexed tokenClaimable);
 
     mapping(address => Vest) public vests;
@@ -77,22 +77,24 @@ contract VestingTGE is Initializable, OwnableUpgradeable {
         emit Claim(_msgSender(), tokenClaimable);
     }
 
-    function initiateVests(address[] memory accounts, uint256[] memory amounts, uint256[] memory initials, uint256 _totalAmount, uint256 _cliff, uint256 _linear) external onlyOwner {
-        require(accounts.length > 0 && amounts.length > 0 && initials.length > 0, "Vesting: Bad length"); // solhint-disable-line reason-string
-        require(accounts.length == amounts.length && amounts.length == initials.length, "Vesting: Mismatched inputs"); // solhint-disable-line reason-string
+    function initiateVests(address[] memory accounts, uint256[] memory amounts, uint256 tgePercent, uint256 _totalAmount, uint256 _cliff, uint256 _linear) external onlyOwner {
+        require(accounts.length > 0 && amounts.length > 0, "Vesting: Bad length"); // solhint-disable-line reason-string
+        require(accounts.length == amounts.length, "Vesting: Mismatched inputs"); // solhint-disable-line reason-string
+        require(tgePercent < 100, "Vesting: Bad Percent");
         require(_totalAmount > 0, "Vesting: _totalAmount must be > 0"); // solhint-disable-line reason-string
 
         uint256 amount = 0;
         token.safeTransferFrom(_msgSender(), address(this), _totalAmount);
         for (uint256 i = 0; i < accounts.length; i++) {
             amount = amount.add(amounts[i]);
-            initiateVest(accounts[i], amounts[i], initials[i], _cliff, _linear);
+            uint256 initial = amounts[i].mul(tgePercent).div(100);
+            initiateVest(accounts[i], amounts[i], initial, _cliff, _linear);
         }
         require(amount == _totalAmount, "Vesting: Bad totalAmount");  
 
         isVestingStarted = true;
 
-        emit InitiateVests(accounts, amounts, initials, _totalAmount, _cliff, _linear);
+        emit InitiateVests(accounts, amounts, tgePercent, _totalAmount, _cliff, _linear);
     }
 
     function initiateVest(address owner_, uint256 amount, uint256 initial, uint256 cliff, uint256 linear) private {
@@ -108,9 +110,5 @@ contract VestingTGE is Initializable, OwnableUpgradeable {
             linear,
             0
         );
-        vests[owner_].claimed = vests[owner_].claimed.add(
-            vests[owner_].initial
-        );
-        token.safeTransfer(vests[owner_].owner, vests[owner_].initial);
     }
 }
