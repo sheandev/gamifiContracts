@@ -19,6 +19,9 @@ require('@nomiclabs/hardhat-etherscan');
 
 require('@openzeppelin/hardhat-upgrades');
 
+require('./tasks/exportProjectStaking');
+require('./tasks/exportProjectUsers');
+
 const config = {
   defaultNetwork: "hardhat",
   networks: {
