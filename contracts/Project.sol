@@ -7,7 +7,6 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./libraries/Formula.sol";
 import "./libraries/Config.sol";
-import "./shares/AdminableUpgradeable.sol";
 
 interface IMemberCard {
     function getMemberCardActive(uint256 tokenId) external view returns(bool);
@@ -15,7 +14,7 @@ interface IMemberCard {
     function ownerOf(uint256 tokenId) external view returns (address);
 }
 
-contract Project is Initializable, AdminableUpgradeable {
+contract Project is Initializable, OwnableUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     struct UserInfo {
@@ -72,6 +71,8 @@ contract Project is Initializable, AdminableUpgradeable {
     // projectId => account address => user info
     mapping(uint256 => mapping(address => UserInfo)) public userInfo;
 
+    mapping(address => bool) private admins;
+
     event CreateProject(ProjectInfo project);
     event SetAllocationSize(uint256 indexed _projectId, uint256 indexed allocationSize);
     event SetEstimateTokenAllocationRate(uint256 indexed _projectId, uint256 indexed estimateTokenAllocationRate);
@@ -89,9 +90,10 @@ contract Project is Initializable, AdminableUpgradeable {
     event RemovedFromWhitelist(uint256 indexed projectId, address[] indexed accounts);
     event Funding(address indexed account, uint256 indexed projectId, uint256 indexed amount, uint256 tokenAllocationAmount);
     event WithdrawFunding(address indexed account, uint256 indexed projectId, uint256 indexed amount);
+    event SetAdmin(address indexed user, bool indexed allow);
 
     function initialize(address owner_, IERC20Upgradeable _gmi, IERC20Upgradeable _busd, IMemberCard _memberCard) public initializer {
-        AdminableUpgradeable.__Adminable_init();
+        OwnableUpgradeable.__Ownable_init();
         _transferOwnership(owner_);
         gmi = _gmi;
         busd = _busd;
@@ -101,6 +103,11 @@ contract Project is Initializable, AdminableUpgradeable {
     modifier validProject(uint256 _projectId) {
         require(projects[_projectId].id > 0 && projects[_projectId].id <= latestProjectId, "Invalid project id");
         _; 
+    }
+
+    modifier onlyAdminOrOwner() {
+        require(admins[_msgSender()] || owner() == _msgSender(), "Not admin or owner");
+        _;
     }
 
     function createProject(
@@ -223,6 +230,11 @@ contract Project is Initializable, AdminableUpgradeable {
         gmi = IERC20Upgradeable(_gmi);
         busd = IERC20Upgradeable(_busd);
         memberCard = IMemberCard(_memberCard);
+    }
+
+    function setAdmin(address user, bool allow) public onlyOwner {
+        admins[user] = allow;
+        emit SetAdmin(user, allow);
     }
 
     /// @notice stake amount of GMI tokens to Staking Pool
