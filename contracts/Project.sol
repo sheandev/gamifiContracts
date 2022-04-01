@@ -21,7 +21,6 @@ contract Project is Initializable, AdminableUpgradeable {
     struct UserInfo {
         bool isAddedWhitelist;
         bool isClaimedBack;
-        bool isStake;
         uint256 stakedAmount;
         uint256 fundedAmount;
         uint256 tokenAllocationAmount;
