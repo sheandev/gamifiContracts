@@ -22,6 +22,7 @@ require('@openzeppelin/hardhat-upgrades');
 require('./tasks/exportProjectStaking');
 require('./tasks/exportProjectUsers');
 require('./tasks/excuteClaimVestingTGE');
+require('./tasks/exportPendingReward');
 
 const config = {
   defaultNetwork: "hardhat",
