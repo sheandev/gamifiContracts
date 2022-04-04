@@ -21,6 +21,7 @@ require('@openzeppelin/hardhat-upgrades');
 
 require('./tasks/exportProjectStaking');
 require('./tasks/exportProjectUsers');
+require('./tasks/excuteClaimVestingTGE');
 
 const config = {
   defaultNetwork: "hardhat",
@@ -29,7 +30,7 @@ const config = {
       accounts: { count: 100 },
     },
     testnet: {
-      url: 'https://data-seed-prebsc-1-s2.binance.org:8545/',
+      url: 'https://data-seed-prebsc-1-s1.binance.org:8545/',
       accounts: [process.env.DEPLOY_ACCOUNT],
     },
     mainnet: {
