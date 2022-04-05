@@ -14,6 +14,36 @@ Array.prototype.contains = function(v) {
   return false;
 };
 
+const calGasFee = (receipt) => {
+  if (!receipt.gasUsed || receipt.gasUsed.isZero()) return 0;
+  if (!receipt.effectiveGasPrice || receipt.effectiveGasPrice.isZero()) return 0;
+  return Number(ethers.utils.formatEther(receipt.gasUsed.mul(receipt.effectiveGasPrice)));
+}
+
+const printTable = (record) => {
+  if (record.reason === '') {
+    console.table([
+      ['No.', record.id],
+      ['Status', record.status],
+      ['Address', record.address],
+      ['Transaction Hash', record.txHash],
+      ['Block Hash', record.blockHash],
+      ['Gas Fee', `${record.gasFee} BNB`],
+      ['Start Time', record.startTime],
+      ['End Time', record.endTime]
+    ]);
+  } else {
+    console.table([
+      ['No.', record.id],
+      ['Status', record.status],
+      ['Address', record.address],
+      ['Start Time', record.startTime],
+      ['End Time', record.endTime]
+    ]);
+    console.log(record.reason);
+  }
+}
+
 Array.prototype.getDuplicates = function() {
   var arr = [];
   var uniqueArr = []
@@ -25,6 +55,15 @@ Array.prototype.getDuplicates = function() {
     }
   }
   return arr;
+}
+
+const formatedDate = (currentDate) => {
+  return currentDate.getDate() + "/"
+    + (currentDate.getUTCMonth()+1)  + "/"
+    + currentDate.getUTCFullYear() + " "
+    + currentDate.getUTCHours() + ":"
+    + currentDate.getUTCMinutes() + ":"
+    + currentDate.getUTCSeconds();
 }
 
 task('excute:vesting:users', 'Claim token of users')
@@ -67,21 +106,44 @@ task('excute:vesting:users', 'Claim token of users')
       }
 
       for (let i = 0; i < targetAddrs.length; i++) {
+        const summary = {
+          id: i + 1,
+          startTime: formatedDate(new Date())
+        }
         const signer = new ethers.Wallet(targetAddrs[i], provider);
         const user = new NonceManager(signer);
         const vestingTGEContract = new ethers.Contract(taskArgs.contractAddress, VestingTGEArtifact.abi, user);
+
+        summary['address'] = user.signer.address;
+
         const gasLimit = await vestingTGEContract.estimateGas.claim({ gasPrice: providerGasPrice });
-        await vestingTGEContract.claim({ gasPrice: providerGasPrice, gasLimit: gasLimit });
+
+        try {
+          const transaction = await vestingTGEContract.claim({ gasPrice: providerGasPrice, gasLimit: gasLimit });
+
+          const receipt = await transaction.wait();
+
+          summary['status'] = 'SUCCESS';
+          summary['txHash'] = receipt.transactionHash;
+          summary['blockHash'] = receipt.blockHash;
+
+          const gasFee = calGasFee(receipt);
+          summary['gasFee'] = gasFee;
+
+          summary['reason'] = '';
+        } catch (error) {
+          summary['status'] = 'FAILED';
+          summary['reason'] = error.toString();
+          summary['txHash'] = '';
+          summary['blockHash'] = '';
+          summary['gasFee'] = 0;
+        }
+        summary['endTime'] = formatedDate(new Date());
+        printTable(summary);
       }
 
       const currentDate = new Date();
-      var formatedDate = "Last checking: " + currentDate.getDate() + "/"
-                + (currentDate.getUTCMonth()+1)  + "/"
-                + currentDate.getUTCFullYear() + " "
-                + currentDate.getUTCHours() + ":"
-                + currentDate.getUTCMinutes() + ":"
-                + currentDate.getUTCSeconds();
-      console.log(`\n${formatedDate} UTC\n`);
+      console.log(`\n${formatedDate(currentDate)} UTC\n`);
 
       console.log(CONSOLE_LOG_GREEN_COLOR, `\n==> Excute claim done\n`);
     } catch (error) {

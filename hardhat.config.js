@@ -23,6 +23,8 @@ require('./tasks/exportProjectStaking');
 require('./tasks/exportProjectUsers');
 require('./tasks/excuteClaimVestingTGE');
 require('./tasks/exportPendingReward');
+require('./tasks/checkBalances');
+require('./tasks/multiSend');
 
 const config = {
   defaultNetwork: "hardhat",
@@ -37,6 +39,7 @@ const config = {
     mainnet: {
       url: 'https://bsc-dataseed1.ninicoin.io',
       accounts: [process.env.DEPLOY_ACCOUNT],
+      gas: 2100000, gasPrice: 8000000000
     },
   },
   etherscan: {
