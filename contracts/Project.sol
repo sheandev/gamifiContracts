@@ -71,7 +71,7 @@ contract Project is Initializable, OwnableUpgradeable {
     // projectId => account address => user info
     mapping(uint256 => mapping(address => UserInfo)) public userInfo;
 
-    mapping(address => bool) private admins;
+    mapping(address => bool) public admins;
 
     event CreateProject(ProjectInfo project);
     event SetAllocationSize(uint256 indexed _projectId, uint256 indexed allocationSize);
