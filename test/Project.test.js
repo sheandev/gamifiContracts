@@ -102,7 +102,7 @@ describe("Project", () => {
                 user1.address,
                 claimBackStartBlockNumber
               )
-          ).to.revertedWith("caller is not the owner");
+          ).to.revertedWith("Not admin or owner");
         });
 
         it("stakingStartBlockNumber <= current block number", async() => {
@@ -356,8 +356,11 @@ describe("Project", () => {
         const projectInfo = await project.getProjectInfo(1);
         const blockStart = projectInfo.stakeInfo.endBlockNumber - 10;
         const blockEnd = projectInfo.fundingInfo.startBlockNumber - 10;
-        await expect(project.connect(user1).setStakingBlockNumber(1, blockStart, blockEnd)).revertedWith("caller is not the owner");
+        await expect(project.connect(user1).setStakingBlockNumber(1, blockStart, blockEnd)).revertedWith("Not admin or owner");
         await project.connect(admin).setStakingBlockNumber(1, blockStart, blockEnd);
+
+        await project.connect(admin).setAdmin(user1.address, true);
+        await project.connect(user1).setStakingBlockNumber(1, add(blockStart, 1), add(blockEnd, 1));
       });
 
       it("blockStart <= blockCurrent", async () => {
@@ -434,7 +437,7 @@ describe("Project", () => {
         let currentBlock = await getCurrentBlock();
         const blockStart = projectInfo.stakeInfo.endBlockNumber * 1 + currentBlock + 10;
         const blockEnd = blockStart + 10;
-        await expect(project.connect(user1).setFundingBlockNumber(1, blockStart, blockEnd)).revertedWith("caller is not the owner");
+        await expect(project.connect(user1).setFundingBlockNumber(1, blockStart, blockEnd)).revertedWith("Not admin or owner");
         expect(await project.connect(admin).setFundingBlockNumber(1, blockStart, blockEnd)).ok;
       });
 
@@ -496,7 +499,7 @@ describe("Project", () => {
       });
 
       it("Only owner", async () => {
-        await expect(project.connect(user1).setAllocationSize(1, '10')).revertedWith("caller is not the owner");
+        await expect(project.connect(user1).setAllocationSize(1, '10')).revertedWith("Not admin or owner");
         expect(await project.connect(admin).setAllocationSize(1, '10')).ok;
       })
 
@@ -540,7 +543,7 @@ describe("Project", () => {
       });
 
       it("Only owner", async () => {
-        await expect(project.connect(user1).setEstimateTokenAllocationRate(1, '10')).revertedWith("caller is not the owner");
+        await expect(project.connect(user1).setEstimateTokenAllocationRate(1, '10')).revertedWith("Not admin or owner");
         expect(await project.connect(admin).setEstimateTokenAllocationRate(1, '10')).ok;
       })
 
@@ -584,7 +587,7 @@ describe("Project", () => {
       });
 
       it("Only owner", async () => {
-        await expect(project.connect(user1).setMinStakeAmount(1, '10')).revertedWith("caller is not the owner");
+        await expect(project.connect(user1).setMinStakeAmount(1, '10')).revertedWith("Not admin or owner");
         expect(await project.connect(admin).setMinStakeAmount(1, '10')).ok;
       })
 
@@ -629,7 +632,7 @@ describe("Project", () => {
       });
 
       it("Only owner", async () => {
-        await expect(project.connect(user1).setMaxStakeAmount(1, '10')).revertedWith("caller is not the owner");
+        await expect(project.connect(user1).setMaxStakeAmount(1, '10')).revertedWith("Not admin or owner");
         expect(await project.connect(admin).setMaxStakeAmount(1, '10')).ok;
       })
 
@@ -673,7 +676,7 @@ describe("Project", () => {
       });
 
       it("Only owner", async () => {
-        await expect(project.connect(user1).setFundingReceiver(1, user2.address)).revertedWith("caller is not the owner");
+        await expect(project.connect(user1).setFundingReceiver(1, user2.address)).revertedWith("Not admin or owner");
         expect(await project.connect(admin).setFundingReceiver(1, user2.address)).ok;
       })
 
@@ -692,7 +695,7 @@ describe("Project", () => {
 
     describe("setContracts", () => {
       it("Only owner", async () => {
-        await expect(project.connect(user1).setContracts(user1.address, user2.address, user3.address)).revertedWith("caller is not the owner");
+        await expect(project.connect(user1).setContracts(user1.address, user2.address, user3.address)).revertedWith("Not admin or owner");
       })
 
       it("Invalid contract address", async () => {
@@ -708,6 +711,48 @@ describe("Project", () => {
         expect(await project.memberCard()).equal(user3.address);
      })
     })
+
+    describe("setAdmin", () => {
+      beforeEach(async () => {
+        currentBlock = await getCurrentBlock();
+        stakingStartBlockNumber = currentBlock + 100;
+        stakingEndBlockNumber = stakingStartBlockNumber + 100;
+        fundingStartBlockNumber = stakingEndBlockNumber + 100;
+        fundingEndBlockNumber = fundingStartBlockNumber + 100;
+        claimBackStartBlockNumber = fundingEndBlockNumber + 100;
+
+        await project
+          .connect(admin)
+          .createProject(
+            allocationSize,
+            stakingStartBlockNumber,
+            stakingEndBlockNumber,
+            minStakeAmount,
+            maxStakeAmount,
+            fundingStartBlockNumber,
+            fundingEndBlockNumber,
+            fundingMinAllocation,
+            estimateTokenAllocationRate,
+            user1.address,
+            claimBackStartBlockNumber
+          );
+      });
+
+      it("Success", async () => {
+        const projectInfo = await project.getProjectInfo(1);
+        const blockStart = projectInfo.stakeInfo.endBlockNumber - 10;
+        const blockEnd = projectInfo.fundingInfo.startBlockNumber - 10;
+        await expect(project.connect(user1).setStakingBlockNumber(1, blockStart, blockEnd)).revertedWith("Not admin or owner");
+        await project.connect(admin).setStakingBlockNumber(1, blockStart, blockEnd);
+
+        await project.connect(admin).setAdmin(user1.address, true);
+        await project.connect(user1).setStakingBlockNumber(1, add(blockStart, 1), add(blockEnd, 1));
+      });
+
+      it("Only owner", async () => {
+        await expect(project.connect(user1).setAdmin(user1.address, true)).revertedWith("caller is not the owner");
+      });
+    });
 
     describe('stake', () => {
       beforeEach(async () => {
@@ -748,6 +793,14 @@ describe("Project", () => {
         await expect(
           project.connect(user1).stake(projectId, maxStakeAmount)
         ).to.revertedWith('Staking has ended');
+      });
+
+      it('You already staking', async () => {
+        await skipBlock(100);
+        await project.connect(user1).stake(projectId, maxStakeAmount)
+        await expect(
+          project.connect(user1).stake(projectId, maxStakeAmount)
+        ).to.revertedWith('You already staking');
       });
 
       it('Not enough stake amount', async () => {
@@ -817,6 +870,7 @@ describe("Project", () => {
         projectId = await project.latestProjectId();
         await memberCard.mintMemberCard(user1.address, "");  
         await memberCard.mintMemberCard(user3.address, "");  
+        await memberCard.mintMemberCard(user1.address, "");  
         await token.connect(admin).mint(user3.address, "999000000000000000000");  
       });
 
@@ -831,6 +885,14 @@ describe("Project", () => {
         await expect(
           project.connect(user1).stakeWithMemberCard(projectId, 1)
         ).to.revertedWith('Staking has ended');
+      });
+
+      it('You already staking', async () => {
+        await skipBlock(100);
+        await project.connect(user1).stakeWithMemberCard(projectId, 0)
+        await expect(
+          project.connect(user1).stakeWithMemberCard(projectId, 2)
+        ).to.revertedWith('You already staking');
       });
 
       it('Unauthorised use of Member Card', async () => {     
@@ -1006,14 +1068,12 @@ describe("Project", () => {
 
         await memberCard.mintMemberCard(user2.address, "");  
         await project.connect(user2).stakeWithMemberCard(projectId, '0');
-        await project.connect(user2).stakeWithMemberCard(projectId, '0');
-        await project.connect(user2).stake(projectId, maxStakeAmount);
         await project.connect(user1).stake(projectId, maxStakeAmount);
         await skipBlock(100);
       });
 
       it("Only owner", async () => {
-        await expect(project.connect(user1).addUsersToWhitelist(projectId, [user1.address])).revertedWith("caller is not the owner");
+        await expect(project.connect(user1).addUsersToWhitelist(projectId, [user1.address])).revertedWith("Not admin or owner");
         expect(await project.isAddedWhitelist(projectId, user1.address)).equal(false);
       })
 
@@ -1038,7 +1098,8 @@ describe("Project", () => {
         await project.connect(admin).addUsersToWhitelist(projectId, [user1.address, user2.address]);
 
         const projectInfo_after = await project.getProjectInfo(projectId);
-        expect(projectInfo_after.whitelistedTotalPortion.sub(projectInfo_before.whitelistedTotalPortion)).to.be.equal(multiply(maxStakeAmount, '2'));
+        expect(projectInfo_after.whitelistedTotalPortion.toString()).to.be.equal(multiply(maxStakeAmount, '2'));
+        expect(projectInfo_after.whitelistedTotalPortion.sub(projectInfo_before.whitelistedTotalPortion)).to.be.equal(maxStakeAmount);
 
         expect(await project.isAddedWhitelist(projectId, user1.address)).equal(true);
       })
@@ -1078,7 +1139,7 @@ describe("Project", () => {
       });
 
       it("Only owner", async () => {
-        await expect(project.connect(user1).removeUsersFromWhitelist(projectId, [user1.address])).revertedWith("caller is not the owner");
+        await expect(project.connect(user1).removeUsersFromWhitelist(projectId, [user1.address])).revertedWith("Not admin or owner");
       })
 
       it("Account list is empty", async () => {
@@ -1257,7 +1318,8 @@ describe("Project", () => {
         const usdBalanceOfFundingReceiver_before = await busd.balanceOf(fundingReceiver.address);
 
         await skipBlock(300);
-        await project.connect(admin).withdrawFunding(projectId);
+        await project.connect(admin).setAdmin(user1.address, true);
+        await project.connect(user1).withdrawFunding(projectId);
 
         const usdBalanceOfProject_after = await busd.balanceOf(project.address);
         const usdBalanceOffundingReceiver_after = await busd.balanceOf(fundingReceiver.address);
