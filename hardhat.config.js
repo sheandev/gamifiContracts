@@ -19,6 +19,13 @@ require('@nomiclabs/hardhat-etherscan');
 
 require('@openzeppelin/hardhat-upgrades');
 
+require('./tasks/exportProjectStaking');
+require('./tasks/exportProjectUsers');
+require('./tasks/excuteClaimVestingTGE');
+require('./tasks/exportPendingReward');
+require('./tasks/checkBalances');
+require('./tasks/multiSend');
+
 const config = {
   defaultNetwork: "hardhat",
   networks: {
@@ -26,12 +33,13 @@ const config = {
       accounts: { count: 100 },
     },
     testnet: {
-      url: 'https://data-seed-prebsc-1-s2.binance.org:8545/',
+      url: 'https://data-seed-prebsc-1-s1.binance.org:8545/',
       accounts: [process.env.DEPLOY_ACCOUNT],
     },
     mainnet: {
       url: 'https://bsc-dataseed1.ninicoin.io',
       accounts: [process.env.DEPLOY_ACCOUNT],
+      gas: 2100000, gasPrice: 8000000000
     },
   },
   etherscan: {
