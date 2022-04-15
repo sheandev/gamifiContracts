@@ -43,6 +43,31 @@ async function main() {
     console.log("err :>> ", err);
   }
 
+  // Combatant NFT
+  try {
+    await hre.run("verify:verify", {
+      address: contracts.combatant,
+    });
+  } catch (err) {
+    console.log("err :>> ", err);
+  }
+
+  try {
+    await hre.run("verify:verify", {
+      address: contracts.mysteriousBox,
+    });
+  } catch (err) {
+    console.log("err :>> ", err);
+  }
+
+  try {
+    await hre.run("verify:verify", {
+      address: contracts.combatantStaking,
+    });
+  } catch (err) {
+    console.log("err :>> ", err);
+  }
+
   try {
     await hre.run("verify:verify", {
       address: contracts.stakingNFT,
