@@ -18,6 +18,7 @@ async function main() {
   const Vendor     = await ethers.getContractFactory("Vendor");
   const Vesting    = await ethers.getContractFactory("Vesting");
   const VestingTGE = await ethers.getContractFactory("VestingTGE");
+  const VestingLaunchPool = await ethers.getContractFactory("VestingLaunchPool");
 
   // Deploy contracts
   console.log('==================================================================');
@@ -48,13 +49,20 @@ async function main() {
   console.log("VestingTGE         deployed to:", vestingTGE.address);
   console.log('VestingTGE verify  deployed to:', vestingTGEVerify);
 
+  const vestingLaunchPool = await upgrades.deployProxy(VestingLaunchPool, [admin, gmi.address]);
+  await vestingLaunchPool.deployed();
+  const vestingLaunchPoolVerify = await upgrades.erc1967.getImplementationAddress(vestingLaunchPool.address);
+  console.log("VestingLaunchPool         deployed to:", vestingLaunchPool.address);
+  console.log('VestingLaunchPool verify  deployed to:', vestingLaunchPoolVerify);
+
   const contractAddresses = {
     admin: admin,
     memberCard: memberCard.address,
     gmi: gmi.address,
     busd: busd.address,
     project: project.address,
-    vestingTGE: vestingTGE.address
+    vestingTGE: vestingTGE.address,
+    vestingLaunchPool: vestingLaunchPool.address
   };
 
   await fs.writeFileSync(
@@ -68,7 +76,8 @@ async function main() {
     gmi: gmi.address,
     busd: busd.address,
     project: projectVerify,
-    vestingTGE: vestingTGEVerify
+    vestingTGE: vestingTGEVerify,
+    vestingLaunchPool: vestingLaunchPoolVerify
   };
 
   await fs.writeFileSync(
