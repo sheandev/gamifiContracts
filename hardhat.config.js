@@ -25,6 +25,7 @@ require('./tasks/excuteClaimVestingTGE');
 require('./tasks/exportPendingReward');
 require('./tasks/checkBalances');
 require('./tasks/multiSend');
+require('./tasks/initVesting');
 
 const config = {
   defaultNetwork: "hardhat",
