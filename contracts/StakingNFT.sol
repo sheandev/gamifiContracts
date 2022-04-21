@@ -29,12 +29,12 @@ interface IMemberCard {
  *
  *  @author Gamifi Team
  *
- *  @notice This smart contract is created for staking pool for all user can stake amount of token 
+ *  @notice This smart contract is created for staking pool for user owning membercard can stake amount of token 
  *          to get with attractive reward. 
- *            - 150% and 175% APY only staking in 60 and 90 days from start day.
+ *            - 225% APY only staking in 30 days from start day.
  *          The contract here by is implemented to create opportunities for users to drive project growth
  */
-contract Staking is Context, Initializable, ReentrancyGuard {
+contract StakingNFT is Context, Initializable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -113,6 +113,11 @@ contract Staking is Context, Initializable, ReentrancyGuard {
 
     modifier onlyOwner() {
         require(owner() == _msgSender(), "Ownable: caller is not the owner");
+        _;
+    }
+
+    modifier onlyMember() {
+        require(IMemberCard(memberCard).balanceOf(_msgSender()) > 0, "Ownable: caller is not the owner");
         _;
     }
 
@@ -273,7 +278,7 @@ contract Staking is Context, Initializable, ReentrancyGuard {
      *
      *  @dev    Only member can call this function.
      */
-    function deposit(uint256 _amount) public nonReentrant {
+    function deposit(uint256 _amount) public nonReentrant onlyMember {
 
         UserInfo storage user = userInfo[_msgSender()];
         if (user.amount > 0) {
