@@ -96,12 +96,12 @@ contract StakingNFT is Initializable, ReentrancyGuardUpgradeable, OwnableUpgrade
      */
     mapping(address => UserInfo) public userInfo;
 
-    event Deposited(address user, uint256 amount, uint256 timestamp);
-    event Withdrawed(address user, uint256 amount, uint256 timestamp);
-    event EmergencyWithdrawed(address owner, address token, uint256 timestamp);
+    event Deposited(address user, uint256 amount);
+    event Withdrawed(address user, uint256 amount);
+    event EmergencyWithdrawed(address owner, address token);
 
     modifier onlyMember() {
-        require(IMemberCard(memberCard).balanceOf(_msgSender()) > 0, "Ownable: caller is not the owner");
+        require(IMemberCard(memberCard).isMember(_msgSender()), "Membercard is required for this staking pool !");
         _;
     }
 
@@ -172,6 +172,13 @@ contract StakingNFT is Initializable, ReentrancyGuardUpgradeable, OwnableUpgrade
     }
 
     /**
+     *  @notice Get reward rate of staking pool.
+     */
+    function getRewardRate() public view returns (uint256) {
+        return _rewardRate;
+    }
+
+    /**
      *  @notice Set reward rate of staking pool.
      *
      *  @dev    Only owner can call this function.
@@ -198,6 +205,15 @@ contract StakingNFT is Initializable, ReentrancyGuardUpgradeable, OwnableUpgrade
         _poolDuration = poolDuration;
     }
 
+    /**
+     *  @notice Set max staked token in staking pool.
+     *
+     *  @dev    Only owner can call this function.
+     */
+    function setMaxStakedAmount(uint256 maxStakedAmount) public onlyOwner {
+         _maxStakedAmount = maxStakedAmount;
+    }
+    
     /**
      *  @notice Check a mount of pending reward in pool of corresponding user address.
      */
@@ -245,15 +261,7 @@ contract StakingNFT is Initializable, ReentrancyGuardUpgradeable, OwnableUpgrade
             user.userHistory.push(UserHistory(user.amount, block.timestamp));
         }
 
-        emit Deposited(_msgSender(), _amount, block.timestamp);
-    }
-
-    /**
-     *  @notice Return minimun value betwween two params.
-     */
-    function min(uint256 a, uint256 b) internal pure returns (uint256) {
-        if (a < b) return a;
-        else return b;
+        emit Deposited(_msgSender(), _amount);
     }
 
     /**
@@ -290,7 +298,7 @@ contract StakingNFT is Initializable, ReentrancyGuardUpgradeable, OwnableUpgrade
             user.userHistory.push(UserHistory(user.amount, block.timestamp));
         }
 
-        emit Withdrawed(_msgSender(), _amount, block.timestamp);
+        emit Withdrawed(_msgSender(), _amount);
     }
 
     /**
@@ -311,9 +319,20 @@ contract StakingNFT is Initializable, ReentrancyGuardUpgradeable, OwnableUpgrade
             );
         }
 
-        emit EmergencyWithdrawed(_msgSender(), address(_rewardToken), block.timestamp);
+        emit EmergencyWithdrawed(_msgSender(), address(_rewardToken));
     }
 
+    /**
+     *  @notice Return minimun value betwween two params.
+     */
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        if (a < b) return a;
+        else return b;
+    }
+
+    /**
+     *  @notice Return a pending amount of reward token.
+     */
     function _calReward(UserInfo memory user) private view returns (uint256) {
         uint256 minTime = min(block.timestamp, _timeStarted.add(_poolDuration));
         if (minTime < user.lastClaim) {

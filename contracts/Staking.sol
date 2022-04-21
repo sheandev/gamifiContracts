@@ -76,9 +76,9 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeabl
      */
     mapping(address => UserInfo) public userInfo;
 
-    event Deposited(address user, uint256 amount, uint256 timestamp);
-    event Withdrawed(address user, uint256 amount, uint256 timestamp);
-    event EmergencyWithdrawed(address owner, address token, uint256 timestamp);
+    event Deposited(address user, uint256 amount);
+    event Withdrawed(address user, uint256 amount);
+    event EmergencyWithdrawed(address owner, address token);
 
     /**
      *  @notice Initialize new logic contract.
@@ -145,6 +145,13 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeabl
     }
 
     /**
+     *  @notice Get reward rate of staking pool.
+     */
+    function getRewardRate() public view returns (uint256) {
+        return _rewardRate;
+    }
+
+    /**
      *  @notice Set reward rate of staking pool.
      *
      *  @dev    Only owner can call this function.
@@ -169,6 +176,15 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeabl
      */
     function setPoolDuration(uint256 poolDuration) public onlyOwner {
         _poolDuration = poolDuration;
+    }
+
+    /**
+     *  @notice Set max staked token in staking pool.
+     *
+     *  @dev    Only owner can call this function.
+     */
+    function setMaxStakedAmount(uint256 maxStakedAmount) public onlyOwner {
+         _maxStakedAmount = maxStakedAmount;
     }
 
     /**
@@ -217,15 +233,7 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeabl
             user.userHistory.push(UserHistory(user.amount, block.timestamp));
         }
 
-        emit Deposited(_msgSender(), _amount, block.timestamp);
-    }
-
-    /**
-     *  @notice Return minimun value betwween two params.
-     */
-    function min(uint256 a, uint256 b) internal pure returns (uint256) {
-        if (a < b) return a;
-        else return b;
+        emit Deposited(_msgSender(), _amount);
     }
 
     /**
@@ -262,7 +270,7 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeabl
             user.userHistory.push(UserHistory(user.amount, block.timestamp));
         }
 
-        emit Withdrawed(_msgSender(), _amount, block.timestamp);
+        emit Withdrawed(_msgSender(), _amount);
     }
 
     /**
@@ -285,11 +293,21 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeabl
 
         emit EmergencyWithdrawed(
             _msgSender(),
-            address(_rewardToken),
-            block.timestamp
+            address(_rewardToken)
         );
     }
 
+    /**
+     *  @notice Return minimun value betwween two params.
+     */
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        if (a < b) return a;
+        else return b;
+    }
+
+    /**
+     *  @notice Return a pending amount of reward token.
+     */
     function _calReward(UserInfo memory user) private view returns (uint256) {
         uint256 minTime = min(block.timestamp, _timeStarted.add(_poolDuration));
         if (minTime < user.lastClaim) {

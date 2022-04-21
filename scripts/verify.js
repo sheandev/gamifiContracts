@@ -9,7 +9,7 @@ async function main() {
   } catch (err) {
     console.log("err :>> ", err);
   }
-  
+
   try {
     await hre.run("verify:verify", {
       address: contracts.gmi,
@@ -17,7 +17,7 @@ async function main() {
   } catch (err) {
     console.log("err :>> ", err);
   }
-  
+
   try {
     await hre.run("verify:verify", {
       address: contracts.busd,
@@ -38,6 +38,30 @@ async function main() {
   try {
     await hre.run("verify:verify", {
       address: contracts.vestingTGE,
+    });
+  } catch (err) {
+    console.log("err :>> ", err);
+  }
+
+  try {
+    await hre.run("verify:verify", {
+      address: contracts.stakingNFT,
+    });
+  } catch (err) {
+    console.log("err :>> ", err);
+  }
+
+  try {
+    await hre.run("verify:verify", {
+      address: contracts.staking60d,
+    });
+  } catch (err) {
+    console.log("err :>> ", err);
+  }
+
+  try {
+    await hre.run("verify:verify", {
+      address: contracts.staking90d,
     });
   } catch (err) {
     console.log("err :>> ", err);
