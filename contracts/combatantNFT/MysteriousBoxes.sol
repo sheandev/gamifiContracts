@@ -49,7 +49,7 @@ interface ICombatant {
  *  @author Gamifi Team
  *
  *  @notice This smart contract create the token ERC721 for Operation. These tokens initially are minted
- *          by the all user and using open more combatant type with only 250 000 GMI
+ *          by the all user and using open more combatant type with only 25 000 GMI
  */
 contract MysteriousBoxes is
     Initializable,
@@ -63,7 +63,11 @@ contract MysteriousBoxes is
 
     uint256 public constant MAX_BATCH = 10;
     uint256 public constant TOTAL_SUPPLY = 500;
-    uint256 public constant PRICE_PER_NFT_BOX = 250000e18;
+
+    /**
+     *  @notice pricePerNFTBox uint256 is price of mysterious box.
+     */
+    uint256 public pricePerNFTBox;
 
     /**
      *  @notice tokenCounter uint256 (counter). This is the counter for store
@@ -77,9 +81,9 @@ contract MysteriousBoxes is
     uint256 private _stakedAmount;
 
     /**
-     *  @notice receiveAccount is address of account for receive token
+     *  @notice receiver is address of account for receive token
      */
-    address public receiveAccount;
+    address public receiver;
 
     /**
      *  @notice baseURI store the value of the ipfs url of NFT images
@@ -114,7 +118,8 @@ contract MysteriousBoxes is
     }
 
     event SetAdmin(address indexed user, bool indexed allow);
-    event SetReceiveAccount(address indexed user, uint256 indexed time);
+    event SetReceiver(address indexed user, uint256 indexed time);
+    event SetPricePerNFTBox(uint256 indexed priceOld, uint256 indexed priceNew);
     event Bought(
         address indexed caller,
         uint256 indexed times,
@@ -151,6 +156,7 @@ contract MysteriousBoxes is
         paymentToken = IERC20Upgradeable(paymentToken_);
         combatant = ICombatant(combatant_);
         transferOwnership(owner_);
+        pricePerNFTBox = 25000e18;
     }
 
     /**
@@ -225,13 +231,24 @@ contract MysteriousBoxes is
     }
 
     /**
+     *  @notice Replace receiver by another address.
+     *
+     *  @dev    Only owner can call this function.
+     */
+    function setReceiver(address account) public onlyOwner {
+        receiver = account;
+        emit SetReceiver(account, block.timestamp);
+    }
+
+    /**
      *  @notice Replace the admin role by another address.
      *
      *  @dev    Only owner can call this function.
      */
-    function setReceiveAccount(address account) public onlyOwner {
-        receiveAccount = account;
-        emit SetReceiveAccount(account, block.timestamp);
+    function setPricePerNFTBox(uint256 amount) public onlyOwner {
+        uint256 pricePerNFTBoxOld = pricePerNFTBox;
+        pricePerNFTBox = amount;
+        emit SetPricePerNFTBox(pricePerNFTBoxOld, pricePerNFTBox);
     }
 
     /**
@@ -252,13 +269,14 @@ contract MysteriousBoxes is
      *  @dev    Only admin can call this function.
      */
     function withdraw(uint256 amount) public onlyAdminOrOwner {
+        require(receiver != address(0), "Invalid receiver");
         uint256 balanceToken = paymentToken.balanceOf(address(this));
         require(
             amount > 0 && balanceToken >= amount,
             "Amount or current balance is invalid"
         );
 
-        paymentToken.safeTransfer(receiveAccount, amount);
+        paymentToken.safeTransfer(receiver, amount);
         _stakedAmount -= amount;
         emit Withdraw(_msgSender(), amount, block.timestamp);
     }
@@ -284,7 +302,7 @@ contract MysteriousBoxes is
         require(tokenCounter + _times <= TOTAL_SUPPLY, "Sold out");
 
         require(
-            _stakedAmount >= _times * PRICE_PER_NFT_BOX,
+            _stakedAmount >= _times * pricePerNFTBox,
             "Admin not enough token in contract to burn"
         );
 
@@ -297,12 +315,12 @@ contract MysteriousBoxes is
         paymentToken.safeTransferFrom(
             _msgSender(),
             address(this),
-            PRICE_PER_NFT_BOX * _times
+            pricePerNFTBox * _times
         );
 
         // burn
-        paymentToken.transfer(address(1), PRICE_PER_NFT_BOX * _times * 2);
-        _stakedAmount -= PRICE_PER_NFT_BOX * _times;
+        paymentToken.transfer(address(1), pricePerNFTBox * _times * 2);
+        _stakedAmount -= pricePerNFTBox * _times;
 
         // mint
         for (uint256 i = 0; i < _times; i++) {
