@@ -10,16 +10,31 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 
 /**
+*  @notice IMemberCard is interface of membercard token
+*/
+interface IMemberCard {
+    function getMemberCardActive(uint256 tokenId) external view returns (bool);
+
+    function consumeMembership(uint256 tokenId) external;
+
+    function ownerOf(uint256 tokenId) external view returns (address);
+
+    function isMember(address user) external view returns (bool);
+
+    function balanceOf(address account) external view returns (uint256);
+}
+
+/**
  *  @title  Dev Staking Pool
  *
  *  @author Gamifi Team
  *
- *  @notice This smart contract is created for staking pool for all user can stake amount of token
- *          to get with attractive reward.
- *            - 150% and 175% APY only staking in 60 and 90 days from start day.
+ *  @notice This smart contract is created for staking pool for user owning membercard can stake amount of token 
+ *          to get with attractive reward. 
+ *            - 225% APY only staking in 30 days from start day.
  *          The contract here by is implemented to create opportunities for users to drive project growth
  */
-contract Staking is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeable {
+contract StakingNFT is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint256;
 
@@ -62,6 +77,11 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeabl
     uint256 private _maxStakedAmount;
 
     /**
+     *  @notice memberCard address is address of membercard token.
+     */
+    address private memberCard;
+    
+     /**
      *  @notice _stakeToken IERC20 is interface of staked token.
      */
     IERC20Upgradeable private _stakeToken;
@@ -80,6 +100,11 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeabl
     event Withdrawed(address user, uint256 amount);
     event EmergencyWithdrawed(address owner, address token);
 
+    modifier onlyMember() {
+        require(IMemberCard(memberCard).isMember(_msgSender()), "Membercard is required for this staking pool !");
+        _;
+    }
+
     /**
      *  @notice Initialize new logic contract.
      */
@@ -87,6 +112,7 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeabl
         address owner_,
         IERC20Upgradeable stakeToken,
         IERC20Upgradeable rewardToken,
+        address _memberCard,
         uint256 timeStarted,
         uint256 rewardRate_,
         uint256 poolDuration_,
@@ -94,6 +120,7 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeabl
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
         transferOwnership(owner_);
+        memberCard = _memberCard;
         _stakeToken = stakeToken;
         _rewardToken = rewardToken;
         _timeStarted = timeStarted;
@@ -108,7 +135,7 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeabl
     function getTimeStarted() public view returns (uint256) {
         return _timeStarted;
     }
-
+    
     /**
      *  @notice Get pool duration.
      */
@@ -131,7 +158,7 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeabl
     }
 
     /**
-     *  @notice Get max staked value.
+     *  @notice Get max staked value. 
      */
     function getMaxStakedAmount() public view returns (uint256) {
         return _maxStakedAmount;
@@ -186,7 +213,7 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeabl
     function setMaxStakedAmount(uint256 maxStakedAmount) public onlyOwner {
          _maxStakedAmount = maxStakedAmount;
     }
-
+    
     /**
      *  @notice Check a mount of pending reward in pool of corresponding user address.
      */
@@ -194,7 +221,7 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeabl
         UserInfo memory user = userInfo[_user];
         if (_timeStarted <= block.timestamp) {
             uint256 amount = _calReward(user);
-            amount = amount + user.pendingRewards;
+            amount = amount + user.pendingRewards;       
             return amount;
         } else {
             return 0;
@@ -206,7 +233,8 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeabl
      *
      *  @dev    Only member can call this function.
      */
-    function deposit(uint256 _amount) public nonReentrant {
+    function deposit(uint256 _amount) public nonReentrant onlyMember {
+
         UserInfo storage user = userInfo[_msgSender()];
         if (user.amount > 0) {
             if (_timeStarted <= block.timestamp) {
@@ -244,7 +272,7 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeabl
             _timeStarted.add(_poolDuration) <= block.timestamp,
             "Staking: StakingPool has not expired yet.."
         );
-
+  
         UserInfo storage user = userInfo[_msgSender()];
         if (user.amount > 0) {
             if (_timeStarted <= block.timestamp) {
@@ -291,10 +319,7 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeabl
             );
         }
 
-        emit EmergencyWithdrawed(
-            _msgSender(),
-            address(_rewardToken)
-        );
+        emit EmergencyWithdrawed(_msgSender(), address(_rewardToken));
     }
 
     /**

@@ -1,14 +1,20 @@
 const Big = require("big.js");
 const ethers = require("hardhat");
-
+const {
+  add,
+  subtract,
+  multiply,
+  divide,
+  compareTo,
+} = require("js-big-decimal");
 const skipTime = async (seconds) => {
   await network.provider.send("evm_increaseTime", [seconds]);
   await network.provider.send("evm_mine");
 };
 
 const setTime = async (time) => {
-  await network.provider.send("evm_setNextBlockTimestamp", [time])
-  await network.provider.send("evm_mine")
+  await network.provider.send("evm_setNextBlockTimestamp", [time]);
+  await network.provider.send("evm_mine");
 };
 
 const getProfit = (pool, days, deposedCash, round) => {
@@ -30,7 +36,7 @@ const getProfitRoot = (pool, days, deposedCash, round) => {
 
 const skipBlock = async (blockNumber) => {
   for (let index = 0; index < blockNumber; index++) {
-    await hre.ethers.provider.send('evm_mine');
+    await hre.ethers.provider.send("evm_mine");
   }
 };
 
@@ -39,11 +45,16 @@ const getCurrentBlock = async () => {
   return latestBlock.number;
 };
 
+const acceptable = (expected, actual, eps) => {
+  return compareTo(eps, subtract(expected, actual).replace("-", "")) !== -1;
+};
+
 module.exports = {
   skipTime,
   setTime,
   getProfit,
   getProfitRoot,
   skipBlock,
-  getCurrentBlock
-}
+  getCurrentBlock,
+  acceptable,
+};
