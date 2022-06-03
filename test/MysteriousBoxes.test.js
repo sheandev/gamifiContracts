@@ -1,12 +1,6 @@
-const chai = require("chai");
 const { expect } = require("chai");
-const { upgrades } = require("hardhat");
-const { solidity } = require("ethereum-waffle");
-const Big = require("big.js");
-const { skipTime } = require("./utils");
+const { ethers, upgrades } = require("hardhat");
 
-chai.use(solidity);
-const { add, subtract, multiply, divide } = require("js-big-decimal");
 describe("Mysterious Boxes", () => {
     const PRICE_PER_NFT_BOX = "250000000000000000000000";
 
@@ -58,14 +52,14 @@ describe("Mysterious Boxes", () => {
         await gmi.connect(treasury).approve(box.address, MAX_INT);
     });
 
-    describe("Deployment:", async () => {
-        it("Check name, symbol and default state: ", async () => {
+    describe("Deployment", async () => {
+        it("Check name, symbol and default state", async () => {
             const name = await box.name();
             const symbol = await box.symbol();
             expect(name).to.equal("Mysterious Box NFT");
             expect(symbol).to.equal("MBN");
         });
-        it("Check tokenURI: ", async () => {
+        it("Check tokenURI", async () => {
             const baseURI = await box.baseURI();
             expect(baseURI).to.equal("");
 
@@ -76,14 +70,14 @@ describe("Mysterious Boxes", () => {
 
             expect(newURI).to.equal(URI);
         });
-        it("Check Owner: ", async () => {
+        it("Check Owner", async () => {
             const ownerAddress = await box.owner();
             expect(ownerAddress).to.equal(owner.address);
         });
     });
 
-    describe("isOpenBox:", async () => {
-        it("return boolean value that instance for box is open or not: ", async () => {
+    describe("isOpenBox", async () => {
+        it("return boolean value that instance for box is open or not", async () => {
 
             await gmi.approve(owner.address, MAX_INT);
             await gmi.approve(user1.address, MAX_INT);
@@ -95,8 +89,8 @@ describe("Mysterious Boxes", () => {
         });
     });
 
-    describe("isAdmin:", async () => {
-        it("return boolean value that instance for account is Admin or not: ", async () => {
+    describe("isAdmin", async () => {
+        it("return boolean value that instance for account is Admin or not", async () => {
             const isAdminValue = true;
             await box.setAdmin(treasury.address, isAdminValue);
             const isAdmin = await box.isAdmin(treasury.address);
@@ -104,12 +98,12 @@ describe("Mysterious Boxes", () => {
         });
     });
 
-    describe("setAdmin:", async () => {
-        it("only owner can call this func: ", async () => {
+    describe("setAdmin", async () => {
+        it("only owner can call this func", async () => {
             const isAdminValue = true;
             await expect(box.connect(user1).setAdmin(treasury.address, isAdminValue)).to.be.revertedWith('Ownable: caller is not the owner');
         });
-        it("should set a new admin: ", async () => {
+        it("should set a new admin", async () => {
             const isAdminValue = true;
             await box.setAdmin(user1.address, isAdminValue);
             const isAdmin = await box.isAdmin(user1.address);
@@ -117,15 +111,15 @@ describe("Mysterious Boxes", () => {
         });
     });
 
-    describe("deposit:", async () => {
-        it("only admin can call this func: ", async () => {
+    describe("deposit", async () => {
+        it("only admin can call this func", async () => {
             const amount = PRICE_PER_NFT_BOX;
             await expect(box.connect(user1).deposit(amount)).to.be.revertedWith('Ownable: caller is not an admin');
         });
-        it("should revert when amount equal to zero: ", async () => {
+        it("should revert when amount equal to zero", async () => {
             await expect(box.deposit(ZERO)).to.be.revertedWith("At least a mount greater than zero");
         });
-        it("should deposit success: ", async () => {
+        it("should deposit success", async () => {
             await gmi.approve(owner.address, MAX_INT);
             const tx = await box.connect(owner).deposit(PRICE_PER_NFT_BOX);
             tx.wait();
@@ -133,8 +127,8 @@ describe("Mysterious Boxes", () => {
         });
     });
 
-    describe("open:", async () => {
-        it("should revert when not owner call open: ", async () => {
+    describe("open", async () => {
+        it("should revert when not owner call open", async () => {
             const num = 10;
             await gmi.approve(owner.address, MAX_INT);
             const tx = await box.connect(owner).deposit(MAX_BURN);
@@ -143,7 +137,7 @@ describe("Mysterious Boxes", () => {
             await box.connect(user1).buy(num);
             await expect(box.connect(user2).open(0)).to.be.revertedWith("This token is not own !");
         });
-        it("should revert when your NFT is opened before: ", async () => {
+        it("should revert when your NFT is opened before", async () => {
             const num = 10;
             await gmi.approve(owner.address, MAX_INT);
             const tx = await box.connect(owner).deposit(MAX_BURN);
@@ -156,7 +150,7 @@ describe("Mysterious Boxes", () => {
             await expect(box.connect(user1).open(0)).to.be.revertedWith("Your NFT is opened !");
 
         });
-        it("should open mysterious box and mint new combatant NFT: ", async () => {
+        it("should open mysterious box and mint new combatant NFT", async () => {
             const num = 10;
             await gmi.approve(owner.address, MAX_INT);
             const tx = await box.connect(owner).deposit(MAX_BURN);
@@ -170,29 +164,36 @@ describe("Mysterious Boxes", () => {
         });
     });
 
-    describe("withdraw:", async () => {
-        it("only admin can call this func: ", async () => {
+    describe("withdraw", async () => {
+        it("only admin can call this func", async () => {
             const amount = PRICE_PER_NFT_BOX;
             await expect(box.connect(user1).withdraw(amount)).to.be.revertedWith('Ownable: caller is not an admin');
         });
-        it("should revert when Amount or current balance is invalid: ", async () => {
+        it("should revert when Amount or current balance is invalid", async () => {
             await expect(box.withdraw(ZERO)).to.be.revertedWith("Amount or current balance is invalid");
         });
-        it("should withdraw success: ", async () => {
+        it("should withdraw success", async () => {
+            await box.connect(owner).setReceiveAccount(owner.address);
+
             await gmi.approve(owner.address, MAX_INT);
             await gmi.approve(box.address, MAX_INT);
-            const txdeposit = await box.connect(owner).deposit(PRICE_PER_NFT_BOX);
-            txdeposit.wait();
-            let balance = await gmi.balanceOf(box.address);
-            const txwithdraw = await box.connect(owner).withdraw(PRICE_PER_NFT_BOX);
-            txwithdraw.wait();
-            balance = await gmi.balanceOf(box.address);
-            expect(balance).to.equal(ZERO);
+            await box.connect(owner).deposit(PRICE_PER_NFT_BOX);
+
+            const balanceUser_before = await gmi.balanceOf(owner.address);
+
+            let balance_contract_before = await gmi.balanceOf(box.address);
+            await box.connect(owner).withdraw(PRICE_PER_NFT_BOX);
+
+            let balance_contract_after = await gmi.balanceOf(box.address);
+            const balanceUser_after = await gmi.balanceOf(owner.address);
+
+            expect(balance_contract_after).to.equal(ZERO);
+            expect(balanceUser_after.sub(balanceUser_before)).to.equal(balance_contract_before.sub(balance_contract_after));
         });
     });
 
-    describe("buy:", async () => {
-        it("should revert when times plus tokenCounter greater than total supply: ", async () => {
+    describe("buy", async () => {
+        it("should revert when times plus tokenCounter greater than total supply", async () => {
             const num = 10;
             await gmi.approve(owner.address, MAX_INT);
             const tx = await box.connect(owner).deposit(MAX_BURN);
@@ -205,7 +206,7 @@ describe("Mysterious Boxes", () => {
 
         });
 
-        it("should revert when Admin not enough token in contract to burn: ", async () => {
+        it("should revert when Admin not enough token in contract to burn", async () => {
             const num = 10;
             await gmi.approve(owner.address, MAX_INT);
             const tx = await box.connect(owner).deposit(PRICE_PER_NFT_BOX);
@@ -213,14 +214,14 @@ describe("Mysterious Boxes", () => {
             await expect(box.buy(num)).to.be.revertedWith("Admin not enough token in contract to burn");
         });
 
-        it("should revert when number times per buying greater than MAX_BATCH: ", async () => {
+        it("should revert when number times per buying greater than MAX_BATCH", async () => {
             const num = 10;
             await gmi.approve(owner.address, MAX_INT);
             const tx = await box.connect(owner).deposit(MAX_BURN);
             tx.wait();
             await expect(box.buy(num + 1)).to.be.revertedWith("Too many mysterious boxes!");
         });
-        it("should buy success: ", async () => {
+        it("should buy success", async () => {
             const num = 10;
             await gmi.approve(owner.address, MAX_INT);
             const tx = await box.connect(owner).deposit(MAX_BURN);

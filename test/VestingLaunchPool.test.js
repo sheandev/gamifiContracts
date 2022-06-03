@@ -8,7 +8,7 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const CLIFF = '2596000';
 const LINEAR = '23328000';
 
-describe.only("VestingLaunchPool", () => {
+describe("VestingLaunchPool", () => {
   beforeEach(async () => {
     const accounts = await ethers.getSigners();
     admin = accounts[0];
