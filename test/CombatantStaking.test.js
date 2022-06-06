@@ -1,24 +1,17 @@
 const { expect } = require("chai");
 const { ethers, upgrades } = require("hardhat");
-const { skipTime, acceptable } = require("./utils");
+const { skipTime, acceptable, setTime } = require("./utils");
+const { BigNumber } = require("ethers");
 
 describe("Combatant Staking", () => {
-    const SOLDIER_LIMIT = "125000000000000000000000";
+    const SOLDIER_LIMIT = ethers.utils.parseUnits('150000', '18');
     const SOLDIER_RATE = 15854895992; // 50 % APY
     const poolDuration = 9 * 30 * 24 * 60 * 60; // 9 months
     const typeIdPool = 0; // 0 : Soldier || 1 : Pilot || 2 : General
     const MAX_BURN = "25000000000000000000000000";
     const ZERO = 0;
-    const ONE_YEAR = 31104000;
-    let CURRENT_TIME;
     
     beforeEach(async () => {
-        const blockNumAfter = await ethers.provider.getBlockNumber();
-        const blockAfter = await ethers.provider.getBlock(blockNumAfter);
-        const timestampAfter = blockAfter.timestamp;
-        CURRENT_TIME = timestampAfter;
-        MAX_INT =
-            "115792089237316195423570985008687907853269984665640564039457584007913129639935";
         const accounts = await ethers.getSigners();
         owner = accounts[0];
         user1 = accounts[1];
@@ -52,15 +45,20 @@ describe("Combatant Staking", () => {
 
         await staking.deployed();
 
+        MAX_UINT256 = ethers.constants.MaxUint256 ;
+
+        ONE_ETHER = ethers.utils.parseEther("1");
+        DECIMAL = ethers.utils.parseUnits('1', '18');
+
         await gmi.mint(owner.address, MAX_BURN);
         await gmi.mint(user1.address, MAX_BURN);
         await gmi.mint(user2.address, MAX_BURN);
         await gmi.mint(user3.address, MAX_BURN);
         await gmi.mint(staking.address, MAX_BURN);
 
-        await gmi.connect(owner).approve(staking.address, MAX_INT);
-        await gmi.connect(user1).approve(staking.address, MAX_INT);
-        await gmi.connect(user2).approve(staking.address, MAX_INT);
+        await gmi.connect(owner).approve(staking.address, MAX_UINT256);
+        await gmi.connect(user1).approve(staking.address, MAX_UINT256);
+        await gmi.connect(user2).approve(staking.address, MAX_UINT256);
 
         await combatant.setAdmin(staking.address, true);
     });
@@ -73,8 +71,8 @@ describe("Combatant Staking", () => {
 
         it("should return type of pool", async () => {
             const tyPool = 0; // Soldier
-            const typePool = await staking.typeIdPool();
-            expect(typePool).to.equal(tyPool);
+            const poolType = await staking.poolType();
+            expect(poolType).to.equal(tyPool);
         });
 
     });
@@ -113,18 +111,14 @@ describe("Combatant Staking", () => {
     describe("getUserAmount", async () => {
         it("should return amount of user", async () => {
             const tokenId = 0;
-            await gmi.approve(owner.address, MAX_INT);
-            await gmi.approve(user1.address, MAX_INT);
             await combatant.mint(user1.address);
-            const typeId = await combatant.combatantBoxes(tokenId);
-            const amount = "1000000000000000000"; // 1 ether
+            const typeId = await combatant.combatantInfos(tokenId);
 
             if (typeId.typeId.toString() == '0') {
-                await staking.connect(user1).stake(amount);
-                expect(await staking.getUserAmount(user1.address)).to.equal(amount);
+                await staking.connect(user1).stake(ONE_ETHER);
+                expect(await staking.getUserAmount(user1.address)).to.equal(ONE_ETHER);
             } else {
-                await expect(staking.connect(user1).stake(amount)).to.be.revertedWith("Require to have NFT for staking in pool");
-                // await expect(staking.getUserAmount(user1.address)).to.be.revertedWith("Require to have NFT for staking in pool");
+                await expect(staking.connect(user1).stake(ONE_ETHER)).to.be.revertedWith("Require to have NFT for staking in pool");
             }
 
         });
@@ -178,362 +172,272 @@ describe("Combatant Staking", () => {
     // // Others
     describe("stake", async () => {
         it("should revert when no NFT is staking active", async () => {
-            const amount = "1000000000000000000"; // 1 ether
-            await expect(staking.connect(user1).stake(amount)).to.be.revertedWith("Require to have NFT for staking in pool");
+            await expect(staking.connect(user1).stake(ONE_ETHER)).to.be.revertedWith("Require to have NFT for staking in pool");
         });
 
         it("should revert when stake overtime 3 months", async () => {
-            const tokenId = 0;
-            const overtime = 4 * 30 * 24 * 60 * 60;
-            await gmi.approve(owner.address, MAX_INT);
-            await gmi.approve(user1.address, MAX_INT);
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantBoxes(tokenId);
-
-            const amount = "1000000000000000000"; // 1 ether
-
-            if (typeId.typeId.toString() == '0') {
-                await staking.connect(user1).stake(amount);
-                await skipTime(overtime);
-                await expect(staking.connect(user1).stake(amount)).to.be.revertedWith("Only deposit at first 3 months");
-            } else {
-                await expect(staking.connect(user1).stake(amount)).to.be.revertedWith("Require to have NFT for staking in pool");
+            let tokenId = 0;
+            let check = true;
+            while (check) {
+                await combatant.mint(user1.address);
+                const typeId = await combatant.combatantInfos(tokenId);
+                tokenId++;
+                if (typeId.typeId.toString() == '0') {
+                    check = false;
+                }
             }
+
+            const overtime = 4 * 30 * 24 * 60 * 60;
+            await staking.connect(user1).stake(ONE_ETHER);
+            await skipTime(overtime);
+            await expect(staking.connect(user1).stake(ONE_ETHER)).to.be.revertedWith("Staking has already ended");
+            
         });
 
         it("should revert when max staking limit has been reached", async () => {
-            const tokenId = 0;
-            await gmi.approve(owner.address, MAX_INT);
-            await gmi.approve(user1.address, MAX_INT);
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantBoxes(tokenId);
-
-            const amount = "500001000000000000000000"; // 1 ether
-            if (typeId.typeId.toString() == '0') {
-                await expect(staking.connect(user1).stake(amount)).to.be.revertedWith("Staking: Max staking limit has been reached.");
-            } else {
-                await expect(staking.connect(user1).stake(amount)).to.be.revertedWith("Require to have NFT for staking in pool");
+            let tokenId = 0;
+            let check = true;
+            while (check) {
+                await combatant.mint(user1.address);
+                const typeId = await combatant.combatantInfos(tokenId);
+                tokenId++;
+                if (typeId.typeId.toString() == '0') {
+                    check = false;
+                }
             }
+
+            await expect(staking.connect(user1).stake(SOLDIER_LIMIT.add(1))).to.be.revertedWith("Staking: Max staking limit has been reached.");
         });
 
         it("should stake success", async () => {
-            const tokenId = 0;
-            await gmi.approve(owner.address, MAX_INT);
-            await gmi.approve(user1.address, MAX_INT);
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantBoxes(tokenId);
-
-            const amount = "125000000000000000000000";
-            if (typeId.typeId.toString() == '0') {
-                await staking.connect(user1).stake(amount);
-                expect(await staking.getUserAmount(user1.address)).to.equal(amount);
-            } else {
-                console.log("throw ! please try again");
-                console.log("typeId.typeId.toString() ", typeId.typeId.toString())
-                await expect(staking.connect(user1).stake(amount)).to.be.revertedWith("Require to have NFT for staking in pool");
+            let tokenId = 0;
+            let check = true;
+            while (check) {
+                await combatant.mint(user1.address);
+                const typeId = await combatant.combatantInfos(tokenId);
+                tokenId++;
+                if (typeId.typeId.toString() == '0') {
+                    check = false;
+                }
             }
+
+            await staking.connect(user1).stake(SOLDIER_LIMIT);
+            expect(await staking.getUserAmount(user1.address)).to.equal(SOLDIER_LIMIT);
         });
     });
 
     describe("pendingRewards", async () => {
+        beforeEach(async () => {
+            tokenId = 0;
+            let check = true;
+            while (check) {
+                await combatant.mint(user1.address);
+                const typeId = await combatant.combatantInfos(tokenId);
+                tokenId++;
+                if (typeId.typeId.toString() == '0') {
+                    check = false;
+                }
+            }
+        });
+
         it("should return pending reward", async () => {
-            const tokenId = 0;
-            await gmi.approve(owner.address, MAX_INT);
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantBoxes(tokenId);
             const claimTime = 4 * 30 * 24 * 60 * 60;
-            const amount = "100000000000000000000"; // 1 ether
+            const _rewardRate = await staking.getRewardRate();
 
-            if (typeId.typeId.toString() == '0') {
-                await staking.connect(user1).stake(amount);
-                await skipTime(claimTime);
-                const pendingRewards = await staking.pendingRewards(user1.address);
+            await staking.connect(user1).stake(ONE_ETHER);
+            await skipTime(claimTime);
+            const pendingRewards = await staking.pendingRewards(user1.address);
 
-                console.log("pendingRewards", pendingRewards.toString(), divide(
-                    multiply(multiply(amount, 0.5), claimTime),
-                    ONE_YEAR
-                ));
-                const epsilon = 1 / 100 * amount;
-                expect(
-                    acceptable(pendingRewards.toString(), divide(
-                        multiply(multiply(amount, 0.5), claimTime),
-                        ONE_YEAR
-                    ), epsilon))
-                    .to.be.true;
-            }
-            else {
-                console.log("throw ! please try again");
-            }
+            const epsilon = 1 / 100 * ONE_ETHER;
+            expect(
+                acceptable(pendingRewards.toString(), ONE_ETHER.mul(_rewardRate).mul(claimTime).div(DECIMAL), epsilon))
+                .to.be.true;
         });
     });
 
     describe("requestUnstake", async () => {
-        it("should revert when not allow at this time for no NFT or on staking time", async () => {
-            const tokenId = 0;
-            await gmi.approve(owner.address, MAX_INT);
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantBoxes(tokenId);
-            const claimTime = 4 * 30 * 24 * 60 * 60;
-            const amount = "100000000000000000000"; // 1 ether
-
-            if (typeId.typeId.toString() == '0') {
-                await staking.connect(user1).stake(amount);
-                await skipTime(claimTime);
-                await expect(staking.connect(user1).requestUnstake()).to.be.revertedWith("Not allow unstake at this time");
-
-            }
-            else {
-                console.log("throw ! please try again");
+        beforeEach(async () => {
+            tokenId = 0;
+            let check = true;
+            while (check) {
+                await combatant.mint(user1.address);
+                const typeId = await combatant.combatantInfos(tokenId);
+                tokenId++;
+                if (typeId.typeId.toString() == '0') {
+                    check = false;
+                }
             }
         });
 
+        it("should revert when not allow at this time for no NFT or on staking time", async () => {
+            const claimTime = 4 * 30 * 24 * 60 * 60;
+            await staking.connect(user1).stake(ONE_ETHER);
+            await skipTime(claimTime);
+            await expect(staking.connect(user1).requestUnstake()).to.be.revertedWith("Not allow unstake at this time");
+           
+        });
+
         it("should request success", async () => {
-            const tokenId = 0;
-            await gmi.approve(owner.address, MAX_INT);
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantBoxes(tokenId);
             const claimTime = 10 * 30 * 24 * 60 * 60; // 1 thangs
-            const amount = "100000000000000000000"; // 1 ether
+            await staking.connect(user1).stake(ONE_ETHER);
+            await skipTime(claimTime);
+            await staking.connect(user1).requestUnstake();
 
-            if (typeId.typeId.toString() == '0') {
-                await staking.connect(user1).stake(amount);
-
-                await skipTime(claimTime);
-
-                await staking.connect(user1).requestUnstake();
-                const data = await staking.users(user1.address);
-                expect(data.lazyUnstake.isRequested).to.equal(true);
-            }
-            else {
-                console.log("throw ! please try again");
-            }
+            const data = await staking.users(user1.address);
+            expect(data.lazyUnstake.isRequested).to.equal(true);
+            
         });
     });
 
     describe("requestClaim", async () => {
+        beforeEach(async () => {
+            tokenId = 0;
+            let check = true;
+            while (check) {
+                await combatant.mint(user1.address);
+                const typeId = await combatant.combatantInfos(tokenId);
+                tokenId++;
+                if (typeId.typeId.toString() == '0') {
+                    check = false;
+                }
+            }
+        });
+
         it("should revert when pool is not start", async () => {
-            const tokenId = 0;
-            await gmi.approve(owner.address, MAX_INT);
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantBoxes(tokenId);
-            // const claimTime = 10 * 30 * 24 * 60 * 60;
-            // const amount = "100000000000000000000"; // 1 ether
-
-            if (typeId.typeId.toString() == '0') {
-                // await staking.connect(user1).stake(amount);
-                // await skipTime(claimTime);
-                await expect(staking.connect(user1).requestClaim()).to.be.revertedWith("Pool is not start !");
-
-            }
-            else {
-                console.log("throw ! please try again");
-            }
+            await expect(staking.connect(user1).requestClaim()).to.be.revertedWith("Pool is not start !");
         });
 
         it("should revert when more request", async () => {
-            const tokenId = 0;
-            await gmi.approve(owner.address, MAX_INT);
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantBoxes(tokenId);
             const claimTime = 4 * 30 * 24 * 60 * 60;
-            const amount = "100000000000000000000"; // 1 ether
-
-            if (typeId.typeId.toString() == '0') {
-                await staking.connect(user1).stake(amount);
-                await skipTime(claimTime);
-                await staking.connect(user1).requestClaim();
-                await expect(staking.connect(user1).requestClaim()).to.be.revertedWith("Requested !");
-
-            }
-            else {
-                console.log("throw ! please try again");
-            }
+            await staking.connect(user1).stake(ONE_ETHER);
+            await skipTime(claimTime);
+            await staking.connect(user1).requestClaim();
+            await expect(staking.connect(user1).requestClaim()).to.be.revertedWith("Requested !");
         });
 
         it("should request success", async () => {
-            const tokenId = 0;
-            await gmi.approve(owner.address, MAX_INT);
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantBoxes(tokenId);
             const claimTime = 4 * 30 * 24 * 60 * 60;
-            const amount = "100000000000000000000"; // 1 ether
+            await staking.connect(user1).stake(ONE_ETHER);
+            await skipTime(claimTime);
+            await staking.connect(user1).requestClaim();
 
-            if (typeId.typeId.toString() == '0') {
-                await staking.connect(user1).stake(amount);
-                await skipTime(claimTime);
-                await staking.connect(user1).requestClaim();
-                const data = await staking.users(user1.address);
-                expect(data.lazyClaim.isRequested).to.equal(true);
-            }
-            else {
-                console.log("throw ! please try again");
-            }
+            const data = await staking.users(user1.address);
+            expect(data.lazyClaim.isRequested).to.equal(true);
         });
     });
 
     describe("claim", async () => {
+        beforeEach(async () => {
+            tokenId = 0;
+            let check = true;
+            while (check) {
+                await combatant.mint(user1.address);
+                const typeId = await combatant.combatantInfos(tokenId);
+                tokenId++;
+                if (typeId.typeId.toString() == '0') {
+                    check = false;
+                }
+            }
+        });
+
         it("should revert when NOT request and can claim after 24 hours ", async () => {
-            const tokenId = 0;
-            await gmi.approve(owner.address, MAX_INT);
-            await gmi.approve(staking.address, MAX_INT);
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantBoxes(tokenId);
+            await staking.connect(user1).stake(ONE_ETHER);
 
-            const amount = "100000000000000000000"; // 1 ether
+            await skipTime(10 * 30 * 24 * 60 * 60);
+            await staking.connect(user1).requestUnstake();
 
-            if (typeId.typeId.toString() == '0') {
-                await staking.connect(user1).stake(amount);
+            await skipTime(24 * 60 * 60 + 1);
+            await staking.connect(user1).unstake(ONE_ETHER);
 
-                await skipTime(10 * 30 * 24 * 60 * 60);
-                await staking.connect(user1).requestUnstake();
-                await skipTime(24 * 60 * 60 + 1);
-                await staking.connect(user1).unstake(amount);
-
-                await expect(staking.connect(user1).claim()).to.be.revertedWith("Please request and can claim after 24 hours");
-            }
-            else {
-                console.log("throw ! please try again");
-            }
+            await expect(staking.connect(user1).claim()).to.be.revertedWith("Please request and can claim after 24 hours");
         });
 
         it("should revert when amount of reward value equal to zero ", async () => {
-            const tokenId = 0;
-            await gmi.approve(owner.address, MAX_INT);
-            await gmi.approve(staking.address, MAX_INT);
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantBoxes(tokenId);
+            await staking.connect(user1).stake(ONE_ETHER);
 
-            const amount = "100000000000000000000"; // 1 ether
+            await skipTime(10 * 30 * 24 * 60 * 60);
+            await staking.connect(user1).requestUnstake();
 
-            if (typeId.typeId.toString() == '0') {
-                await staking.connect(user1).stake(amount);
+            await skipTime(24 * 60 * 60 + 1);
+            await staking.connect(user1).unstake(ONE_ETHER);
 
-                await skipTime(10 * 30 * 24 * 60 * 60);
-                await staking.connect(user1).requestUnstake();
-                await skipTime(24 * 60 * 60 + 1);
-                await staking.connect(user1).unstake(amount);
-                await staking.connect(user1).requestClaim();
-                await skipTime(24 * 60 * 60 + 1);
-                await expect(staking.connect(user1).claim()).to.be.revertedWith("Reward value equal to zero");
-            }
-            else {
-                console.log("throw ! please try again");
-            }
+            await staking.connect(user1).requestClaim();
+
+            await skipTime(24 * 60 * 60 + 1);
+            await expect(staking.connect(user1).claim()).to.be.revertedWith("Reward value equal to zero");
         });
 
         it("should claim success", async () => {
-            const tokenId = 0;
-            await gmi.approve(owner.address, MAX_INT);
-            await gmi.approve(staking.address, MAX_INT);
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantBoxes(tokenId);
+            await staking.connect(user1).stake(ONE_ETHER);
 
-            const amount = "100000000000000000000"; // 1 ether
+            await skipTime(24 * 60 * 60 + 1);
+            await staking.connect(user1).requestClaim();
+            let data = await staking.users(user1.address);
 
-            if (typeId.typeId.toString() == '0') {
-                await staking.connect(user1).stake(amount);
-                await skipTime(24 * 60 * 60 + 1);
+            expect(data.lazyClaim.isRequested).to.equal(true);
 
-                await staking.connect(user1).requestClaim();
-                let data = await staking.users(user1.address);
+            await skipTime(24 * 60 * 60 + 1);
+            await staking.connect(user1).claim();
+            data = await staking.users(user1.address);
 
-                expect(data.lazyClaim.isRequested).to.equal(true);
-                await skipTime(24 * 60 * 60 + 1);
-                await staking.connect(user1).claim();
-                data = await staking.users(user1.address);
-
-                expect(data.lazyClaim.isRequested).to.equal(false);
-            }
-            else {
-                console.log("throw ! please try again");
-            }
+            expect(data.lazyClaim.isRequested).to.equal(false);
         });
     });
 
     describe("unstake", async () => {
+        beforeEach(async () => {
+            tokenId = 0;
+            let check = true;
+            while (check) {
+                await combatant.mint(user1.address);
+                const typeId = await combatant.combatantInfos(tokenId);
+                if (typeId.typeId.toString() == '0') {
+                    check = false;
+                }
+                tokenId++;
+            }
+
+            await staking.connect(user1).stake(ONE_ETHER);
+        });
+
         it("should revert when staking pool for NFT not expired", async () => {
-
-            const tokenId = 0;
-            await gmi.approve(owner.address, MAX_INT);
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantBoxes(tokenId);
             const unstakeTime = 8 * 30 * 24 * 60 * 60 + 1;
-            const amount = "100000000000000000000"; // 1 ether
+            await skipTime(unstakeTime);
 
-            if (typeId.typeId.toString() == '0') {
-                await staking.connect(user1).stake(amount);
-                await skipTime(unstakeTime);
-                // await staking.connect(user1).requestUnstake();
-                // await skipTime(25 * 60 * 60);
-                await expect(staking.connect(user1).unstake(amount)).to.be.revertedWith("Staking: StakingPool for NFT has not expired yet..");
-            }
-            else {
-                console.log("throw ! please try again");
-            }
+            await expect(staking.connect(user1).unstake(ONE_ETHER)).to.be.revertedWith("Staking: StakingPool for NFT has not expired yet..");
         });
 
         it("should revert when request not finish after 24 hours", async () => {
-            const tokenId = 0;
-            await gmi.approve(owner.address, MAX_INT);
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantBoxes(tokenId);
             const unstakeTime = 9 * 30 * 24 * 60 * 60 + 1;
-            const amount = "100000000000000000000"; // 1 ether
+            await skipTime(unstakeTime);
 
-            if (typeId.typeId.toString() == '0') {
-                await staking.connect(user1).stake(amount);
-                await skipTime(unstakeTime);
-                // await staking.connect(user1).requestUnstake();
-                // await skipTime(25 * 60 * 60);
-                await expect(staking.connect(user1).unstake(amount)).to.be.revertedWith("Please request and can withdraw after 24 hours");
-            }
-            else {
-                console.log("throw ! please try again");
-            }
+            await expect(staking.connect(user1).unstake(ONE_ETHER)).to.be.revertedWith("Please request and can withdraw after 24 hours");
         });
 
         it("should revert when connot unstake more than staked amount", async () => {
-            const tokenId = 0;
-            await gmi.approve(owner.address, MAX_INT);
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantBoxes(tokenId);
             const unstakeTime = 9 * 30 * 24 * 60 * 60 + 1;
-            const amount = "100000000000000000000"; // 1 ether
-
-            if (typeId.typeId.toString() == '0') {
-                await staking.connect(user1).stake(amount);
-                await skipTime(unstakeTime);
-                await staking.connect(user1).requestUnstake();
-                await skipTime(25 * 60 * 60);
-                await expect(staking.connect(user1).unstake(MAX_BURN)).to.be.revertedWith("Staking: Cannot unstake more than staked amount.");
-            }
-            else {
-                console.log("throw ! please try again");
-            }
+            await skipTime(unstakeTime);
+            await staking.connect(user1).requestUnstake();
+            await skipTime(25 * 60 * 60);
+            await expect(staking.connect(user1).unstake(MAX_BURN)).to.be.revertedWith("Staking: Cannot unstake more than staked amount.");
         });
 
-        it("should unstake success", async () => {
-            const tokenId = 0;
-
-            await gmi.approve(owner.address, MAX_INT);
-            await gmi.connect(user1).approve(staking.address, MAX_INT);
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantBoxes(tokenId);
+        it.only("should unstake success", async () => {
             const unstakeTime = 9 * 30 * 24 * 60 * 60 + 1;
-            const amount = "100000000000000000000"; // 1 ether
+            await skipTime(unstakeTime);
+            await staking.connect(user1).requestUnstake();
 
-            if (typeId.typeId.toString() == '0') {
-                await staking.connect(user1).stake(amount);
-                await skipTime(unstakeTime);
-                await staking.connect(user1).requestUnstake();
-                await skipTime(25 * 60 * 60);
-                await staking.connect(user1).unstake(amount);
-                const pendingRewards = await staking.pendingRewards(user1.address);
-                expect(pendingRewards).to.equal(ZERO);
-            }
-            else {
-                console.log("throw ! please try again");
-            }
+            console.log((await staking.pendingRewards(user1.address)).toString());
+
+            await skipTime(25 * 60 * 60);
+            await staking.connect(user1).unstake(ONE_ETHER);
+
+            // const pendingRewards = await staking.pendingRewards(user1.address);
+            // expect(pendingRewards).to.equal(ZERO);
+
+            await combatant.connect(user1).transferFrom(user1.address, owner.address, tokenId - 1);
+            const owner_of_token = await combatant.ownerOf(tokenId - 1);
+            expect(owner_of_token).to.equal(owner.address);
         });
     });
 

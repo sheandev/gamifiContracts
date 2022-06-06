@@ -10,6 +10,7 @@ import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
+import "./ICombatant.sol";
 
 /**
  *  @title  Dev Non-fungible token
@@ -32,29 +33,17 @@ contract Combatant is
     Initializable,
     ReentrancyGuardUpgradeable,
     OwnableUpgradeable,
-    ERC721EnumerableUpgradeable
+    ERC721EnumerableUpgradeable,
+    ICombatant
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using AddressUpgradeable for address;
     using StringsUpgradeable for uint256;
 
     uint256 public constant MAX_BATCH = 10;
-    uint256 public constant DURATION_UNLOCK = 25920000;
-
     uint256 public constant SOLDIER_SUPPLY = 375;
     uint256 public constant PILOT_SUPPLY = 100;
     uint256 public constant GENERAL_SUPPLY = 25;
-
-    enum TypeId {
-        SOLDIER,
-        PILOT,
-        GENERAL
-    }
-
-    struct CombatantBox {
-        TypeId typeId;
-        uint256 activeTime;
-    }
 
     /**
      *  @notice rarities is list of probabilities for each trait type
@@ -83,12 +72,12 @@ contract Combatant is
     IRand public rander;
 
     /**
-     *  @notice combatantBoxes mapping from token ID to CombatantBox
+     *  @notice mapping from token ID to CombatantInfo
      */
-    mapping(uint256 => CombatantBox) public combatantBoxes;
+    mapping(uint256 => CombatantInfo) public combatantInfos;
 
     /**
-     *  @notice currentIndexes mapping from TypeId to curent index of this combatant Boxes
+     *  @notice currentIndexes mapping from TypeId to curent index of this combatant
      */
     mapping(TypeId => uint256) public currentIndexes;
 
@@ -106,7 +95,9 @@ contract Combatant is
     }
 
     event SetAdmin(address indexed user, bool indexed allow);
-    event SetUnlockTime(uint256 indexed tokenId, uint256 indexed startTime);
+    event LockToken(uint256 indexed tokenId, uint256 indexed lockedExpireTime);
+    event UnlockToken(uint256 indexed tokenId);
+    event UsedForWhitelist(uint256 indexed tokenId);
 
     /**
      *  @notice Initialize new logic contract.
@@ -143,6 +134,17 @@ contract Combatant is
     }
 
     /**
+     *  @notice Set an account to be contract admin.
+     *
+     *  @dev    Only owner can call this function.
+     */
+    function setAdmin(address user, bool allow) public onlyOwner {
+        require(user != address(0), "Invalid address");
+        admins[user] = allow;
+        emit SetAdmin(user, allow);
+    }
+
+    /**
      *  @notice Mapping token ID to base URI in ipfs storage
      *
      *  @dev    All caller can call this function.
@@ -159,7 +161,7 @@ contract Combatant is
         );
 
         string memory currentBaseURI = _baseURI();
-        string memory typeId = uint256(combatantBoxes[tokenId].typeId)
+        string memory typeId = uint256(combatantInfos[tokenId].typeId)
             .toString();
 
         return
@@ -170,21 +172,18 @@ contract Combatant is
 
     /**
      *  @notice Get all information of combatant from token ID.
-     *
-     *  @dev    All caller can call this function.
      */
-    function getCombatantBoxOf(uint256 tokenId)
+    function getCombatantInfoOf(uint256 tokenId)
         public
         view
-        returns (CombatantBox memory)
+        override
+        returns (CombatantInfo memory)
     {
-        return combatantBoxes[tokenId];
+        return combatantInfos[tokenId];
     }
 
     /**
      *  @notice Get limit staking from type ID.
-     *
-     *  @dev    All caller can call this function.
      */
     function getSupplyOf(TypeId typeId) public pure returns (uint256) {
         if (typeId == TypeId.GENERAL) {
@@ -199,47 +198,7 @@ contract Combatant is
     }
 
     /**
-     *  @notice Get number of NFT of each pool.
-     */
-    function getNumberNFTOfPoolType(address sender, uint256 typeID)
-        public
-        view
-        returns (uint256)
-    {
-        uint256[] memory ids = tokensOfOwner(sender);
-        uint256 count;
-        for (uint256 i = 0; i < ids.length; i++) {
-            CombatantBox memory box = getCombatantBoxOf(ids[i]);
-            if (box.typeId == TypeId(typeID)) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    /**
-     *  @notice Check account whether it is the admin role.
-     *
-     *  @dev    All caller can call this function.
-     */
-    function isAdmin(address account) public view returns (bool) {
-        return admins[account];
-    }
-
-    /**
-     *  @notice Replace the admin role by another address.
-     *
-     *  @dev    Only owner can call this function.
-     */
-    function setAdmin(address user, bool allow) public onlyOwner {
-        admins[user] = allow;
-        emit SetAdmin(user, allow);
-    }
-
-    /**
      *  @notice Get list token ID of owner address.
-     *
-     *  @dev    Only admin can call this function.
      */
     function tokensOfOwner(address owner)
         public
@@ -255,15 +214,52 @@ contract Combatant is
     }
 
     /**
-     *  @notice Mint a combatant when call from mysterious box .
+     *  @notice Get list token ID by type of owner address.
+     */
+    function tokensOfOwnerByType(address owner, uint256 typeID)
+        public
+        view
+        override
+        returns (uint256[] memory)
+    {
+        uint256 allTokens = balanceOf(owner);
+
+        uint256 typedTokens = 0;
+        for (uint256 i = 0; i < allTokens; i++) {
+            uint256 tokenId = tokenOfOwnerByIndex(owner, i);
+            CombatantInfo memory info = getCombatantInfoOf(tokenId);
+            if (info.typeId == TypeId(typeID)) {
+                typedTokens++;
+            }
+        }
+
+        uint256[] memory typedIds = new uint256[](typedTokens);
+        uint256 typedCounter = 0;
+        for (uint256 i = 0; i < allTokens; i++) {
+            uint256 tokenId = tokenOfOwnerByIndex(owner, i);
+            CombatantInfo memory info = getCombatantInfoOf(tokenId);
+            if (info.typeId == TypeId(typeID)) {
+                typedIds[typedCounter] = tokenId;
+                typedCounter++;
+            }
+        }
+
+        return typedIds;
+    }
+
+    /**
+     *  @notice Mint a combatant when call from mysterious box.
      *
      *  @dev    Only admin can call this function.
      */
-    function mint(address owner) external onlyAdminOrOwner {
+    function mint(address owner) external override onlyAdminOrOwner {
         uint256 tokenId = tokenCounter;
         uint256 seed = rander.random(tokenId);
         TypeId typeId = randomTypeId(seed);
-        combatantBoxes[tokenId].typeId = typeId;
+        combatantInfos[tokenId].typeId = typeId;
+        if (typeId == TypeId.GENERAL) {
+            combatantInfos[tokenId].useCounter = 1;
+        }
         _mint(owner, tokenId);
         tokenCounter++;
     }
@@ -288,16 +284,32 @@ contract Combatant is
         super._beforeTokenTransfer(from, to, tokenId);
         if (from != address(0) && to != address(0) && from != to) {
             require(
-                combatantBoxes[tokenId].activeTime != 0 &&
-                    combatantBoxes[tokenId].activeTime + DURATION_UNLOCK >
-                    block.timestamp,
+                block.timestamp > combatantInfos[tokenId].lockedExpireTime && !combatantInfos[tokenId].isLocked,
                 "In unlockTime: you should stake it before transfer !"
             );
         }
     }
 
+    function lockToken(uint256 tokenId, uint256 duration) external override onlyAdminOrOwner {
+        combatantInfos[tokenId].lockedExpireTime = block.timestamp + duration;
+        combatantInfos[tokenId].isLocked = true;
+        emit LockToken(tokenId, combatantInfos[tokenId].lockedExpireTime);
+    }
+
+    function unlockToken(uint256 tokenId) external override onlyAdminOrOwner {
+        combatantInfos[tokenId].isLocked = false;
+        emit UnlockToken(tokenId);
+    }
+
+    function useForWhitelist(uint256 tokenId) public onlyAdminOrOwner {
+        require(combatantInfos[tokenId].useCounter > 0, "NFT has been used");
+        combatantInfos[tokenId].useCounter--;
+
+        emit UsedForWhitelist(tokenId);
+    }
+
     /**
-     *  @notice Random a lucky number for create new combatant box.
+     *  @notice Random a lucky number for create new NFT.
      */
     function randomTypeId(uint256 seed) private returns (TypeId) {
         uint8 result = selectTraits(seed);

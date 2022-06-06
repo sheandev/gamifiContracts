@@ -10,38 +10,7 @@ import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
-
-/**
- *  @notice ICombatant is interface of combatant token
- */
-interface ICombatant {
-    enum TypeId {
-        SOLDIER,
-        PILOT,
-        GENERAL
-    }
-
-    struct CombatantBox {
-        TypeId typeId;
-        uint256 activeTime;
-    }
-
-    function getCombatantBoxOf(uint256 tokenId)
-        external
-        view
-        returns (CombatantBox calldata);
-
-    function getLimitStakingOf(TypeId typeId) external pure returns (uint256);
-
-    function setStatusCombatantBox(uint256 tokenId, uint256 startTime) external;
-
-    function tokenOfOwnerByIndex(address owner, uint256 index)
-        external
-        view
-        returns (uint256);
-
-    function mint(address owner) external;
-}
+import "./ICombatant.sol";
 
 /**
  *  @title  Dev Non-fungible token
@@ -76,21 +45,6 @@ contract MysteriousBoxes is
     uint256 public tokenCounter;
 
     /**
-     *  @notice _stakedAmount uint256 is amount of staked token for burn.
-     */
-    uint256 private _stakedAmount;
-
-    /**
-     *  @notice receiver is address of account for receive token
-     */
-    address public receiver;
-
-    /**
-     *  @notice baseURI store the value of the ipfs url of NFT images
-     */
-    string public baseURI;
-
-    /**
      *  @notice paymentToken is interface of payment token.
      */
     IERC20Upgradeable public paymentToken;
@@ -109,6 +63,7 @@ contract MysteriousBoxes is
      *  @notice isOpened mapping from token ID to opened status of box
      */
     mapping(uint256 => bool) public isOpened;
+
     modifier onlyAdminOrOwner() {
         require(
             (owner() == _msgSender() || admins[_msgSender()]),
@@ -118,7 +73,6 @@ contract MysteriousBoxes is
     }
 
     event SetAdmin(address indexed user, bool indexed allow);
-    event SetReceiver(address indexed user, uint256 indexed time);
     event SetPricePerNFTBox(uint256 indexed priceOld, uint256 indexed priceNew);
     event Bought(
         address indexed caller,
@@ -128,11 +82,6 @@ contract MysteriousBoxes is
     event Opened(
         address indexed caller,
         uint256 indexed tokenId,
-        uint256 indexed timestamp
-    );
-    event Deposit(
-        address indexed caller,
-        uint256 indexed amount,
         uint256 indexed timestamp
     );
     event Withdraw(
@@ -160,115 +109,34 @@ contract MysteriousBoxes is
     }
 
     /**
-     *  @notice Return current base URI.
-     */
-    function _baseURI() internal view override returns (string memory) {
-        return baseURI;
-    }
-
-    /**
-     *  @notice Replace current base URI by new base URI.
+     *  @notice Set an account to be contract admin.
      *
      *  @dev    Only owner can call this function.
      */
-    function setBaseURI(string memory _newURI) public onlyOwner {
-        baseURI = _newURI;
+    function setAdmin(address _account, bool _allow) public onlyOwner {
+        require(_account != address(0), "Invalid address");
+        admins[_account] = _allow;
+        emit SetAdmin(_account, _allow);
     }
 
     /**
-     *  @notice Mapping token ID to base URI in ipfs storage
+     *  @notice Replace price nft box.
      *
-     *  @dev    All caller can call this function.
+     *  @dev    Only owner or admin can call this function.
      */
-    function tokenURI(uint256 tokenId)
-        public
-        view
-        override
-        returns (string memory)
-    {
-        require(
-            _exists(tokenId),
-            "ERC721Metadata: URI query for nonexistent token."
-        );
-
-        string memory currentBaseURI = _baseURI();
-        uint256 isOpened_ = isOpenBox(tokenId) ? 1 : 0;
-
-        return
-            bytes(currentBaseURI).length > 0
-                ? string(
-                    abi.encodePacked(currentBaseURI, "/", isOpened_, ".json")
-                )
-                : ".json";
-    }
-
-    /**
-     *  @notice Check account whether it is open or unopen
-     *
-     *  @dev    All caller can call this function.
-     */
-    function isOpenBox(uint256 tokenId) public view returns (bool) {
-        return isOpened[tokenId];
-    }
-
-    /**
-     *  @notice Check account whether it is the admin role.
-     *
-     *  @dev    All caller can call this function.
-     */
-    function isAdmin(address account) public view returns (bool) {
-        return admins[account];
-    }
-
-    /**
-     *  @notice Replace the admin role by another address.
-     *
-     *  @dev    Only owner can call this function.
-     */
-    function setAdmin(address user, bool allow) public onlyOwner {
-        admins[user] = allow;
-        emit SetAdmin(user, allow);
-    }
-
-    /**
-     *  @notice Replace receiver by another address.
-     *
-     *  @dev    Only owner can call this function.
-     */
-    function setReceiver(address account) public onlyOwner {
-        receiver = account;
-        emit SetReceiver(account, block.timestamp);
-    }
-
-    /**
-     *  @notice Replace the admin role by another address.
-     *
-     *  @dev    Only owner can call this function.
-     */
-    function setPricePerNFTBox(uint256 amount) public onlyOwner {
+    function setPricePerNFTBox(uint256 amount) public onlyAdminOrOwner {
+        require(amount > 0, "Invalid amount");
         uint256 pricePerNFTBoxOld = pricePerNFTBox;
         pricePerNFTBox = amount;
         emit SetPricePerNFTBox(pricePerNFTBoxOld, pricePerNFTBox);
     }
 
     /**
-     *  @notice Deposit token into contract for burn
-     *
-     *  @dev    Only admin can call this function.
-     */
-    function deposit(uint256 amount) public onlyAdminOrOwner {
-        require(amount > 0, "At least a mount greater than zero");
-        paymentToken.safeTransferFrom(_msgSender(), address(this), amount);
-        _stakedAmount += amount;
-        emit Deposit(_msgSender(), amount, block.timestamp);
-    }
-
-    /**
      *  @notice Withdraw token from contract if end
      *
-     *  @dev    Only admin can call this function.
+     *  @dev    Only owner or admin can call this function.
      */
-    function withdraw(uint256 amount) public onlyAdminOrOwner {
+    function withdraw(address receiver, uint256 amount) public onlyAdminOrOwner {
         require(receiver != address(0), "Invalid receiver");
         uint256 balanceToken = paymentToken.balanceOf(address(this));
         require(
@@ -277,14 +145,13 @@ contract MysteriousBoxes is
         );
 
         paymentToken.safeTransfer(receiver, amount);
-        _stakedAmount -= amount;
         emit Withdraw(_msgSender(), amount, block.timestamp);
     }
 
     /**
-     *  @notice Buy any combatant box that caller request directly.
+     *  @notice Open a mysterious box.
      *
-     *  @dev    Only caller who not owned this NFT call this function.
+     *  @dev    Only NFT holder can call this function.
      */
     function open(uint256 tokenId) public nonReentrant {
         require(ownerOf(tokenId) == _msgSender(), "This token is not own !");
@@ -296,37 +163,37 @@ contract MysteriousBoxes is
     }
 
     /**
-     *  @notice Buy any mysterious box that caller request directly.
+     *  @notice Buy mysterious boxs.
+     *
+     *  @dev    Anyone can call this function.
      */
     function buy(uint256 _times) public nonReentrant {
         require(tokenCounter + _times <= TOTAL_SUPPLY, "Sold out");
-
-        require(
-            _stakedAmount >= _times * pricePerNFTBox,
-            "Admin not enough token in contract to burn"
-        );
-
         require(
             _times > 0 && _times <= MAX_BATCH,
             "Too many mysterious boxes!"
+        );
+
+        uint256 payAmount = _times * pricePerNFTBox;
+        require(
+            paymentToken.balanceOf(address(this)) >= payAmount,
+            "Admin not enough token in contract to burn"
         );
 
         // request token
         paymentToken.safeTransferFrom(
             _msgSender(),
             address(this),
-            pricePerNFTBox * _times
+            payAmount
         );
 
         // burn
-        paymentToken.transfer(address(1), pricePerNFTBox * _times * 2);
-        _stakedAmount -= pricePerNFTBox * _times;
+        paymentToken.transfer(address(1), payAmount * 2);
 
         // mint
         for (uint256 i = 0; i < _times; i++) {
-            uint256 tokenId = tokenCounter;
-            _mint(_msgSender(), tokenId);
-            isOpened[tokenId] = false;
+            _mint(_msgSender(), tokenCounter);
+            isOpened[tokenCounter] = false;
             tokenCounter++;
         }
 

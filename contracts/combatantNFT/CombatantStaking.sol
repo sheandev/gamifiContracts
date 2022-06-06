@@ -8,16 +8,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
-
-/**
- *  @notice ICombatant is interface of combatant token
- */
-interface ICombatant {
-    function getNumberNFTOfPoolType(address sender, uint256 typeID)
-        external
-        view
-        returns (uint256);
-}
+import "./ICombatant.sol";
 
 /**
  *  @title  Dev Staking Pool
@@ -55,10 +46,13 @@ contract CombatantStaking is
         uint256 pendingRewards;
         uint256 indexLength;
         uint256 lastClaim;
+        uint256 startTime;
         Lazy lazyUnstake;
         Lazy lazyClaim;
         UserHistory[] userHistory;
     }
+
+    uint256 public constant NFT_LOCK_DURATION = 270 days; // 9 months
 
     /**
      *  @notice _stakedAmount uint256 is amount of staked token.
@@ -76,9 +70,9 @@ contract CombatantStaking is
     uint256 private _poolDuration;
 
     /**
-     *  @notice typeIdPool uint256 is type ID for stake in pool.
+     *  @notice poolType uint256 is type of pool.
      */
-    uint256 public typeIdPool;
+    uint256 public poolType;
 
     /**
      *  @notice pendingUnstake uint256 is time after request unstake for waiting.
@@ -159,7 +153,7 @@ contract CombatantStaking is
         address combatant_,
         uint256 rewardRate_,
         uint256 poolDuration_,
-        uint256 typeIdPool_,
+        uint256 poolType_,
         uint256 limitStaking_
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
@@ -169,10 +163,10 @@ contract CombatantStaking is
         _rewardToken = rewardToken;
         _rewardRate = rewardRate_;
         _poolDuration = poolDuration_;
-        typeIdPool = typeIdPool_;
+        poolType = poolType_;
         limitStaking = limitStaking_;
         pendingUnstake = 1 days;
-        stakingEndTime = 12 weeks;
+        stakingEndTime = 90 days;
     }
 
     /**
@@ -271,10 +265,8 @@ contract CombatantStaking is
      *  @notice Get max amount of token on corresponding user address.
      */
     function getMaxAmountOf(address sender) public view returns (uint256) {
-        return
-            _combatant.getNumberNFTOfPoolType(sender, typeIdPool).mul(
-                limitStaking
-            );
+        uint256 numberOfTokens = _combatant.tokensOfOwnerByType(sender, poolType).length;
+        return numberOfTokens.mul(limitStaking);
     }
 
     /**
@@ -283,17 +275,32 @@ contract CombatantStaking is
      *  @dev    Only user has NFT can call this function.
      */
     function stake(uint256 _amount) public nonReentrant {
+        require(_amount > 0, "Invalid amount");
+
+        // Start staking pool at first stake
         if (_startTime == 0) {
             _startTime = block.timestamp;
         }
+
         require(
-            _combatant.getNumberNFTOfPoolType(_msgSender(), typeIdPool) > 0,
+            block.timestamp <= _startTime.add(stakingEndTime),
+            "Staking has already ended"
+        );
+
+        uint256[] memory tokenIds = _combatant.tokensOfOwnerByType(_msgSender(), poolType);
+        require(
+            tokenIds.length > 0,
             "Require to have NFT for staking in pool"
         );
-        require(
-            _startTime.add(stakingEndTime) > block.timestamp,
-            "Only deposit at first 3 months"
-        );
+
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            ICombatant.CombatantInfo memory info =  _combatant.getCombatantInfoOf(tokenIds[i]);
+            if (info.lockedExpireTime == 0) {
+                _combatant.lockToken(tokenIds[i], NFT_LOCK_DURATION);
+            }
+        }
+
+        // Calculate pending reward
         UserInfo storage user = users[_msgSender()];
         if (user.totalAmount > 0) {
             uint256 pending = calReward(_msgSender());
@@ -301,21 +308,25 @@ contract CombatantStaking is
                 user.pendingRewards = user.pendingRewards + pending;
             }
         }
-        user.lastClaim = block.timestamp;
-        if (_amount > 0) {
-            require(
-                user.totalAmount.add(_amount) <= getMaxAmountOf(_msgSender()),
-                "Staking: Max staking limit has been reached."
-            );
-            // Request transfer from user to contract
-            user.totalAmount = user.totalAmount.add(_amount);
-            _stakedAmount = _stakedAmount.add(_amount);
-            _stakeToken.safeTransferFrom(_msgSender(), address(this), _amount);
-            user.indexLength = user.indexLength.add(1);
-            user.userHistory.push(
-                UserHistory("Staked", user.totalAmount, block.timestamp)
-            );
+
+        if(user.startTime == 0) {
+            user.startTime = block.timestamp;
         }
+
+        user.lastClaim = block.timestamp;
+
+        require(
+            user.totalAmount.add(_amount) <= getMaxAmountOf(_msgSender()),
+            "Staking: Max staking limit has been reached."
+        );
+        // Request transfer from user to contract
+        user.totalAmount = user.totalAmount.add(_amount);
+        _stakedAmount = _stakedAmount.add(_amount);
+        _stakeToken.safeTransferFrom(_msgSender(), address(this), _amount);
+        user.indexLength = user.indexLength.add(1);
+        user.userHistory.push(
+            UserHistory("Staked", user.totalAmount, block.timestamp)
+        );
 
         emit Staked(_msgSender(), _amount, block.timestamp);
     }
@@ -325,7 +336,7 @@ contract CombatantStaking is
      */
     function pendingRewards(address _user) public view returns (uint256) {
         UserInfo memory user = users[_user];
-        if (_startTime <= block.timestamp) {
+        if (user.startTime > 0 && user.startTime <= block.timestamp) {
             uint256 amount = calReward(_user);
             amount = amount + user.pendingRewards;
             return amount;
@@ -337,11 +348,12 @@ contract CombatantStaking is
      *  @notice Request withdraw before unstake activity
      */
     function requestUnstake() public nonReentrant returns (uint256) {
+        require(_startTime > 0, "Pool is not start !");
+        UserInfo storage user = users[_msgSender()];
         require(
-            _startTime.add(_poolDuration) < block.timestamp && _startTime != 0,
+            block.timestamp > user.startTime.add(_poolDuration) && user.startTime > 0,
             "Not allow unstake at this time"
         );
-        UserInfo storage user = users[_msgSender()];
         require(!user.lazyUnstake.isRequested, "Requested !");
         user.lazyUnstake.isRequested = true;
         user.lazyUnstake.unlockedTime = block.timestamp + pendingUnstake;
@@ -355,6 +367,7 @@ contract CombatantStaking is
     function requestClaim() public nonReentrant returns (uint256) {
         require(_startTime > 0, "Pool is not start !");
         UserInfo storage user = users[_msgSender()];
+        require(user.startTime > 0, "User is not staking !");
         require(!user.lazyClaim.isRequested, "Requested !");
 
         user.lazyClaim.isRequested = true;
@@ -376,7 +389,7 @@ contract CombatantStaking is
         require(user.totalAmount > 0, "Reward value equal to zero");
         user.lazyClaim.isRequested = false;
         if (user.totalAmount > 0) {
-            if (_startTime <= block.timestamp) {
+            if (user.startTime <= block.timestamp) {
                 uint256 pending = pendingRewards(_msgSender());
                 if (pending > 0) {
                     user.pendingRewards = 0;
@@ -408,9 +421,22 @@ contract CombatantStaking is
         );
         user.lazyUnstake.isRequested = false;
 
+        uint256[] memory tokenIds = _combatant.tokensOfOwnerByType(_msgSender(), poolType);
+        require(
+            tokenIds.length > 0,
+            "Require to have NFT for staking in pool"
+        );
+
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            ICombatant.CombatantInfo memory info =  _combatant.getCombatantInfoOf(tokenIds[i]);
+            if (info.lockedExpireTime > 0) {
+                _combatant.unlockToken(tokenIds[i]);
+            }
+        }
+
         // Auto claim
         if (user.totalAmount > 0) {
-            if (_startTime <= block.timestamp) {
+            if (user.startTime <= block.timestamp) {
                 uint256 pending = pendingRewards(_msgSender());
                 if (pending > 0) {
                     user.pendingRewards = 0;
@@ -476,7 +502,7 @@ contract CombatantStaking is
      */
     function calReward(address _user) public view returns (uint256) {
         UserInfo memory user = users[_user];
-        uint256 minTime = min(block.timestamp, _startTime.add(_poolDuration));
+        uint256 minTime = min(block.timestamp, user.startTime.add(_poolDuration));
         if (minTime < user.lastClaim) {
             return 0;
         }
