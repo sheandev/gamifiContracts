@@ -270,6 +270,18 @@ contract CombatantStaking is
     }
 
     /**
+     *  @notice Get max amount of stake for user.
+     */
+    function getMaxAmountStake(address sender) public view returns (uint256) {
+        UserInfo memory user = users[sender];
+        uint256 numberOfTokens = _combatant.tokensOfOwnerByType(sender, poolType).length;
+        if (numberOfTokens.mul(limitStaking) > user.totalAmount) {
+            return numberOfTokens.mul(limitStaking).sub(user.totalAmount);
+        }
+        return 0;
+    }
+
+    /**
      *  @notice Stake amount of token to staking pool.
      *
      *  @dev    Only user has NFT can call this function.
@@ -316,7 +328,7 @@ contract CombatantStaking is
         user.lastClaim = block.timestamp;
 
         require(
-            user.totalAmount.add(_amount) <= getMaxAmountOf(_msgSender()),
+            _amount <= getMaxAmountStake(_msgSender()),
             "Staking: Max staking limit has been reached."
         );
         // Request transfer from user to contract

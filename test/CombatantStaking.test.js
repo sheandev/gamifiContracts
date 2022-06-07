@@ -181,8 +181,9 @@ describe("Combatant Staking", () => {
             while (check) {
                 await combatant.mint(user1.address);
                 const typeId = await combatant.combatantInfos(tokenId);
+                const owner = await combatant.ownerOf(tokenId);
                 tokenId++;
-                if (typeId.typeId.toString() == '0') {
+                if (owner == user1.address && typeId.typeId.toString() == '0') {
                     check = false;
                 }
             }
@@ -200,8 +201,9 @@ describe("Combatant Staking", () => {
             while (check) {
                 await combatant.mint(user1.address);
                 const typeId = await combatant.combatantInfos(tokenId);
+                const owner = await combatant.ownerOf(tokenId);
                 tokenId++;
-                if (typeId.typeId.toString() == '0') {
+                if (owner == user1.address && typeId.typeId.toString() == '0') {
                     check = false;
                 }
             }
@@ -215,8 +217,9 @@ describe("Combatant Staking", () => {
             while (check) {
                 await combatant.mint(user1.address);
                 const typeId = await combatant.combatantInfos(tokenId);
+                const owner = await combatant.ownerOf(tokenId);
                 tokenId++;
-                if (typeId.typeId.toString() == '0') {
+                if (owner == user1.address && typeId.typeId.toString() == '0') {
                     check = false;
                 }
             }
@@ -233,8 +236,9 @@ describe("Combatant Staking", () => {
             while (check) {
                 await combatant.mint(user1.address);
                 const typeId = await combatant.combatantInfos(tokenId);
+                const owner = await combatant.ownerOf(tokenId);
                 tokenId++;
-                if (typeId.typeId.toString() == '0') {
+                if (owner == user1.address && typeId.typeId.toString() == '0') {
                     check = false;
                 }
             }
@@ -262,8 +266,9 @@ describe("Combatant Staking", () => {
             while (check) {
                 await combatant.mint(user1.address);
                 const typeId = await combatant.combatantInfos(tokenId);
+                const owner = await combatant.ownerOf(tokenId);
                 tokenId++;
-                if (typeId.typeId.toString() == '0') {
+                if (owner == user1.address && typeId.typeId.toString() == '0') {
                     check = false;
                 }
             }
@@ -296,8 +301,9 @@ describe("Combatant Staking", () => {
             while (check) {
                 await combatant.mint(user1.address);
                 const typeId = await combatant.combatantInfos(tokenId);
+                const owner = await combatant.ownerOf(tokenId);
                 tokenId++;
-                if (typeId.typeId.toString() == '0') {
+                if (owner == user1.address && typeId.typeId.toString() == '0') {
                     check = false;
                 }
             }
@@ -333,8 +339,9 @@ describe("Combatant Staking", () => {
             while (check) {
                 await combatant.mint(user1.address);
                 const typeId = await combatant.combatantInfos(tokenId);
+                const owner = await combatant.ownerOf(tokenId);
                 tokenId++;
-                if (typeId.typeId.toString() == '0') {
+                if (owner == user1.address && typeId.typeId.toString() == '0') {
                     check = false;
                 }
             }
@@ -391,10 +398,11 @@ describe("Combatant Staking", () => {
             while (check) {
                 await combatant.mint(user1.address);
                 const typeId = await combatant.combatantInfos(tokenId);
-                if (typeId.typeId.toString() == '0') {
+                const owner = await combatant.ownerOf(tokenId);
+                tokenId++;
+                if (owner == user1.address && typeId.typeId.toString() == '0') {
                     check = false;
                 }
-                tokenId++;
             }
 
             await staking.connect(user1).stake(ONE_ETHER);
@@ -422,12 +430,12 @@ describe("Combatant Staking", () => {
             await expect(staking.connect(user1).unstake(MAX_BURN)).to.be.revertedWith("Staking: Cannot unstake more than staked amount.");
         });
 
-        it.only("should unstake success", async () => {
+        it("should unstake success", async () => {
             const unstakeTime = 9 * 30 * 24 * 60 * 60 + 1;
             await skipTime(unstakeTime);
             await staking.connect(user1).requestUnstake();
 
-            console.log((await staking.pendingRewards(user1.address)).toString());
+            // console.log((await staking.pendingRewards(user1.address)).toString());
 
             await skipTime(25 * 60 * 60);
             await staking.connect(user1).unstake(ONE_ETHER);
