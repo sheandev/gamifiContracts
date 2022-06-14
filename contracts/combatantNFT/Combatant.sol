@@ -98,6 +98,7 @@ contract Combatant is
     event LockToken(uint256 indexed tokenId, uint256 indexed lockedExpireTime);
     event UnlockToken(uint256 indexed tokenId);
     event UsedForWhitelist(uint256 indexed tokenId);
+    event SetContracts(address indexed randomizer);
 
     /**
      *  @notice Initialize new logic contract.
@@ -142,6 +143,17 @@ contract Combatant is
         require(user != address(0), "Invalid address");
         admins[user] = allow;
         emit SetAdmin(user, allow);
+    }
+
+    /**
+     *  @notice Set contract random address.
+     *
+     *  @dev    Only owner can call this function.
+     */
+    function setContracts(address _randomizer) external onlyOwner {
+        require(_randomizer != address(0), "Invalid contract address");
+        rander = IRand(_randomizer);
+        emit SetContracts(_randomizer);
     }
 
     /**
