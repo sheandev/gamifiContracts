@@ -211,13 +211,13 @@ contract MemberCard is Context, ERC165, IERC721, IERC721Metadata, Initializable,
 
     }
 
-    function mintMemberCard(uint256 startTime, uint256 expireTime, uint256 counter, address user, string memory tokenURI_) public virtual onlyAdmin {
-        uint256 tokenId = _tokenCounter;
-        _mint(user, tokenId);
-        _setTokenURI(tokenId, tokenURI_);
-        _membership[tokenId] = Membership(startTime, expireTime, counter);
-        _tokenCounter++;
-    }
+    // function mintMemberCard(uint256 startTime, uint256 expireTime, uint256 counter, address user, string memory tokenURI_) public virtual onlyAdmin {
+    //     uint256 tokenId = _tokenCounter;
+    //     _mint(user, tokenId);
+    //     _setTokenURI(tokenId, tokenURI_);
+    //     _membership[tokenId] = Membership(startTime, expireTime, counter);
+    //     _tokenCounter++;
+    // }
 
     function mintMemberCard(address user, string memory tokenURI_) public virtual onlyAdmin {
         uint256 tokenId = _tokenCounter;

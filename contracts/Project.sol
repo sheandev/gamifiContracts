@@ -3,8 +3,10 @@ pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "./libraries/Formula.sol";
 import "./libraries/Config.sol";
 
@@ -16,10 +18,15 @@ interface IMemberCard {
 
 contract Project is Initializable, OwnableUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
+    using AddressUpgradeable for address;
+
+    // IID of ERC721 contract interface
+	bytes4 public constant IID_IERC721 = type(IERC721Upgradeable).interfaceId;
 
     struct UserInfo {
         bool isAddedWhitelist;
         bool isClaimedBack;
+        address nftAddress;
         uint256 stakedAmount;
         uint256 fundedAmount;
         uint256 tokenAllocationAmount;
@@ -61,7 +68,6 @@ contract Project is Initializable, OwnableUpgradeable {
 
     IERC20Upgradeable public gmi;
     IERC20Upgradeable public busd;
-    IMemberCard public memberCard;
 
     uint256 public latestProjectId;
 
@@ -72,6 +78,8 @@ contract Project is Initializable, OwnableUpgradeable {
     mapping(uint256 => mapping(address => UserInfo)) public userInfo;
 
     mapping(address => bool) public admins;
+
+    mapping(address => bool) public nftPermitteds;
 
     event CreateProject(ProjectInfo project);
     event SetAllocationSize(uint256 indexed _projectId, uint256 indexed allocationSize);
@@ -84,20 +92,20 @@ contract Project is Initializable, OwnableUpgradeable {
     event SetFundingMinAllocation(uint256 indexed projectId, uint256 indexed minAllocation);
     event SetFundingReceiver(uint256 indexed projectId, address indexed fundingReceiver);
     event Stake(address indexed account, uint256 indexed projectId, uint256 indexed amount);
-    event StakeWithMemberCard(address indexed account, uint256 indexed projectId, uint256 indexed tokenId, uint256 portion);
     event ClaimBack(address indexed account, uint256 indexed projectId, uint256 indexed amount);
     event AddedToWhitelist(uint256 indexed projectId, address[] indexed accounts);
     event RemovedFromWhitelist(uint256 indexed projectId, address[] indexed accounts);
     event Funding(address indexed account, uint256 indexed projectId, uint256 indexed amount, uint256 tokenAllocationAmount);
     event WithdrawFunding(address indexed account, uint256 indexed projectId, uint256 indexed amount);
     event SetAdmin(address indexed user, bool indexed allow);
-
-    function initialize(address owner_, IERC20Upgradeable _gmi, IERC20Upgradeable _busd, IMemberCard _memberCard) public initializer {
+    event SetNFTPermitted(address indexed _nftAddress, bool indexed allow);
+    event StakeWithNFT(address indexed account, uint256 indexed projectId, address _nftAddress, uint256 indexed tokenId, uint256 portion);
+    
+    function initialize(address owner_, IERC20Upgradeable _gmi, IERC20Upgradeable _busd) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _transferOwnership(owner_);
         gmi = _gmi;
         busd = _busd;
-        memberCard = IMemberCard(_memberCard);
     }
 
     modifier validProject(uint256 _projectId) {
@@ -225,16 +233,24 @@ contract Project is Initializable, OwnableUpgradeable {
         emit SetFundingReceiver(_projectId, _fundingReceiver);
     }
 
-    function setContracts(address _gmi, address _busd, address _memberCard) external onlyAdminOrOwner {
-        require(_gmi != address(0) && _busd != address(0) && _memberCard != address(0), "Invalid contract address");
+    function setContracts(address _gmi, address _busd) external onlyAdminOrOwner {
+        require(_gmi != address(0) && _busd != address(0), "Invalid contract address");
         gmi = IERC20Upgradeable(_gmi);
-        busd = IERC20Upgradeable(_busd);
-        memberCard = IMemberCard(_memberCard);
+        busd = IERC20Upgradeable(_busd);    
     }
 
     function setAdmin(address user, bool allow) public onlyOwner {
         admins[user] = allow;
         emit SetAdmin(user, allow);
+    }
+
+    function setNFTPermitted(address nft, bool allow) public onlyOwner {
+        require(nft != address(0), "Invalid nft address");
+        require(nft.isContract(), "NFT is not contract");
+         (bool success,  bytes memory data) = _token.call{gas: 5000}(abi.encodeWithSignature("supportsInterface(bytes4)", IID_IERC721));
+		require(success && IERC721Upgradeable(nft).supportsInterface(IID_IERC721), "NFT address is not ERC721");
+        nftPermitteds[nft] = allow;
+        emit SetNFTPermitted(nft, allow);
     }
 
     /// @notice stake amount of GMI tokens to Staking Pool
@@ -259,31 +275,34 @@ contract Project is Initializable, OwnableUpgradeable {
         emit Stake(_msgSender(), _projectId, _amount);
     }
 
-    /// @notice stake member card NFT to Staking Pool
+    /// @notice stake NFT to Staking Pool
     /// @dev    this method can called by anyone
     /// @param  _projectId  id of the project
-    /// @param  _tokenId  id of the member card to be staked
-    function stakeWithMemberCard(uint256 _projectId, uint256 _tokenId) external validProject(_projectId) {
+    /// @param  _nftAddress  address of the nft
+    /// @param  _tokenId  id of the nft to be staked
+    function stakeWithNFT(uint256 _projectId, address _nftAddress, uint256 _tokenId) external validProject(_projectId) {
         StakeInfo storage stakeInfo = projects[_projectId].stakeInfo;
 
         require(!isAlreadyStaked(_projectId, _msgSender()), "You already staking");
         require(block.number >= stakeInfo.startBlockNumber, "Staking has not started yet");
         require(block.number <= stakeInfo.endBlockNumber, "Staking has ended");
+        require(nftPermitteds[_nftAddress], "NFT has not permitted");
 
-        require(memberCard.ownerOf(_tokenId) == _msgSender(), "Unauthorised use of Member Card");
-        bool active = memberCard.getMemberCardActive(_tokenId);
-        require(active, "Invalid member card");
+        require(IMemberCard(_nftAddress).ownerOf(_tokenId) == _msgSender(), "Unauthorised use of NFT");
+        bool active = IMemberCard(_nftAddress).getMemberCardActive(_tokenId);
+        require(active, "Invalid NFT");
 
         require(gmi.balanceOf(_msgSender()) >= stakeInfo.minStakeAmount, "Token balance is not enough");
 
-        memberCard.consumeMembership(_tokenId);
+        IMemberCard(_nftAddress).consumeMembership(_tokenId);
 
+        userInfo[_projectId][_msgSender()].nftAddress = _nftAddress;
         userInfo[_projectId][_msgSender()].allocatedPortion += stakeInfo.maxStakeAmount;
         userInfo[_projectId][_msgSender()].usedMemberCard++;
 
         addUserToWhitelist(_projectId, _msgSender(), true);
 
-        emit StakeWithMemberCard(_msgSender(), _projectId, _tokenId, stakeInfo.maxStakeAmount);
+        emit StakeWithNFT(_msgSender(), _projectId, _nftAddress, _tokenId, stakeInfo.maxStakeAmount);
     }
 
     /// @notice claimBack amount of GMI tokens from staked GMI before

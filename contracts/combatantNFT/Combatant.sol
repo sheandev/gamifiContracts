@@ -37,10 +37,10 @@ contract Combatant is
     ICombatant
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
-    using AddressUpgradeable for address;
     using StringsUpgradeable for uint256;
 
     uint256 public constant MAX_BATCH = 10;
+    uint256 public constant TOTAL_SUPPLY = 500;
     uint256 public constant SOLDIER_SUPPLY = 375;
     uint256 public constant PILOT_SUPPLY = 100;
     uint256 public constant GENERAL_SUPPLY = 25;
@@ -98,6 +98,7 @@ contract Combatant is
     event LockToken(uint256 indexed tokenId, uint256 indexed lockedExpireTime);
     event UnlockToken(uint256 indexed tokenId);
     event UsedForWhitelist(uint256 indexed tokenId);
+    event SetUseCounter(uint256 indexed tokenId, uint256 indexed counter);
 
     /**
      *  @notice Initialize new logic contract.
@@ -142,6 +143,19 @@ contract Combatant is
         require(user != address(0), "Invalid address");
         admins[user] = allow;
         emit SetAdmin(user, allow);
+    }
+
+    function setUseCounter(uint256 tokenId, uint256 useCounter)
+        public
+        onlyAdminOrOwner
+    {
+        require(
+            combatantInfos[tokenId].typeId == TypeId.GENERAL,
+            "NFT is not GENERAL"
+        );
+        combatantInfos[tokenId].useCounter = useCounter;
+
+        emit SetUseCounter(tokenId, useCounter);
     }
 
     /**
@@ -248,11 +262,63 @@ contract Combatant is
     }
 
     /**
+     *  @notice Get list token ID is active of owner address.
+     */
+    function getNFTActiveOfOwner(address owner)
+        public
+        view
+        returns (uint256[] memory)
+    {
+        uint256 allTokens = balanceOf(owner);
+
+        uint256 typedTokens = 0;
+        for (uint256 i = 0; i < allTokens; i++) {
+            uint256 tokenId = tokenOfOwnerByIndex(owner, i);
+            bool allow = getMemberCardActive(tokenId);
+            if (allow) {
+                 typedTokens++;
+            }
+        }
+
+        uint256 typedCounter = 0;
+        uint256[] memory typedIds = new uint256[](typedTokens);
+        for (uint256 i = 0; i < allTokens; i++) {
+            uint256 tokenId = tokenOfOwnerByIndex(owner, i);
+            bool allow = getMemberCardActive(tokenId);
+            if (allow) {
+                typedIds[typedCounter] = tokenId;
+                typedCounter++;
+            }
+        }
+
+        return typedIds;
+    }
+
+    function getMemberCardActive(uint256 tokenId) public view returns (bool) {
+        return combatantInfos[tokenId].useCounter > 0;
+    }
+
+    function isMember(address owner) external view returns (bool) {
+        uint256 allTokens = balanceOf(owner);
+
+        for (uint256 i = 0; i < allTokens; i++) {
+            uint256 tokenId = tokenOfOwnerByIndex(owner, i);
+            bool allow = getMemberCardActive(tokenId);
+            if (allow) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      *  @notice Mint a combatant when call from mysterious box.
      *
      *  @dev    Only admin can call this function.
      */
     function mint(address owner) external override onlyAdminOrOwner {
+        require(tokenCounter < TOTAL_SUPPLY, "Sold out");
+
         uint256 tokenId = tokenCounter;
         uint256 seed = rander.random(tokenId);
         TypeId typeId = randomTypeId(seed);
@@ -284,13 +350,18 @@ contract Combatant is
         super._beforeTokenTransfer(from, to, tokenId);
         if (from != address(0) && to != address(0) && from != to) {
             require(
-                block.timestamp > combatantInfos[tokenId].lockedExpireTime && !combatantInfos[tokenId].isLocked,
+                block.timestamp > combatantInfos[tokenId].lockedExpireTime &&
+                    !combatantInfos[tokenId].isLocked,
                 "In unlockTime: you should stake it before transfer !"
             );
         }
     }
 
-    function lockToken(uint256 tokenId, uint256 duration) external override onlyAdminOrOwner {
+    function lockToken(uint256 tokenId, uint256 duration)
+        external
+        override
+        onlyAdminOrOwner
+    {
         combatantInfos[tokenId].lockedExpireTime = block.timestamp + duration;
         combatantInfos[tokenId].isLocked = true;
         emit LockToken(tokenId, combatantInfos[tokenId].lockedExpireTime);
@@ -301,7 +372,7 @@ contract Combatant is
         emit UnlockToken(tokenId);
     }
 
-    function useForWhitelist(uint256 tokenId) public onlyAdminOrOwner {
+    function consumeMembership(uint256 tokenId) public onlyAdminOrOwner {
         require(combatantInfos[tokenId].useCounter > 0, "NFT has been used");
         combatantInfos[tokenId].useCounter--;
 
@@ -341,7 +412,7 @@ contract Combatant is
      *  @notice A.J. Walker's Alias Algorithm to get random corresponding rate.
      */
     function selectTrait(uint16 seed, uint8 traitType)
-        internal
+        private
         view
         returns (uint8)
     {
@@ -353,7 +424,7 @@ contract Combatant is
     /**
      *  @notice A.J. Walker's Alias Algorithm to avoid overflow.
      */
-    function selectTraits(uint256 seed) internal view returns (uint8 t) {
+    function selectTraits(uint256 seed) private view returns (uint8 t) {
         seed >>= 16;
         t = selectTrait(uint16(seed & 0xFFFF), 0);
     }

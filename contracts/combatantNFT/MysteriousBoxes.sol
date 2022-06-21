@@ -5,8 +5,6 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
@@ -27,8 +25,6 @@ contract MysteriousBoxes is
     ERC721EnumerableUpgradeable
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
-    using AddressUpgradeable for address;
-    using StringsUpgradeable for uint256;
 
     uint256 public constant MAX_BATCH = 10;
     uint256 public constant TOTAL_SUPPLY = 500;
@@ -136,7 +132,11 @@ contract MysteriousBoxes is
      *
      *  @dev    Only owner or admin can call this function.
      */
-    function withdraw(address receiver, uint256 amount) public onlyAdminOrOwner {
+    function withdraw(address receiver, uint256 amount)
+        public
+        onlyAdminOrOwner
+        nonReentrant
+    {
         require(receiver != address(0), "Invalid receiver");
         uint256 balanceToken = paymentToken.balanceOf(address(this));
         require(
@@ -180,15 +180,9 @@ contract MysteriousBoxes is
             "Admin not enough token in contract to burn"
         );
 
-        // request token
-        paymentToken.safeTransferFrom(
-            _msgSender(),
-            address(this),
-            payAmount
-        );
-
-        // burn
-        paymentToken.transfer(address(1), payAmount * 2);
+        // burn payment token
+        paymentToken.safeTransferFrom(_msgSender(), address(1), payAmount);
+        paymentToken.transfer(address(1), payAmount);
 
         // mint
         for (uint256 i = 0; i < _times; i++) {
