@@ -70,6 +70,7 @@ contract Project is Initializable, OwnableUpgradeable {
     IERC20Upgradeable public busd;
 
     uint256 public latestProjectId;
+    uint256 public gasCallLimit;
 
     // projectId => project info
     mapping(uint256 => ProjectInfo) public projects;
@@ -100,12 +101,14 @@ contract Project is Initializable, OwnableUpgradeable {
     event SetAdmin(address indexed user, bool indexed allow);
     event SetNFTPermitted(address indexed _nftAddress, bool indexed allow);
     event StakeWithNFT(address indexed account, uint256 indexed projectId, address _nftAddress, uint256 indexed tokenId, uint256 portion);
+    event SetGasCallLimit(uint256 indexed gasCallLimitOld, uint256 indexed gasCallLimitNew);
     
     function initialize(address owner_, IERC20Upgradeable _gmi, IERC20Upgradeable _busd) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _transferOwnership(owner_);
         gmi = _gmi;
         busd = _busd;
+        gasCallLimit = 10000;
     }
 
     modifier validProject(uint256 _projectId) {
@@ -244,10 +247,17 @@ contract Project is Initializable, OwnableUpgradeable {
         emit SetAdmin(user, allow);
     }
 
+    function setGasCallLimit(uint256 _gasCallLimit) public onlyOwner {
+        require(_gasCallLimit > 0, "Invalid gas input");
+        uint256 _gasCallLimitOld = gasCallLimit;
+        gasCallLimit = _gasCallLimit;
+        emit SetGasCallLimit(_gasCallLimitOld, gasCallLimit);
+    }
+
     function setNFTPermitted(address nft, bool allow) public onlyOwner {
         require(nft != address(0), "Invalid nft address");
         require(nft.isContract(), "NFT is not contract");
-         (bool success,  bytes memory data) = _token.call{gas: 5000}(abi.encodeWithSignature("supportsInterface(bytes4)", IID_IERC721));
+        (bool success, ) = nft.call{gas: gasCallLimit}(abi.encodeWithSignature("supportsInterface(bytes4)", IID_IERC721));
 		require(success && IERC721Upgradeable(nft).supportsInterface(IID_IERC721), "NFT address is not ERC721");
         nftPermitteds[nft] = allow;
         emit SetNFTPermitted(nft, allow);

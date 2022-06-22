@@ -26,7 +26,9 @@ describe("Project - Integration", () => {
     await memberCard.initialize(admin.address, "NFT", "NFT");
 
     const Project = await ethers.getContractFactory("Project");
-    project = await upgrades.deployProxy(Project, [admin.address, token.address, busd.address, memberCard.address]);
+    project = await upgrades.deployProxy(Project, [admin.address, token.address, busd.address]);
+
+    await project.setNFTPermitted(memberCard.address, true);
 
     await token.addController(admin.address);
     await token.mint(user1.address, '1000000000000000000000000'); // mint 1000,000 token GMI
@@ -116,7 +118,7 @@ describe("Project - Integration", () => {
     await project.connect(user2).stake(projectId, '2000000000000000000000'); // 2000 token GMI
     await project.connect(user3).stake(projectId, '6000000000000000000000'); // 6000 token GMI
     await project.connect(user4).stake(projectId, '10000000000000000000000'); // 10000 token GMI
-    await project.connect(user5).stakeWithMemberCard(projectId, 0);
+    await project.connect(user5).stakeWithNFT(projectId, memberCard.address, 0);
 
     const user1TokenBalance_after = await token.balanceOf(user1.address);
     const user2TokenBalance_after = await token.balanceOf(user2.address);
@@ -543,7 +545,7 @@ describe("Project - Integration", () => {
     await project.connect(user2).stake(projectId, '2000000000000000000000'); // 2000 token GMI
     await project.connect(user3).stake(projectId, '6000000000000000000000'); // 6000 token GMI
     await project.connect(user4).stake(projectId, '10000000000000000000000'); // 10000 token GMI
-    await project.connect(user5).stakeWithMemberCard(projectId, 0);
+    await project.connect(user5).stakeWithNFT(projectId, memberCard.address, 0);
 
     const user1TokenBalance_after = await token.balanceOf(user1.address);
     const user2TokenBalance_after = await token.balanceOf(user2.address);
