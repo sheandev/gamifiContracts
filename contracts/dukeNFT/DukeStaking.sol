@@ -72,7 +72,7 @@ contract DukeStaking is
     /**
      *  @notice poolType uint256 is type of pool.
      */
-    uint256 public poolType;
+    TypeId public poolType;
 
     /**
      *  @notice pendingUnstake uint256 is time after request unstake for waiting.
@@ -153,7 +153,7 @@ contract DukeStaking is
         address duke_,
         uint256 rewardRate_,
         uint256 poolDuration_,
-        uint256 poolType_,
+        TypeId poolType_,
         uint256 limitStaking_
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
@@ -286,7 +286,7 @@ contract DukeStaking is
      *
      *  @dev    Only user has NFT can call this function.
      */
-    function stake(uint256 _amount) public nonReentrant {
+    function stake(uint256 _amount) external nonReentrant {
         require(_amount > 0, "Invalid amount");
 
         // Start staking pool at first stake
@@ -359,7 +359,7 @@ contract DukeStaking is
     /**
      *  @notice Request withdraw before unstake activity
      */
-    function requestUnstake() public nonReentrant returns (uint256) {
+    function requestUnstake() external {
         require(_startTime > 0, "Pool is not start !");
         UserInfo storage user = users[_msgSender()];
         require(
@@ -370,13 +370,12 @@ contract DukeStaking is
         user.lazyUnstake.isRequested = true;
         user.lazyUnstake.unlockedTime = block.timestamp + pendingUnstake;
         emit RequestUnstake(_msgSender(), block.timestamp);
-        return user.lazyUnstake.unlockedTime;
     }
 
     /**
      *  @notice Request claim before unstake activity
      */
-    function requestClaim() public nonReentrant returns (uint256) {
+    function requestClaim() external {
         require(_startTime > 0, "Pool is not start !");
         UserInfo storage user = users[_msgSender()];
         require(user.startTime > 0, "User is not staking !");
@@ -385,13 +384,12 @@ contract DukeStaking is
         user.lazyClaim.isRequested = true;
         user.lazyClaim.unlockedTime = block.timestamp + pendingUnstake;
         emit RequestClaim(_msgSender(), block.timestamp);
-        return user.lazyClaim.unlockedTime;
     }
 
     /**
      *  @notice Claim all reward in pool.
      */
-    function claim() public nonReentrant {
+    function claim() external nonReentrant {
         UserInfo storage user = users[_msgSender()];
         require(
             user.lazyClaim.isRequested &&
@@ -400,16 +398,16 @@ contract DukeStaking is
         );
         require(user.totalAmount > 0, "Reward value equal to zero");
         user.lazyClaim.isRequested = false;
-        if (user.totalAmount > 0) {
-            if (user.startTime <= block.timestamp) {
-                uint256 pending = pendingRewards(_msgSender());
-                if (pending > 0) {
-                    user.pendingRewards = 0;
-                    _rewardToken.safeTransfer(_msgSender(), pending);
-                }
-                emit Claimed(_msgSender(), pending, block.timestamp);
+
+        if (user.startTime <= block.timestamp) {
+            uint256 pending = pendingRewards(_msgSender());
+            if (pending > 0) {
+                user.pendingRewards = 0;
+                _rewardToken.safeTransfer(_msgSender(), pending);
             }
+            emit Claimed(_msgSender(), pending, block.timestamp);
         }
+
         user.lastClaim = block.timestamp;
         user.indexLength = user.indexLength.add(1);
         user.userHistory.push(
@@ -420,7 +418,7 @@ contract DukeStaking is
     /**
      *  @notice Unstake amount of rewards caller request.
      */
-    function unstake(uint256 _amount) public nonReentrant {
+    function unstake(uint256 _amount) external nonReentrant {
         UserInfo storage user = users[_msgSender()];
         require(
             _startTime.add(_poolDuration) <= block.timestamp,
@@ -441,7 +439,7 @@ contract DukeStaking is
 
         for (uint256 i = 0; i < tokenIds.length; i++) {
             IDuke.DukeInfo memory info =  _duke.getDukeInfoOf(tokenIds[i]);
-            if (info.lockedExpireTime > 0) {
+            if (info.isLocked) {
                 _duke.unlockToken(tokenIds[i]);
             }
         }
@@ -481,7 +479,7 @@ contract DukeStaking is
      *
      *  @dev    Only admin can call this function.
      */
-    function emergencyWithdraw() public onlyOwner nonReentrant {
+    function emergencyWithdraw() external onlyOwner nonReentrant {
         if (_rewardToken == _stakeToken) {
             _rewardToken.safeTransfer(
                 owner(),
@@ -504,7 +502,7 @@ contract DukeStaking is
     /**
      *  @notice Return minimun value betwween two params.
      */
-    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+    function min(uint256 a, uint256 b) private pure returns (uint256) {
         if (a < b) return a;
         else return b;
     }

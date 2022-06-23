@@ -242,7 +242,7 @@ contract Duke is
     /**
      *  @notice Get list token ID by type of owner address.
      */
-    function tokensOfOwnerByType(address owner, uint256 typeID)
+    function tokensOfOwnerByType(address owner, TypeId typeID)
         public
         view
         override
@@ -254,7 +254,7 @@ contract Duke is
         for (uint256 i = 0; i < allTokens; i++) {
             uint256 tokenId = tokenOfOwnerByIndex(owner, i);
             DukeInfo memory info = getDukeInfoOf(tokenId);
-            if (info.typeId == TypeId(typeID)) {
+            if (info.typeId == typeID) {
                 typedTokens++;
             }
         }
@@ -264,7 +264,7 @@ contract Duke is
         for (uint256 i = 0; i < allTokens; i++) {
             uint256 tokenId = tokenOfOwnerByIndex(owner, i);
             DukeInfo memory info = getDukeInfoOf(tokenId);
-            if (info.typeId == TypeId(typeID)) {
+            if (info.typeId == typeID) {
                 typedIds[typedCounter] = tokenId;
                 typedCounter++;
             }
@@ -333,9 +333,9 @@ contract Duke is
 
         uint256 tokenId = tokenCounter;
         uint256 seed = rander.random(tokenId);
-        TypeId typeId = randomTypeId(seed);
-        dukeInfos[tokenId].typeId = typeId;
-        if (typeId == TypeId.GENERAL) {
+        TypeId _typeId = randomTypeId(seed);
+        dukeInfos[tokenId].typeId = _typeId;
+        if (_typeId == TypeId.GENERAL) {
             dukeInfos[tokenId].useCounter = 1;
         }
         _mint(owner, tokenId);

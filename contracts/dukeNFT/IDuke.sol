@@ -5,12 +5,6 @@ pragma solidity ^0.8.0;
  *  @notice IDuke is interface of duke token
  */
 interface IDuke {
-    enum TypeId {
-        SOLDIER,
-        PILOT,
-        GENERAL
-    }
-
     struct DukeInfo {
         TypeId typeId;
         uint256 lockedExpireTime;
@@ -25,7 +19,7 @@ interface IDuke {
 
     function mint(address owner) external;
 
-    function tokensOfOwnerByType(address sender, uint256 typeID)
+    function tokensOfOwnerByType(address sender, TypeId typeID)
         external
         view
         returns (uint256[] memory);
@@ -33,4 +27,10 @@ interface IDuke {
     function lockToken(uint256 tokenId, uint256 duration) external;
 
     function unlockToken(uint256 tokenId) external;
+}
+
+enum TypeId {
+        SOLDIER,
+        PILOT,
+        GENERAL
 }
