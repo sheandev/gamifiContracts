@@ -10,7 +10,7 @@ import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
-import "./ICombatant.sol";
+import "./IDuke.sol";
 
 /**
  *  @title  Dev Non-fungible token
@@ -29,12 +29,12 @@ interface IRand {
     function random(uint256 tokenId) external view returns (uint256);
 }
 
-contract Combatant is
+contract Duke is
     Initializable,
     ReentrancyGuardUpgradeable,
     OwnableUpgradeable,
     ERC721EnumerableUpgradeable,
-    ICombatant
+    IDuke
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using StringsUpgradeable for uint256;
@@ -72,12 +72,12 @@ contract Combatant is
     IRand public rander;
 
     /**
-     *  @notice mapping from token ID to CombatantInfo
+     *  @notice mapping from token ID to DukeInfo
      */
-    mapping(uint256 => CombatantInfo) public combatantInfos;
+    mapping(uint256 => DukeInfo) public dukeInfos;
 
     /**
-     *  @notice currentIndexes mapping from TypeId to curent index of this combatant
+     *  @notice currentIndexes mapping from TypeId to curent index of this duke
      */
     mapping(TypeId => uint256) public currentIndexes;
 
@@ -151,10 +151,10 @@ contract Combatant is
         onlyAdminOrOwner
     {
         require(
-            combatantInfos[tokenId].typeId == TypeId.GENERAL,
+            dukeInfos[tokenId].typeId == TypeId.GENERAL,
             "NFT is not GENERAL"
         );
-        combatantInfos[tokenId].useCounter = useCounter;
+        dukeInfos[tokenId].useCounter = useCounter;
 
         emit SetUseCounter(tokenId, useCounter);
     }
@@ -187,7 +187,7 @@ contract Combatant is
         );
 
         string memory currentBaseURI = _baseURI();
-        string memory typeId = uint256(combatantInfos[tokenId].typeId)
+        string memory typeId = uint256(dukeInfos[tokenId].typeId)
             .toString();
 
         return
@@ -197,15 +197,15 @@ contract Combatant is
     }
 
     /**
-     *  @notice Get all information of combatant from token ID.
+     *  @notice Get all information of duke from token ID.
      */
-    function getCombatantInfoOf(uint256 tokenId)
+    function getDukeInfoOf(uint256 tokenId)
         public
         view
         override
-        returns (CombatantInfo memory)
+        returns (DukeInfo memory)
     {
-        return combatantInfos[tokenId];
+        return dukeInfos[tokenId];
     }
 
     /**
@@ -253,7 +253,7 @@ contract Combatant is
         uint256 typedTokens = 0;
         for (uint256 i = 0; i < allTokens; i++) {
             uint256 tokenId = tokenOfOwnerByIndex(owner, i);
-            CombatantInfo memory info = getCombatantInfoOf(tokenId);
+            DukeInfo memory info = getDukeInfoOf(tokenId);
             if (info.typeId == TypeId(typeID)) {
                 typedTokens++;
             }
@@ -263,7 +263,7 @@ contract Combatant is
         uint256 typedCounter = 0;
         for (uint256 i = 0; i < allTokens; i++) {
             uint256 tokenId = tokenOfOwnerByIndex(owner, i);
-            CombatantInfo memory info = getCombatantInfoOf(tokenId);
+            DukeInfo memory info = getDukeInfoOf(tokenId);
             if (info.typeId == TypeId(typeID)) {
                 typedIds[typedCounter] = tokenId;
                 typedCounter++;
@@ -307,7 +307,7 @@ contract Combatant is
     }
 
     function getMemberCardActive(uint256 tokenId) public view returns (bool) {
-        return combatantInfos[tokenId].useCounter > 0;
+        return dukeInfos[tokenId].useCounter > 0;
     }
 
     function isMember(address owner) external view returns (bool) {
@@ -324,7 +324,7 @@ contract Combatant is
     }
 
     /**
-     *  @notice Mint a combatant when call from mysterious box.
+     *  @notice Mint a duke when call from mysterious box.
      *
      *  @dev    Only admin can call this function.
      */
@@ -334,9 +334,9 @@ contract Combatant is
         uint256 tokenId = tokenCounter;
         uint256 seed = rander.random(tokenId);
         TypeId typeId = randomTypeId(seed);
-        combatantInfos[tokenId].typeId = typeId;
+        dukeInfos[tokenId].typeId = typeId;
         if (typeId == TypeId.GENERAL) {
-            combatantInfos[tokenId].useCounter = 1;
+            dukeInfos[tokenId].useCounter = 1;
         }
         _mint(owner, tokenId);
         tokenCounter++;
@@ -362,8 +362,8 @@ contract Combatant is
         super._beforeTokenTransfer(from, to, tokenId);
         if (from != address(0) && to != address(0) && from != to) {
             require(
-                block.timestamp > combatantInfos[tokenId].lockedExpireTime &&
-                    !combatantInfos[tokenId].isLocked,
+                block.timestamp > dukeInfos[tokenId].lockedExpireTime &&
+                    !dukeInfos[tokenId].isLocked,
                 "In unlockTime: you should stake it before transfer !"
             );
         }
@@ -374,19 +374,19 @@ contract Combatant is
         override
         onlyAdminOrOwner
     {
-        combatantInfos[tokenId].lockedExpireTime = block.timestamp + duration;
-        combatantInfos[tokenId].isLocked = true;
-        emit LockToken(tokenId, combatantInfos[tokenId].lockedExpireTime);
+        dukeInfos[tokenId].lockedExpireTime = block.timestamp + duration;
+        dukeInfos[tokenId].isLocked = true;
+        emit LockToken(tokenId, dukeInfos[tokenId].lockedExpireTime);
     }
 
     function unlockToken(uint256 tokenId) external override onlyAdminOrOwner {
-        combatantInfos[tokenId].isLocked = false;
+        dukeInfos[tokenId].isLocked = false;
         emit UnlockToken(tokenId);
     }
 
     function consumeMembership(uint256 tokenId) public onlyAdminOrOwner {
-        require(combatantInfos[tokenId].useCounter > 0, "NFT has been used");
-        combatantInfos[tokenId].useCounter--;
+        require(dukeInfos[tokenId].useCounter > 0, "NFT has been used");
+        dukeInfos[tokenId].useCounter--;
 
         emit UsedForWhitelist(tokenId);
     }

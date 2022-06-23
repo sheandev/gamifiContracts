@@ -10,7 +10,7 @@ import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "./libraries/Formula.sol";
 import "./libraries/Config.sol";
 
-interface IMemberCard {
+interface INft {
     function getMemberCardActive(uint256 tokenId) external view returns(bool);
     function consumeMembership(uint256 tokenId) external;
     function ownerOf(uint256 tokenId) external view returns (address);
@@ -31,7 +31,7 @@ contract Project is Initializable, OwnableUpgradeable {
         uint256 fundedAmount;
         uint256 tokenAllocationAmount;
         uint256 allocatedPortion;
-        uint256 usedMemberCard;
+        uint256 usedNft;
     }
 
     struct StakeInfo {
@@ -99,7 +99,7 @@ contract Project is Initializable, OwnableUpgradeable {
     event Funding(address indexed account, uint256 indexed projectId, uint256 indexed amount, uint256 tokenAllocationAmount);
     event WithdrawFunding(address indexed account, uint256 indexed projectId, uint256 indexed amount);
     event SetAdmin(address indexed user, bool indexed allow);
-    event SetNFTPermitted(address indexed _nftAddress, bool indexed allow);
+    event SetNftPermitted(address indexed _nftAddress, bool indexed allow);
     event StakeWithNFT(address indexed account, uint256 indexed projectId, address _nftAddress, uint256 indexed tokenId, uint256 portion);
     event SetGasCallLimit(uint256 indexed gasCallLimitOld, uint256 indexed gasCallLimitNew);
     
@@ -254,13 +254,13 @@ contract Project is Initializable, OwnableUpgradeable {
         emit SetGasCallLimit(_gasCallLimitOld, gasCallLimit);
     }
 
-    function setNFTPermitted(address nft, bool allow) public onlyOwner {
+    function setNftPermitted(address nft, bool allow) public onlyOwner {
         require(nft != address(0), "Invalid nft address");
         require(nft.isContract(), "NFT is not contract");
         (bool success, ) = nft.call{gas: gasCallLimit}(abi.encodeWithSignature("supportsInterface(bytes4)", IID_IERC721));
 		require(success && IERC721Upgradeable(nft).supportsInterface(IID_IERC721), "NFT address is not ERC721");
         nftPermitteds[nft] = allow;
-        emit SetNFTPermitted(nft, allow);
+        emit SetNftPermitted(nft, allow);
     }
 
     /// @notice stake amount of GMI tokens to Staking Pool
@@ -298,17 +298,17 @@ contract Project is Initializable, OwnableUpgradeable {
         require(block.number <= stakeInfo.endBlockNumber, "Staking has ended");
         require(nftPermitteds[_nftAddress], "NFT has not permitted");
 
-        require(IMemberCard(_nftAddress).ownerOf(_tokenId) == _msgSender(), "Unauthorised use of NFT");
-        bool active = IMemberCard(_nftAddress).getMemberCardActive(_tokenId);
+        require(INft(_nftAddress).ownerOf(_tokenId) == _msgSender(), "Unauthorised use of NFT");
+        bool active = INft(_nftAddress).getMemberCardActive(_tokenId);
         require(active, "Invalid NFT");
 
         require(gmi.balanceOf(_msgSender()) >= stakeInfo.minStakeAmount, "Token balance is not enough");
 
-        IMemberCard(_nftAddress).consumeMembership(_tokenId);
+        INft(_nftAddress).consumeMembership(_tokenId);
 
         userInfo[_projectId][_msgSender()].nftAddress = _nftAddress;
         userInfo[_projectId][_msgSender()].allocatedPortion += stakeInfo.maxStakeAmount;
-        userInfo[_projectId][_msgSender()].usedMemberCard++;
+        userInfo[_projectId][_msgSender()].usedNft++;
 
         addUserToWhitelist(_projectId, _msgSender(), true);
 

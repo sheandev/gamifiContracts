@@ -4,7 +4,7 @@ const { skipTime, acceptable, setTime } = require("../utils");
 const { BigNumber } = require("ethers");
 const { subtract } = require("js-big-decimal");
 
-describe("Combatant Staking - Integration", () => {
+describe("Duke Staking - Integration", () => {
     const SOLDIER_LIMIT = ethers.utils.parseUnits('150000', '18');
     const SOLDIER_RATE = 15854895992; // 50 % APY
     const poolDuration = 9 * 30 * 24 * 60 * 60; // 9 months
@@ -24,20 +24,20 @@ describe("Combatant Staking - Integration", () => {
         await gmi.addController(owner.address);
         const Rand = await ethers.getContractFactory("Rand");
         const rand = await Rand.deploy();
-        Combatant = await ethers.getContractFactory("Combatant");
-        combatant = await upgrades.deployProxy(Combatant, [
+        Duke = await ethers.getContractFactory("Duke");
+        duke = await upgrades.deployProxy(Duke, [
             owner.address,
-            "Combatant NFT",
+            "Duke NFT",
             "CBT",
             rand.address
         ]);
 
-        Staking = await ethers.getContractFactory("CombatantStaking");
+        Staking = await ethers.getContractFactory("DukeStaking");
         staking = await upgrades.deployProxy(Staking, [
             owner.address,
             gmi.address,
             gmi.address,
-            combatant.address,
+            duke.address,
             SOLDIER_RATE,
             poolDuration,
             typeIdPool,
@@ -61,7 +61,7 @@ describe("Combatant Staking - Integration", () => {
         await gmi.connect(user1).approve(staking.address, MAX_UINT256);
         await gmi.connect(user2).approve(staking.address, MAX_UINT256);
 
-        await combatant.setAdmin(staking.address, true);
+        await duke.setAdmin(staking.address, true);
 
         limitStaking = await staking.limitStaking();
     });
@@ -71,9 +71,9 @@ describe("Combatant Staking - Integration", () => {
         let tokenId = 0;
         let check = true;
         while (check) {
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantInfos(tokenId);
-            const owner = await combatant.ownerOf(tokenId);
+            await duke.mint(user1.address);
+            const typeId = await duke.dukeInfos(tokenId);
+            const owner = await duke.ownerOf(tokenId);
             tokenId++;
             if (owner == user1.address && typeId.typeId.toString() == '0') {
                 check = false;
@@ -95,12 +95,12 @@ describe("Combatant Staking - Integration", () => {
     });
 
     it("User 2 stake max amount", async () => {
-        let tokenId = await combatant.tokenCounter();
+        let tokenId = await duke.tokenCounter();
         let check = true;
         while (check) {
-            await combatant.mint(user2.address);
-            const typeId = await combatant.combatantInfos(tokenId);
-            const owner = await combatant.ownerOf(tokenId);
+            await duke.mint(user2.address);
+            const typeId = await duke.dukeInfos(tokenId);
+            const owner = await duke.ownerOf(tokenId);
             tokenId++;
             if (owner == user2.address && typeId.typeId.toString() == '0') {
                 check = false;
@@ -124,12 +124,12 @@ describe("Combatant Staking - Integration", () => {
     });
 
     it("User 1 buy 1 nft after 3 month and stake max amount", async () => {
-        let tokenId = await combatant.tokenCounter();
+        let tokenId = await duke.tokenCounter();
         let check = true;
         while (check) {
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantInfos(tokenId);
-            const owner = await combatant.ownerOf(tokenId);
+            await duke.mint(user1.address);
+            const typeId = await duke.dukeInfos(tokenId);
+            const owner = await duke.ownerOf(tokenId);
             tokenId++;
             if (owner == user1.address && typeId.typeId.toString() == '0') {
                 check = false;
@@ -163,12 +163,12 @@ describe("Combatant Staking - Integration", () => {
 
     it("User 1 buy 1 nft after 5 month and claim", async () => {
         const time = 2 * 30 * 86400;
-        let tokenId = await combatant.tokenCounter();
+        let tokenId = await duke.tokenCounter();
         let check = true;
         while (check) {
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantInfos(tokenId);
-            const owner = await combatant.ownerOf(tokenId);
+            await duke.mint(user1.address);
+            const typeId = await duke.dukeInfos(tokenId);
+            const owner = await duke.ownerOf(tokenId);
             tokenId++;
             if (owner == user1.address && typeId.typeId.toString() == '0') {
                 check = false;
@@ -205,8 +205,8 @@ describe("Combatant Staking - Integration", () => {
     });
 
     it("Check transfer token", async () => {
-        const tokenIds = await combatant.tokensOfOwnerByType(user1.address, '0')
-        await expect(combatant.connect(user1).transferFrom(user1.address, user3.address, tokenIds[0])).to.be.revertedWith("In unlockTime: you should stake it before transfer !");
+        const tokenIds = await duke.tokensOfOwnerByType(user1.address, '0')
+        await expect(duke.connect(user1).transferFrom(user1.address, user3.address, tokenIds[0])).to.be.revertedWith("In unlockTime: you should stake it before transfer !");
     });
 
     it("User 1 unstake after 9 month", async () => {
@@ -240,9 +240,9 @@ describe("Combatant Staking - Integration", () => {
     });
 
     it("User 1 transfer token", async () => {
-        const tokenIds = await combatant.tokensOfOwnerByType(user1.address, '0')
-        await combatant.connect(user1).transferFrom(user1.address, user3.address, tokenIds[0]);
-        const new_owner_token = await combatant.ownerOf(tokenIds[0]);
+        const tokenIds = await duke.tokensOfOwnerByType(user1.address, '0')
+        await duke.connect(user1).transferFrom(user1.address, user3.address, tokenIds[0]);
+        const new_owner_token = await duke.ownerOf(tokenIds[0]);
         expect(new_owner_token).to.equal(user3.address);
     });
 

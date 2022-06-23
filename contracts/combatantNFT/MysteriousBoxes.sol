@@ -8,7 +8,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
-import "./ICombatant.sol";
+import "./IDuke.sol";
 
 /**
  *  @title  Dev Non-fungible token
@@ -16,7 +16,7 @@ import "./ICombatant.sol";
  *  @author Gamifi Team
  *
  *  @notice This smart contract create the token ERC721 for Operation. These tokens initially are minted
- *          by the all user and using open more combatant type with only 25 000 GMI
+ *          by the all user and using open more duke type with only 25 000 GMI
  */
 contract MysteriousBoxes is
     Initializable,
@@ -48,7 +48,7 @@ contract MysteriousBoxes is
     /**
      *  @notice rarities is interface of NFT for mint
      */
-    ICombatant public combatant;
+    IDuke public duke;
 
     /**
      *  @notice admins mapping from token ID to isAdmin status
@@ -94,12 +94,12 @@ contract MysteriousBoxes is
         string memory name_,
         string memory symbol_,
         address paymentToken_,
-        address combatant_
+        address duke_
     ) public initializer {
         ERC721Upgradeable.__ERC721_init(name_, symbol_);
         OwnableUpgradeable.__Ownable_init();
         paymentToken = IERC20Upgradeable(paymentToken_);
-        combatant = ICombatant(combatant_);
+        duke = IDuke(duke_);
         transferOwnership(owner_);
         pricePerNFTBox = 25000e18;
     }
@@ -157,7 +157,7 @@ contract MysteriousBoxes is
         require(ownerOf(tokenId) == _msgSender(), "This token is not own !");
         require(!isOpened[tokenId], "Your NFT is opened !");
         isOpened[tokenId] = true;
-        combatant.mint(_msgSender());
+        duke.mint(_msgSender());
 
         emit Opened(_msgSender(), tokenId, block.timestamp);
     }

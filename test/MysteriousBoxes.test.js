@@ -17,8 +17,8 @@ describe("Mysterious Boxes", () => {
         await gmi.addController(owner.address);
         const Rand = await ethers.getContractFactory("Rand");
         const rand = await Rand.deploy();
-        const Combatant = await ethers.getContractFactory("Combatant");
-        combatant = await upgrades.deployProxy(Combatant, [
+        const Duke = await ethers.getContractFactory("Duke");
+        duke = await upgrades.deployProxy(Duke, [
             owner.address,
             "Mysterious Box NFT",
             "MBN",
@@ -31,7 +31,7 @@ describe("Mysterious Boxes", () => {
             "Mysterious Box NFT",
             "MBN",
             gmi.address,
-            combatant.address
+            duke.address
         ]);
 
         await box.deployed();
@@ -104,16 +104,16 @@ describe("Mysterious Boxes", () => {
 
         it("should revert when your NFT is opened before", async () => {
             await box.connect(user1).buy(1);
-            await combatant.setAdmin(box.address, true);
+            await duke.setAdmin(box.address, true);
             await box.connect(user1).open(0);
 
             await expect(box.connect(user1).open(0)).to.be.revertedWith("Your NFT is opened !");
 
         });
 
-        it("should open mysterious box and mint new combatant NFT", async () => {
+        it("should open mysterious box and mint new duke NFT", async () => {
             await box.connect(user1).buy(num);
-            await combatant.setAdmin(box.address, true);
+            await duke.setAdmin(box.address, true);
             await box.connect(user1).open(0);
 
             expect(await box.isOpened(0)).to.equal(true);

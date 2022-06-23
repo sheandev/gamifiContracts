@@ -3,7 +3,7 @@ const { ethers, upgrades } = require("hardhat");
 const { skipTime, acceptable, setTime } = require("./utils");
 const { BigNumber } = require("ethers");
 
-describe("Combatant Staking", () => {
+describe("Duke Staking", () => {
     const SOLDIER_LIMIT = ethers.utils.parseUnits('150000', '18');
     const SOLDIER_RATE = 15854895992; // 50 % APY
     const poolDuration = 9 * 30 * 24 * 60 * 60; // 9 months
@@ -23,20 +23,20 @@ describe("Combatant Staking", () => {
         await gmi.addController(owner.address);
         const Rand = await ethers.getContractFactory("Rand");
         const rand = await Rand.deploy();
-        Combatant = await ethers.getContractFactory("Combatant");
-        combatant = await upgrades.deployProxy(Combatant, [
+        Duke = await ethers.getContractFactory("Duke");
+        duke = await upgrades.deployProxy(Duke, [
             owner.address,
-            "Combatant NFT",
+            "Duke NFT",
             "CBT",
             rand.address
         ]);
 
-        Staking = await ethers.getContractFactory("CombatantStaking");
+        Staking = await ethers.getContractFactory("DukeStaking");
         staking = await upgrades.deployProxy(Staking, [
             owner.address,
             gmi.address,
             gmi.address,
-            combatant.address,
+            duke.address,
             SOLDIER_RATE,
             poolDuration,
             typeIdPool,
@@ -60,7 +60,7 @@ describe("Combatant Staking", () => {
         await gmi.connect(user1).approve(staking.address, MAX_UINT256);
         await gmi.connect(user2).approve(staking.address, MAX_UINT256);
 
-        await combatant.setAdmin(staking.address, true);
+        await duke.setAdmin(staking.address, true);
     });
 
     describe("Deployment", async () => {
@@ -111,8 +111,8 @@ describe("Combatant Staking", () => {
     describe("getUserAmount", async () => {
         it("should return amount of user", async () => {
             const tokenId = 0;
-            await combatant.mint(user1.address);
-            const typeId = await combatant.combatantInfos(tokenId);
+            await duke.mint(user1.address);
+            const typeId = await duke.dukeInfos(tokenId);
 
             if (typeId.typeId.toString() == '0') {
                 await staking.connect(user1).stake(ONE_ETHER);
@@ -179,9 +179,9 @@ describe("Combatant Staking", () => {
             let tokenId = 0;
             let check = true;
             while (check) {
-                await combatant.mint(user1.address);
-                const typeId = await combatant.combatantInfos(tokenId);
-                const owner = await combatant.ownerOf(tokenId);
+                await duke.mint(user1.address);
+                const typeId = await duke.dukeInfos(tokenId);
+                const owner = await duke.ownerOf(tokenId);
                 tokenId++;
                 if (owner == user1.address && typeId.typeId.toString() == '0') {
                     check = false;
@@ -199,9 +199,9 @@ describe("Combatant Staking", () => {
             let tokenId = 0;
             let check = true;
             while (check) {
-                await combatant.mint(user1.address);
-                const typeId = await combatant.combatantInfos(tokenId);
-                const owner = await combatant.ownerOf(tokenId);
+                await duke.mint(user1.address);
+                const typeId = await duke.dukeInfos(tokenId);
+                const owner = await duke.ownerOf(tokenId);
                 tokenId++;
                 if (owner == user1.address && typeId.typeId.toString() == '0') {
                     check = false;
@@ -215,9 +215,9 @@ describe("Combatant Staking", () => {
             let tokenId = 0;
             let check = true;
             while (check) {
-                await combatant.mint(user1.address);
-                const typeId = await combatant.combatantInfos(tokenId);
-                const owner = await combatant.ownerOf(tokenId);
+                await duke.mint(user1.address);
+                const typeId = await duke.dukeInfos(tokenId);
+                const owner = await duke.ownerOf(tokenId);
                 tokenId++;
                 if (owner == user1.address && typeId.typeId.toString() == '0') {
                     check = false;
@@ -234,9 +234,9 @@ describe("Combatant Staking", () => {
             tokenId = 0;
             let check = true;
             while (check) {
-                await combatant.mint(user1.address);
-                const typeId = await combatant.combatantInfos(tokenId);
-                const owner = await combatant.ownerOf(tokenId);
+                await duke.mint(user1.address);
+                const typeId = await duke.dukeInfos(tokenId);
+                const owner = await duke.ownerOf(tokenId);
                 tokenId++;
                 if (owner == user1.address && typeId.typeId.toString() == '0') {
                     check = false;
@@ -264,9 +264,9 @@ describe("Combatant Staking", () => {
             tokenId = 0;
             let check = true;
             while (check) {
-                await combatant.mint(user1.address);
-                const typeId = await combatant.combatantInfos(tokenId);
-                const owner = await combatant.ownerOf(tokenId);
+                await duke.mint(user1.address);
+                const typeId = await duke.dukeInfos(tokenId);
+                const owner = await duke.ownerOf(tokenId);
                 tokenId++;
                 if (owner == user1.address && typeId.typeId.toString() == '0') {
                     check = false;
@@ -299,9 +299,9 @@ describe("Combatant Staking", () => {
             tokenId = 0;
             let check = true;
             while (check) {
-                await combatant.mint(user1.address);
-                const typeId = await combatant.combatantInfos(tokenId);
-                const owner = await combatant.ownerOf(tokenId);
+                await duke.mint(user1.address);
+                const typeId = await duke.dukeInfos(tokenId);
+                const owner = await duke.ownerOf(tokenId);
                 tokenId++;
                 if (owner == user1.address && typeId.typeId.toString() == '0') {
                     check = false;
@@ -337,9 +337,9 @@ describe("Combatant Staking", () => {
             tokenId = 0;
             let check = true;
             while (check) {
-                await combatant.mint(user1.address);
-                const typeId = await combatant.combatantInfos(tokenId);
-                const owner = await combatant.ownerOf(tokenId);
+                await duke.mint(user1.address);
+                const typeId = await duke.dukeInfos(tokenId);
+                const owner = await duke.ownerOf(tokenId);
                 tokenId++;
                 if (owner == user1.address && typeId.typeId.toString() == '0') {
                     check = false;
@@ -396,9 +396,9 @@ describe("Combatant Staking", () => {
             tokenId = 0;
             let check = true;
             while (check) {
-                await combatant.mint(user1.address);
-                const typeId = await combatant.combatantInfos(tokenId);
-                const owner = await combatant.ownerOf(tokenId);
+                await duke.mint(user1.address);
+                const typeId = await duke.dukeInfos(tokenId);
+                const owner = await duke.ownerOf(tokenId);
                 tokenId++;
                 if (owner == user1.address && typeId.typeId.toString() == '0') {
                     check = false;
@@ -443,8 +443,8 @@ describe("Combatant Staking", () => {
             // const pendingRewards = await staking.pendingRewards(user1.address);
             // expect(pendingRewards).to.equal(ZERO);
 
-            await combatant.connect(user1).transferFrom(user1.address, owner.address, tokenId - 1);
-            const owner_of_token = await combatant.ownerOf(tokenId - 1);
+            await duke.connect(user1).transferFrom(user1.address, owner.address, tokenId - 1);
+            const owner_of_token = await duke.ownerOf(tokenId - 1);
             expect(owner_of_token).to.equal(owner.address);
         });
     });

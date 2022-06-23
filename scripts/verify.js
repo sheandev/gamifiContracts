@@ -43,10 +43,10 @@ async function main() {
     console.log("err :>> ", err);
   }
 
-  // Combatant NFT
+  // Duke NFT
   try {
     await hre.run("verify:verify", {
-      address: contracts.combatant,
+      address: contracts.duke,
     });
   } catch (err) {
     console.log("err :>> ", err);
@@ -62,7 +62,7 @@ async function main() {
 
   try {
     await hre.run("verify:verify", {
-      address: contracts.combatantStaking,
+      address: contracts.dukeStaking,
     });
   } catch (err) {
     console.log("err :>> ", err);

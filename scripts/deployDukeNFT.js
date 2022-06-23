@@ -3,8 +3,6 @@ require("dotenv").config();
 const fs = require("fs");
 const ethers = hre.ethers;
 const upgrades = hre.upgrades;
-const contract = require("../contracts.json");
-const contractVerify = require("../contracts-verify.json");
 async function main() {
     //Loading accounts
     const accounts = await ethers.getSigners();
@@ -13,8 +11,8 @@ async function main() {
 
     // Loading contract factory.
     const MysteriousBox = await ethers.getContractFactory("MysteriousBoxes");
-    const Combatant = await ethers.getContractFactory("Combatant");
-    const CombatantStaking = await ethers.getContractFactory("CombatantStaking");
+    const Duke = await ethers.getContractFactory("Duke");
+    const DukeStaking = await ethers.getContractFactory("DukeStaking");
     // Deploy contracts
     console.log('==================================================================');
     console.log('DEPLOY CONTRACTS');
@@ -24,26 +22,27 @@ async function main() {
     const rand = await Rand.deploy();
     console.log("Rand          deployed to:", rand.address);
 
-    const combatant = await upgrades.deployProxy(Combatant, [
+    const duke = await upgrades.deployProxy(Duke, [
         admin,
-        "Combatant NFT",
+        "Duke NFT",
         "CBT",
+        // "0x281ef06F5e464A337D3a56285b2b328808055e9D"
         rand.address
     ]
     );
-    await combatant.deployed();
-    let combatantVerify = await upgrades.erc1967.getImplementationAddress(
-        combatant.address
+    await duke.deployed();
+    let dukeVerify = await upgrades.erc1967.getImplementationAddress(
+        duke.address
     );
-    console.log("Combatant                  deployed to:", combatant.address);
-    console.log("combatantVerify            deployed to:", combatantVerify);
+    console.log("Duke                  deployed to:", duke.address);
+    console.log("dukeVerify            deployed to:", dukeVerify);
 
     const mysteriousBox = await upgrades.deployProxy(MysteriousBox, [
         admin,
         "Mysterious Box NFT",
         "MBN",
         "0x88d8defcda194e08a93689fb6888579f6d45851d",
-        combatant.address
+        duke.address
     ]
     );
     await mysteriousBox.deployed();
@@ -54,11 +53,11 @@ async function main() {
     console.log("MysteriousBox                  deployed to:", mysteriousBox.address);
     console.log("mysteriousBoxVerify            deployed to:", mysteriousBoxVerify);
 
-    const combatantStaking = await upgrades.deployProxy(CombatantStaking, [
+    const dukeStaking = await upgrades.deployProxy(DukeStaking, [
         admin,
         "0x88d8defcda194e08a93689fb6888579f6d45851d",
         "0x88d8defcda194e08a93689fb6888579f6d45851d",
-        combatant.address,
+        duke.address,
         process.env.SOLDIER_RATE,
         process.env.POOL_DURATION,
         process.env.TYPE_ID_SOLDIER,
@@ -66,20 +65,20 @@ async function main() {
 
     ]
     );
-    await combatantStaking.deployed();
+    await dukeStaking.deployed();
 
-    let combatantStakingVerify = await upgrades.erc1967.getImplementationAddress(
-        combatantStaking.address
+    let dukeStakingVerify = await upgrades.erc1967.getImplementationAddress(
+        dukeStaking.address
     );
 
-    console.log("CombatantStaking                       deployed to:", combatantStaking.address);
-    console.log("combatantStakingVerify                 deployed to:", combatantStakingVerify);
+    console.log("DukeStaking                       deployed to:", dukeStaking.address);
+    console.log("dukeStakingVerify                 deployed to:", dukeStakingVerify);
 
-    const combatantStakingPilot = await upgrades.deployProxy(CombatantStaking, [
+    const dukeStakingPilot = await upgrades.deployProxy(DukeStaking, [
         admin,
         "0x88d8defcda194e08a93689fb6888579f6d45851d",
         "0x88d8defcda194e08a93689fb6888579f6d45851d",
-        combatant.address,
+        duke.address,
         process.env.PILOT_RATE,
         process.env.POOL_DURATION,
         process.env.TYPE_ID_PILOT,
@@ -87,19 +86,19 @@ async function main() {
 
     ]
     );
-    await combatantStakingPilot.deployed();
+    await dukeStakingPilot.deployed();
 
-    let combatantStakingPilotVerify = await upgrades.erc1967.getImplementationAddress(
-        combatantStakingPilot.address
+    let dukeStakingPilotVerify = await upgrades.erc1967.getImplementationAddress(
+        dukeStakingPilot.address
     );
-    console.log("combatantStakingPilot                  deployed to:", combatantStakingPilot.address);
-    console.log("combatantStakingPilotVerify            deployed to:", combatantStakingPilotVerify);
+    console.log("dukeStakingPilot                  deployed to:", dukeStakingPilot.address);
+    console.log("dukeStakingPilotVerify            deployed to:", dukeStakingPilotVerify);
 
-    const combatantStakingGeneral = await upgrades.deployProxy(CombatantStaking, [
+    const dukeStakingGeneral = await upgrades.deployProxy(DukeStaking, [
         admin,
         "0x88d8defcda194e08a93689fb6888579f6d45851d",
         "0x88d8defcda194e08a93689fb6888579f6d45851d",
-        combatant.address,
+        duke.address,
         process.env.GENERAL_RATE,
         process.env.POOL_DURATION,
         process.env.TYPE_ID_GENERAL,
@@ -107,24 +106,23 @@ async function main() {
 
     ]
     );
-    await combatantStakingGeneral.deployed();
+    await dukeStakingGeneral.deployed();
 
-    let combatantStakingGeneralVerify = await upgrades.erc1967.getImplementationAddress(
-        combatantStakingGeneral.address
+    let dukeStakingGeneralVerify = await upgrades.erc1967.getImplementationAddress(
+        dukeStakingGeneral.address
     );
-    console.log("combatantStakingGeneral                deployed to:", combatantStakingGeneral.address);
-    console.log("combatantStakingGeneralVerify          deployed to:", combatantStakingGeneralVerify);
+    console.log("dukeStakingGeneral                deployed to:", dukeStakingGeneral.address);
+    console.log("dukeStakingGeneralVerify          deployed to:", dukeStakingGeneralVerify);
 
     const contractAddresses = {
-        ...contract,
         admin: admin,
         gmi: '0x88d8defcda194e08a93689fb6888579f6d45851d',
-        rand: rand.address,
-        combatant: combatant.address,
+        rand: "0x281ef06F5e464A337D3a56285b2b328808055e9D",
+        duke: duke.address,
         mysteriousBox: mysteriousBox.address,
-        combatantStaking: combatantStaking.address,
-        combatantStakingPilot: combatantStakingPilot.address,
-        combatantStakingGeneral: combatantStakingGeneral.address
+        dukeStaking: dukeStaking.address,
+        dukeStakingPilot: dukeStakingPilot.address,
+        dukeStakingGeneral: dukeStakingGeneral.address
     };
 
     await fs.writeFileSync(
@@ -133,14 +131,13 @@ async function main() {
     );
 
     const contractAddresses_verify = {
-        ...contractVerify,
         admin: admin,
         gmi: "0x88d8defcda194e08a93689fb6888579f6d45851d",
-        combatant: combatantVerify,
+        duke: dukeVerify,
         mysteriousBox: mysteriousBoxVerify,
-        combatantStaking: combatantStakingVerify,
-        combatantStakingPilot: combatantStakingPilotVerify,
-        combatantStakingGeneral: combatantStakingGeneralVerify
+        dukeStaking: dukeStakingVerify,
+        dukeStakingPilot: dukeStakingPilotVerify,
+        dukeStakingGeneral: dukeStakingGeneralVerify
     };
 
     await fs.writeFileSync(

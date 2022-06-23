@@ -44,10 +44,10 @@ describe("Project", () => {
     const Rand = await ethers.getContractFactory("Rand");
     const rand = await Rand.deploy();
 
-    const Combatant = await ethers.getContractFactory("Combatant");
-    combatant = await upgrades.deployProxy(Combatant, [
+    const Duke = await ethers.getContractFactory("Duke");
+    duke = await upgrades.deployProxy(Duke, [
       admin.address,
-      "Combatant NFT",
+      "Duke NFT",
       "CBT",
       rand.address,
     ]);
@@ -60,7 +60,7 @@ describe("Project", () => {
     ]);
 
     await memberCard.setVendor(project.address, true);
-    await combatant.connect(admin).setAdmin(project.address, true);
+    await duke.connect(admin).setAdmin(project.address, true);
 
     await token.addController(admin.address);
     await token.mint(user1.address, "1000000000000000000000000"); // mint 1000,000 token GMI
@@ -78,9 +78,9 @@ describe("Project", () => {
     tokens_other_user_1 = [];
     tokenId = 0;
     while (tokens_general_user_1.length <= 3) {
-      await combatant.mint(user1.address);
-      const typeId = await combatant.combatantInfos(tokenId);
-      const owner = await combatant.ownerOf(tokenId);
+      await duke.mint(user1.address);
+      const typeId = await duke.dukeInfos(tokenId);
+      const owner = await duke.ownerOf(tokenId);
       if (owner == user1.address && typeId.typeId.toString() == "2") {
         tokens_general_user_1.push(tokenId);
       } else {
@@ -90,9 +90,9 @@ describe("Project", () => {
     }
 
     while (tokens_general_user_2.length <= 1) {
-      await combatant.mint(user2.address);
-      const typeId = await combatant.combatantInfos(tokenId);
-      const owner = await combatant.ownerOf(tokenId);
+      await duke.mint(user2.address);
+      const typeId = await duke.dukeInfos(tokenId);
+      const owner = await duke.ownerOf(tokenId);
       if (owner == user2.address && typeId.typeId.toString() == "2") {
         tokens_general_user_2.push(tokenId);
       } 
@@ -100,9 +100,9 @@ describe("Project", () => {
     }
 
     while (tokens_general_user_3.length <= 1) {
-      await combatant.mint(user3.address);
-      const typeId = await combatant.combatantInfos(tokenId);
-      const owner = await combatant.ownerOf(tokenId);
+      await duke.mint(user3.address);
+      const typeId = await duke.dukeInfos(tokenId);
+      const owner = await duke.ownerOf(tokenId);
       if (owner == user3.address && typeId.typeId.toString() == "2") {
         tokens_general_user_3.push(tokenId);
       } 
@@ -602,7 +602,7 @@ describe("Project", () => {
       const projectInfo = await project.getProjectInfo(1);
       let currentBlock = await getCurrentBlock();
       const blockStart =
-        projectInfo.stakeInfo.endBlockNumber * 1 + currentBlock + 10;
+        projectInfo.stakeInfo.endBlockNumber * 1 + currentBlock + 100;
       const blockEnd = blockStart + 100;
       await expect(
         project
@@ -1108,27 +1108,27 @@ describe("Project", () => {
       projectId = await project.latestProjectId();
       await token.connect(admin).mint(user3.address, "999000000000000000000");
 
-      await project.connect(admin).setNFTPermitted(combatant.address, true);
+      await project.connect(admin).setNftPermitted(duke.address, true);
     });
 
     it("Staking has not started yet", async () => {
       await expect(
-        project.connect(user1).stakeWithNFT(projectId, combatant.address, tokens_general_user_1[0])
+        project.connect(user1).stakeWithNFT(projectId, duke.address, tokens_general_user_1[0])
       ).to.revertedWith("Staking has not started yet");
     });
 
     it("Staking has ended", async () => {
       await skipBlock(200);
       await expect(
-        project.connect(user1).stakeWithNFT(projectId, combatant.address, tokens_general_user_1[0])
+        project.connect(user1).stakeWithNFT(projectId, duke.address, tokens_general_user_1[0])
       ).to.revertedWith("Staking has ended");
     });
 
     it("You already staking", async () => {
       await skipBlock(100);
-      await project.connect(user1).stakeWithNFT(projectId, combatant.address, tokens_general_user_1[0]);
+      await project.connect(user1).stakeWithNFT(projectId, duke.address, tokens_general_user_1[0]);
       await expect(
-        project.connect(user1).stakeWithNFT(projectId, combatant.address, tokens_general_user_1[1])
+        project.connect(user1).stakeWithNFT(projectId, duke.address, tokens_general_user_1[1])
       ).to.revertedWith("You already staking");
     });
 
@@ -1145,7 +1145,7 @@ describe("Project", () => {
     it("Unauthorised use of NFT", async () => {
       await skipBlock(100);
       await expect(
-        project.connect(user2).stakeWithNFT(projectId, combatant.address, tokens_general_user_1[0])
+        project.connect(user2).stakeWithNFT(projectId, duke.address, tokens_general_user_1[0])
       ).to.revertedWith("Unauthorised use of NFT");
     });
 
@@ -1155,14 +1155,14 @@ describe("Project", () => {
         .setExpireTime(0, divide(Date.now(), 1000, 0));
       await skipBlock(100);
       await expect(
-        project.connect(user1).stakeWithNFT(projectId, combatant.address, tokens_other_user_1[0])
+        project.connect(user1).stakeWithNFT(projectId, duke.address, tokens_other_user_1[0])
       ).to.revertedWith("Invalid NFT");
     });
 
     it("Token balance is not enough", async () => {
       await skipBlock(100);
       await expect(
-        project.connect(user3).stakeWithNFT(projectId, combatant.address, tokens_general_user_3[0])
+        project.connect(user3).stakeWithNFT(projectId, duke.address, tokens_general_user_3[0])
       ).to.revertedWith("Token balance is not enough");
     });
 
@@ -1173,7 +1173,7 @@ describe("Project", () => {
       const tokenBalanceOfUser_before = await token.balanceOf(user1.address);
 
       await skipBlock(100);
-      await project.connect(user1).stakeWithNFT(projectId, combatant.address, tokens_general_user_1[0]);
+      await project.connect(user1).stakeWithNFT(projectId, duke.address, tokens_general_user_1[0]);
 
       const tokenBalanceOfProject_after = await token.balanceOf(
         project.address
@@ -1191,7 +1191,7 @@ describe("Project", () => {
       const userInfo = await project.getUserInfo(projectId, user1.address);
       expect(userInfo.stakedAmount).to.be.equal("0");
       expect(userInfo.allocatedPortion).to.be.equal(maxStakeAmount);
-      expect(userInfo.usedMemberCard).to.be.equal("1");
+      expect(userInfo.usedNft).to.be.equal("1");
     });
   });
 
@@ -1339,7 +1339,7 @@ describe("Project", () => {
       await skipBlock(100);
 
       await memberCard.mintMemberCard(user2.address, "");
-      await project.connect(admin).setNFTPermitted(memberCard.address, true);
+      await project.connect(admin).setNftPermitted(memberCard.address, true);
       await project.connect(user2).stakeWithNFT(projectId, memberCard.address, "0");
       await project.connect(user1).stake(projectId, maxStakeAmount);
       await skipBlock(100);

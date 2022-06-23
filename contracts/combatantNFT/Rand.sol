@@ -15,7 +15,7 @@ pragma solidity ^0.8.0;
  */
 contract Rand {
     /**
-     *  @notice Random a lucky number for choose type of combatant box.
+     *  @notice Random a lucky number for choose type of duke box.
      */
     function random(uint256 tokenId) external view returns (uint256) {
         uint256 result = uint256(

@@ -2,26 +2,26 @@
 pragma solidity ^0.8.0;
 
 /**
- *  @notice ICombatant is interface of combatant token
+ *  @notice IDuke is interface of duke token
  */
-interface ICombatant {
+interface IDuke {
     enum TypeId {
         SOLDIER,
         PILOT,
         GENERAL
     }
 
-    struct CombatantInfo {
+    struct DukeInfo {
         TypeId typeId;
         uint256 lockedExpireTime;
         uint256 useCounter;
         bool isLocked;
     }
 
-    function getCombatantInfoOf(uint256 tokenId)
+    function getDukeInfoOf(uint256 tokenId)
         external
         view
-        returns (CombatantInfo calldata);
+        returns (DukeInfo calldata);
 
     function mint(address owner) external;
 

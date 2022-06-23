@@ -8,21 +8,21 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
-import "./ICombatant.sol";
+import "./IDuke.sol";
 
 /**
  *  @title  Dev Staking Pool
  *
  *  @author Gamifi Team
  *
- *  @notice This smart contract is created for staking pool for user owning combatant box can stake amount of token
+ *  @notice This smart contract is created for staking pool for user owning duke box can stake amount of token
  *          to get with attractive rewardin 9 months from start day.
  *            -  50% APY : Soldier NFT
  *            -  75% APY :   Pilot NFT
  *            - 150% APY : General NFT
  *          The contract here by is implemented to create opportunities for users to drive project growth
  */
-contract CombatantStaking is
+contract DukeStaking is
     Initializable,
     ReentrancyGuardUpgradeable,
     OwnableUpgradeable
@@ -96,9 +96,9 @@ contract CombatantStaking is
     uint256 public limitStaking;
 
     /**
-     *  @notice _combatant address is address of membercard token.
+     *  @notice _duke address is address of membercard token.
      */
-    ICombatant private _combatant;
+    IDuke private _duke;
 
     /**
      *  @notice _stakeToken IERC20 is interface of staked token.
@@ -150,7 +150,7 @@ contract CombatantStaking is
         address owner_,
         IERC20Upgradeable stakeToken,
         IERC20Upgradeable rewardToken,
-        address combatant_,
+        address duke_,
         uint256 rewardRate_,
         uint256 poolDuration_,
         uint256 poolType_,
@@ -158,7 +158,7 @@ contract CombatantStaking is
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
         transferOwnership(owner_);
-        _combatant = ICombatant(combatant_);
+        _duke = IDuke(duke_);
         _stakeToken = stakeToken;
         _rewardToken = rewardToken;
         _rewardRate = rewardRate_;
@@ -265,7 +265,7 @@ contract CombatantStaking is
      *  @notice Get max amount of token on corresponding user address.
      */
     function getMaxAmountOf(address sender) public view returns (uint256) {
-        uint256 numberOfTokens = _combatant.tokensOfOwnerByType(sender, poolType).length;
+        uint256 numberOfTokens = _duke.tokensOfOwnerByType(sender, poolType).length;
         return numberOfTokens.mul(limitStaking);
     }
 
@@ -274,7 +274,7 @@ contract CombatantStaking is
      */
     function getMaxAmountStake(address sender) public view returns (uint256) {
         UserInfo memory user = users[sender];
-        uint256 numberOfTokens = _combatant.tokensOfOwnerByType(sender, poolType).length;
+        uint256 numberOfTokens = _duke.tokensOfOwnerByType(sender, poolType).length;
         if (numberOfTokens.mul(limitStaking) > user.totalAmount) {
             return numberOfTokens.mul(limitStaking).sub(user.totalAmount);
         }
@@ -299,16 +299,16 @@ contract CombatantStaking is
             "Staking has already ended"
         );
 
-        uint256[] memory tokenIds = _combatant.tokensOfOwnerByType(_msgSender(), poolType);
+        uint256[] memory tokenIds = _duke.tokensOfOwnerByType(_msgSender(), poolType);
         require(
             tokenIds.length > 0,
             "Require to have NFT for staking in pool"
         );
 
         for (uint256 i = 0; i < tokenIds.length; i++) {
-            ICombatant.CombatantInfo memory info =  _combatant.getCombatantInfoOf(tokenIds[i]);
+            IDuke.DukeInfo memory info =  _duke.getDukeInfoOf(tokenIds[i]);
             if (info.lockedExpireTime == 0) {
-                _combatant.lockToken(tokenIds[i], NFT_LOCK_DURATION);
+                _duke.lockToken(tokenIds[i], NFT_LOCK_DURATION);
             }
         }
 
@@ -433,16 +433,16 @@ contract CombatantStaking is
         );
         user.lazyUnstake.isRequested = false;
 
-        uint256[] memory tokenIds = _combatant.tokensOfOwnerByType(_msgSender(), poolType);
+        uint256[] memory tokenIds = _duke.tokensOfOwnerByType(_msgSender(), poolType);
         require(
             tokenIds.length > 0,
             "Require to have NFT for staking in pool"
         );
 
         for (uint256 i = 0; i < tokenIds.length; i++) {
-            ICombatant.CombatantInfo memory info =  _combatant.getCombatantInfoOf(tokenIds[i]);
+            IDuke.DukeInfo memory info =  _duke.getDukeInfoOf(tokenIds[i]);
             if (info.lockedExpireTime > 0) {
-                _combatant.unlockToken(tokenIds[i]);
+                _duke.unlockToken(tokenIds[i]);
             }
         }
 
