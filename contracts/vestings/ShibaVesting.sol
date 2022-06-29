@@ -24,6 +24,7 @@ contract ShibaVesting is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         uint256 total;          // total of lock tokens that user is distributed (exclude TGE tokens).
         uint256 amountEach;     // minimum number of tokens that user can claim.
         uint256 claimedAmount;  // amount of tokens that user claimed.
+        uint256 claimedStep;    // number of claimed times.
         uint256 createdAt;      // timestamp of creating vesting time.
     }
 
@@ -116,6 +117,7 @@ contract ShibaVesting is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
                 remainAmount,
                 remainAmount / _count,
                 0,
+                0,
                 currentTime
             );
         }
@@ -141,6 +143,7 @@ contract ShibaVesting is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         require(claimable > 0, "Nothing to claim");
 
         lockData[_msgSender()].count -= claimStep;
+        lockData[_msgSender()].claimedStep += claimStep;
         lockData[_msgSender()].claimedAmount += claimable;
         token.safeTransfer(_msgSender(), claimable);
 
@@ -168,10 +171,10 @@ contract ShibaVesting is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         Lock memory vestData = lockData[_account];
         if (vestData.count == 0) return 0;
 
-        uint256 currentTime = block.timestamp;
-        if (currentTime - vestData.createdAt < vestData.cliff) return 0;
+        uint256 claimStep = (block.timestamp - vestData.createdAt) / vestData.cliff;
+        if (claimStep <= vestData.claimedStep) return 0;
 
-        uint256 claimStep = (currentTime - vestData.createdAt) / vestData.cliff;
+        claimStep -= vestData.claimedStep;
         if (claimStep >= vestData.count) {
             claimStep = vestData.count;
         }

@@ -264,6 +264,8 @@ describe('ShibaVesting', () => {
       expect(await token.balanceOf(vesting.address)).to.equal(tokenBalance_Vesting);
       expect(await token.balanceOf(user3.address)).to.equal(tokenBalance_user3);
 
+      await expect(vesting.connect(user2).claim()).to.be.revertedWith('Nothing to claim');
+      await expect(vesting.connect(user3).claim()).to.be.revertedWith('Nothing to claim');
 
       // skip 1 months
       await skipTime(30 * 86400);
@@ -293,6 +295,9 @@ describe('ShibaVesting', () => {
       tokenBalance_user3 = tokenBalance_user3.add(claimable_user3);
       expect(await token.balanceOf(vesting.address)).to.equal(tokenBalance_Vesting);
       expect(await token.balanceOf(user3.address)).to.equal(tokenBalance_user3);
+
+      await expect(vesting.connect(user2).claim()).to.be.revertedWith('Nothing to claim');
+      await expect(vesting.connect(user3).claim()).to.be.revertedWith('Nothing to claim');
 
 
       // skip 1 months
@@ -360,6 +365,7 @@ describe('ShibaVesting', () => {
       expect(await token.balanceOf(vesting.address)).to.equal(tokenBalance_Vesting);
       expect(await token.balanceOf(user2.address)).to.equal(tokenBalance_user2);
 
+      await expect(vesting.connect(user2).claim()).to.be.revertedWith('Nothing to claim');
 
       // skip 15 days
       await skipTime(15 * 86400);
