@@ -27,7 +27,7 @@ describe("Project", () => {
         token = await TokenGMI.deploy();
 
         const CashTestToken = await ethers.getContractFactory("CashTestToken");
-        busd = await CashTestToken.deploy([admin.address, user1.address, user2.address, user3.address]);
+        busd = await CashTestToken.deploy('BUSD', 'BUSD', 18);
 
         const MemberCard = await ethers.getContractFactory("MemberCard");
         memberCard = await MemberCard.deploy();
@@ -43,10 +43,12 @@ describe("Project", () => {
         await token.mint(user2.address, '1000000000000000000000000'); // mint 1000,000 token GMI
 
         await token.connect(user1).approve(project.address, MAX_UINT256.toString());
-        await busd.connect(user1).approve(project.address, MAX_UINT256.toString());
         await token.connect(user2).approve(project.address, MAX_UINT256.toString());
         await token.connect(user3).approve(project.address, MAX_UINT256.toString());
         await token.connect(user4).approve(project.address, MAX_UINT256.toString());
+
+        await busd.mintForList([admin.address, user1.address, user2.address, user3.address], '100000000');
+        await busd.connect(user1).approve(project.address, MAX_UINT256.toString());
     })
 
     describe("createProject", () => {

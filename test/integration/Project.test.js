@@ -19,7 +19,7 @@ describe("Project - Integration", () => {
     token = await TokenGMI.deploy();
 
     const CashTestToken = await ethers.getContractFactory("CashTestToken");
-    busd = await CashTestToken.deploy([admin.address, user1.address, user2.address, user3.address, user4.address, user5.address]);
+    busd = await CashTestToken.deploy('BUSD', 'BUSD', 18);
 
     const MemberCard = await ethers.getContractFactory("MemberCard");
     memberCard = await MemberCard.deploy();
@@ -40,6 +40,7 @@ describe("Project - Integration", () => {
     await token.connect(user3).approve(project.address, MaxUint256.toString());
     await token.connect(user4).approve(project.address, MaxUint256.toString());
 
+    await busd.mintForList([admin.address, user1.address, user2.address, user3.address, user4.address, user5.address], '100000000');
     await busd.connect(user1).approve(project.address, MaxUint256.toString());
     await busd.connect(user3).approve(project.address, MaxUint256.toString());
     await busd.connect(user4).approve(project.address, MaxUint256.toString());

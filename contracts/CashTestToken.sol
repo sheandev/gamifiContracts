@@ -1,17 +1,39 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.4;
+pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "./libraries/Config.sol";
 
+/// @title ERC20 token as stable coin
+/// @notice This is use for development testing on local private chain only
+/// @notice For public chain deployment, need to use a ready deployed address
 contract CashTestToken is ERC20 {
-    constructor(address[] memory acc) public ERC20("USD Test Token", "USD") {
-        for (uint256 i = 0; i < acc.length; i++) {
-            _mint(acc[i], 100000000 * Constant.FIXED_POINT);
-        }
-    }
+	uint8 private _decimals;
 
-    function mint(address account) public {
-        _mint(account, 100000000 * Constant.FIXED_POINT);
-    }
+	constructor(
+		string memory _name,
+		string memory _symbol,
+		uint8 decimals_
+	) ERC20(_name, _symbol) {
+		_decimals = decimals_;
+	}
+
+	function decimals() public view override returns (uint8) {
+		return _decimals;
+	}
+
+	/// @dev generate tokens and distributes to testing account
+	function mintFor(address _acc, uint256 _amount) external {
+		_mint(_acc, _amount * 10**decimals());
+	}
+
+	/// @dev generate tokens and distributes to list of testing account
+	function mintForList(address[] memory _accs, uint256 _amount) external {
+		require(_accs.length > 0, "Invalid minted accounts");
+		require(_amount > 0, "Invalid minted amount");
+
+		uint256 mintedAmount = _amount * 10**decimals();
+		for (uint256 i = 0; i < _accs.length; i++) {
+			_mint(_accs[i], mintedAmount);
+		}
+	}
 }
