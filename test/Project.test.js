@@ -56,7 +56,7 @@ describe("Project", () => {
     project = await upgrades.deployProxy(Project, [
       admin.address,
       token.address,
-      busd.address
+      busd.address,
     ]);
 
     await memberCard.setVendor(project.address, true);
@@ -76,8 +76,8 @@ describe("Project", () => {
     tokens_general_user_3 = [];
     tokens_general_user_2 = [];
     tokens_other_user_1 = [];
-    tokenId = 0;
     while (tokens_general_user_1.length <= 3) {
+      const tokenId = await duke.tokenCounter();
       await duke.mint(user1.address);
       const typeId = await duke.dukeInfos(tokenId);
       const owner = await duke.ownerOf(tokenId);
@@ -86,28 +86,29 @@ describe("Project", () => {
       } else {
         tokens_other_user_1.push(tokenId);
       }
-      tokenId++;
     }
 
     while (tokens_general_user_2.length <= 1) {
+      const tokenId = await duke.tokenCounter();
       await duke.mint(user2.address);
       const typeId = await duke.dukeInfos(tokenId);
       const owner = await duke.ownerOf(tokenId);
       if (owner == user2.address && typeId.typeId.toString() == "2") {
         tokens_general_user_2.push(tokenId);
-      } 
-      tokenId++;
+      }
     }
 
     while (tokens_general_user_3.length <= 1) {
+      const tokenId = await duke.tokenCounter();
       await duke.mint(user3.address);
       const typeId = await duke.dukeInfos(tokenId);
       const owner = await duke.ownerOf(tokenId);
       if (owner == user3.address && typeId.typeId.toString() == "2") {
         tokens_general_user_3.push(tokenId);
-      } 
-      tokenId++;
+      }
     }
+
+    decimals = await token.decimals();
   });
 
   describe("createProject", () => {
@@ -133,7 +134,8 @@ describe("Project", () => {
           fundingMinAllocation,
           estimateTokenAllocationRate,
           user1.address,
-          claimBackStartBlockNumber
+          claimBackStartBlockNumber,
+          decimals
         );
 
       expect(await project.latestProjectId()).equal(1, "Invalid project id");
@@ -161,7 +163,8 @@ describe("Project", () => {
             fundingMinAllocation,
             estimateTokenAllocationRate,
             user1.address,
-            claimBackStartBlockNumber
+            claimBackStartBlockNumber,
+            decimals
           )
       ).to.revertedWith("Not admin or owner");
     });
@@ -188,7 +191,8 @@ describe("Project", () => {
             fundingMinAllocation,
             estimateTokenAllocationRate,
             user1.address,
-            claimBackStartBlockNumber
+            claimBackStartBlockNumber,
+            decimals
           )
       ).to.revertedWith("Invalid block number");
 
@@ -207,7 +211,8 @@ describe("Project", () => {
             fundingMinAllocation,
             estimateTokenAllocationRate,
             user1.address,
-            claimBackStartBlockNumber
+            claimBackStartBlockNumber,
+            decimals
           )
       ).to.revertedWith("Invalid block number");
     });
@@ -234,7 +239,8 @@ describe("Project", () => {
             fundingMinAllocation,
             estimateTokenAllocationRate,
             user1.address,
-            claimBackStartBlockNumber
+            claimBackStartBlockNumber,
+            decimals
           )
       ).to.revertedWith("Invalid block number");
 
@@ -252,7 +258,8 @@ describe("Project", () => {
             fundingMinAllocation,
             estimateTokenAllocationRate,
             user1.address,
-            claimBackStartBlockNumber
+            claimBackStartBlockNumber,
+            decimals
           )
       ).to.revertedWith("Invalid block number");
     });
@@ -279,7 +286,8 @@ describe("Project", () => {
             fundingMinAllocation,
             estimateTokenAllocationRate,
             user1.address,
-            claimBackStartBlockNumber
+            claimBackStartBlockNumber,
+            decimals
           )
       ).to.revertedWith("Invalid block number");
 
@@ -297,7 +305,8 @@ describe("Project", () => {
             fundingMinAllocation,
             estimateTokenAllocationRate,
             user1.address,
-            claimBackStartBlockNumber
+            claimBackStartBlockNumber,
+            decimals
           )
       ).to.revertedWith("Invalid block number");
     });
@@ -324,7 +333,8 @@ describe("Project", () => {
             fundingMinAllocation,
             estimateTokenAllocationRate,
             user1.address,
-            claimBackStartBlockNumber
+            claimBackStartBlockNumber,
+            decimals
           )
       ).to.revertedWith("Invalid block number");
 
@@ -342,7 +352,8 @@ describe("Project", () => {
             fundingMinAllocation,
             estimateTokenAllocationRate,
             user1.address,
-            claimBackStartBlockNumber
+            claimBackStartBlockNumber,
+            decimals
           )
       ).to.revertedWith("Invalid block number");
     });
@@ -371,13 +382,14 @@ describe("Project", () => {
             fundingMinAllocation,
             estimateTokenAllocationRate,
             user1.address,
-            claimBackStartBlockNumber
+            claimBackStartBlockNumber,
+            decimals
           )
       ).revertedWith("Invalid stake min amount");
     });
   });
 
-  describe("setStakingBlockNumber", () => {
+  describe("setConfigBlockNumber", () => {
     beforeEach(async () => {
       currentBlock = await getCurrentBlock();
       stakingStartBlockNumber = currentBlock + 100;
@@ -399,259 +411,160 @@ describe("Project", () => {
           fundingMinAllocation,
           estimateTokenAllocationRate,
           user1.address,
-          claimBackStartBlockNumber
+          claimBackStartBlockNumber,
+          decimals
         );
+      last_project_id = await project.latestProjectId();
     });
 
-    it("Success", async () => {
-      let projectInfo = await project.getProjectInfo(1);
-      const blockStart = projectInfo.stakeInfo.endBlockNumber - 10;
-      const blockEnd = projectInfo.fundingInfo.startBlockNumber - 10;
-      expect(projectInfo.stakeInfo.startBlockNumber).equal(
-        stakingStartBlockNumber,
-        "Invalid block number"
-      );
-      expect(projectInfo.stakeInfo.endBlockNumber).equal(
-        stakingEndBlockNumber,
-        "Invalid block number"
-      );
-      await project.setStakingBlockNumber(1, blockStart, blockEnd);
-      projectInfo = await project.getProjectInfo(1);
-      expect(projectInfo.stakeInfo.startBlockNumber).equal(
-        blockStart,
-        "Invalid block number"
-      );
-      expect(projectInfo.stakeInfo.endBlockNumber).equal(
-        blockEnd,
-        "Invalid block number"
-      );
-    });
+    it("Shoule exception Not admin or owner", async () => {
+      const currentBlock = await getCurrentBlock();
+      const stakingStartBlockNumber = currentBlock + 100;
+      const stakingEndBlockNumber = stakingStartBlockNumber + 100;
+      const fundingStartBlockNumber = stakingEndBlockNumber + 100;
+      const fundingEndBlockNumber = fundingStartBlockNumber + 100;
+      const claimBackStartBlockNumber = fundingEndBlockNumber + 100;
 
-    it("Only owner", async () => {
-      const projectInfo = await project.getProjectInfo(1);
-      const blockStart = projectInfo.stakeInfo.endBlockNumber - 10;
-      const blockEnd = projectInfo.fundingInfo.startBlockNumber - 10;
       await expect(
-        project.connect(user1).setStakingBlockNumber(1, blockStart, blockEnd)
+        project
+          .connect(user1)
+          .setConfigBlockNumber(
+            last_project_id,
+            stakingStartBlockNumber,
+            stakingEndBlockNumber,
+            fundingStartBlockNumber,
+            fundingEndBlockNumber,
+            claimBackStartBlockNumber
+          )
       ).revertedWith("Not admin or owner");
+
       await project
         .connect(admin)
-        .setStakingBlockNumber(1, blockStart, blockEnd);
+        .setConfigBlockNumber(
+          last_project_id,
+          stakingStartBlockNumber,
+          stakingEndBlockNumber,
+          fundingStartBlockNumber,
+          fundingEndBlockNumber,
+          claimBackStartBlockNumber
+        );
 
       await project.connect(admin).setAdmin(user1.address, true);
       await project
         .connect(user1)
-        .setStakingBlockNumber(1, add(blockStart, 1), add(blockEnd, 1));
-    });
-
-    it("blockStart <= blockCurrent", async () => {
-      const projectInfo = await project.getProjectInfo(1);
-      const currentBlock = await getCurrentBlock();
-      const blockEnd = projectInfo.fundingInfo.startBlockNumber - 1;
-      await expect(
-        project
-          .connect(admin)
-          .setStakingBlockNumber(1, currentBlock - 1, blockEnd)
-      ).revertedWith("Invalid block number");
-      await expect(
-        project.connect(admin).setStakingBlockNumber(1, currentBlock, blockEnd)
-      ).revertedWith("Invalid block number");
-      expect(
-        await project
-          .connect(admin)
-          .setStakingBlockNumber(1, currentBlock + 20, blockEnd)
-      ).ok;
-    });
-
-    it("blockStart >= blockEnd", async () => {
-      const projectInfo = await project.getProjectInfo(1);
-      const currentBlock = await getCurrentBlock();
-      const blockStart = currentBlock + 20;
-      const blockEnd = projectInfo.fundingInfo.startBlockNumber - 250;
-      await expect(
-        project
-          .connect(admin)
-          .setStakingBlockNumber(1, blockStart, blockStart - 1)
-      ).revertedWith("Invalid block number");
-      await expect(
-        project.connect(admin).setStakingBlockNumber(1, blockStart, blockStart)
-      ).revertedWith("Invalid block number");
-      expect(
-        await project
-          .connect(admin)
-          .setStakingBlockNumber(1, blockStart, blockEnd)
-      ).ok;
-    });
-
-    it("blockEnd >= fundingStartBlockNumber", async () => {
-      const projectInfo = await project.getProjectInfo(1);
-      const currentBlock = await getCurrentBlock();
-      const blockStart = currentBlock + 20;
-      const blockEnd = projectInfo.fundingInfo.startBlockNumber * 1 + 10;
-      await expect(
-        project.connect(admin).setStakingBlockNumber(1, blockStart, blockEnd)
-      ).revertedWith("Invalid block number");
-      await expect(
-        project
-          .connect(admin)
-          .setStakingBlockNumber(
-            1,
-            blockStart,
-            projectInfo.fundingInfo.startBlockNumber
-          )
-      ).revertedWith("Invalid block number");
-      expect(
-        await project
-          .connect(admin)
-          .setStakingBlockNumber(1, blockStart, blockEnd - 20)
-      ).ok;
-    });
-  });
-
-  describe("setFundingBlockNumber", () => {
-    beforeEach(async () => {
-      currentBlock = await getCurrentBlock();
-      stakingStartBlockNumber = currentBlock + 1000;
-      stakingEndBlockNumber = stakingStartBlockNumber + 1000;
-      fundingStartBlockNumber = stakingEndBlockNumber + 1000;
-      fundingEndBlockNumber = fundingStartBlockNumber + 1000;
-      claimBackStartBlockNumber = fundingEndBlockNumber + 1000;
-
-      await project
-        .connect(admin)
-        .createProject(
-          allocationSize,
+        .setConfigBlockNumber(
+          last_project_id,
           stakingStartBlockNumber,
           stakingEndBlockNumber,
-          minStakeAmount,
-          maxStakeAmount,
           fundingStartBlockNumber,
           fundingEndBlockNumber,
-          fundingMinAllocation,
-          estimateTokenAllocationRate,
-          user1.address,
           claimBackStartBlockNumber
         );
     });
 
+    it("Shoule exception Invalid block number", async () => {
+      await expect(
+        project
+          .connect(admin)
+          .setConfigBlockNumber(
+            last_project_id,
+            0,
+            stakingEndBlockNumber,
+            fundingStartBlockNumber,
+            fundingEndBlockNumber,
+            claimBackStartBlockNumber
+          )
+      ).revertedWith("Invalid block number");
+
+      await expect(
+        project
+          .connect(admin)
+          .setConfigBlockNumber(
+            last_project_id,
+            stakingStartBlockNumber,
+            stakingStartBlockNumber,
+            fundingStartBlockNumber,
+            fundingEndBlockNumber,
+            claimBackStartBlockNumber
+          )
+      ).revertedWith("Invalid block number");
+
+      await expect(
+        project
+          .connect(admin)
+          .setConfigBlockNumber(
+            last_project_id,
+            stakingStartBlockNumber,
+            stakingEndBlockNumber,
+            stakingEndBlockNumber,
+            fundingEndBlockNumber,
+            claimBackStartBlockNumber
+          )
+      ).revertedWith("Invalid block number");
+
+      await expect(
+        project
+          .connect(admin)
+          .setConfigBlockNumber(
+            last_project_id,
+            stakingStartBlockNumber,
+            stakingEndBlockNumber,
+            fundingStartBlockNumber,
+            fundingStartBlockNumber,
+            claimBackStartBlockNumber
+          )
+      ).revertedWith("Invalid block number");
+
+      await expect(
+        project
+          .connect(admin)
+          .setConfigBlockNumber(
+            last_project_id,
+            stakingStartBlockNumber,
+            stakingEndBlockNumber,
+            fundingStartBlockNumber,
+            fundingEndBlockNumber,
+            fundingEndBlockNumber
+          )
+      ).revertedWith("Invalid block number");
+    });
+
     it("Success", async () => {
-      let projectInfo = await project.getProjectInfo(1);
-      let currentBlock = await getCurrentBlock();
-      const blockStart =
-        projectInfo.stakeInfo.endBlockNumber * 1 + currentBlock + 10;
-      const blockEnd = blockStart + 10;
-      expect(projectInfo.fundingInfo.startBlockNumber).equal(
-        fundingStartBlockNumber,
-        "Invalid block number"
-      );
-      expect(projectInfo.fundingInfo.endBlockNumber).equal(
-        fundingEndBlockNumber,
-        "Invalid block number"
-      );
       await project
         .connect(admin)
-        .setFundingBlockNumber(1, blockStart, blockEnd);
-      projectInfo = await project.getProjectInfo(1);
+        .setConfigBlockNumber(
+          last_project_id,
+          stakingStartBlockNumber,
+          stakingEndBlockNumber,
+          fundingStartBlockNumber,
+          fundingEndBlockNumber,
+          claimBackStartBlockNumber
+        );
+      const projectInfo = await project.getProjectInfo(1);
+      expect(projectInfo.stakeInfo.startBlockNumber).equal(
+        stakingStartBlockNumber,
+        "Invalid stakingStartBlockNumber"
+      );
+
+      expect(projectInfo.stakeInfo.endBlockNumber).equal(
+        stakingEndBlockNumber,
+        "Invalid stakingEndBlockNumber"
+      );
+
       expect(projectInfo.fundingInfo.startBlockNumber).equal(
-        blockStart,
-        "Invalid block number"
+        fundingStartBlockNumber,
+        "Invalid fundingStartBlockNumber"
       );
+
       expect(projectInfo.fundingInfo.endBlockNumber).equal(
-        blockEnd,
-        "Invalid block number"
+        fundingEndBlockNumber,
+        "Invalid fundingEndBlockNumber"
       );
-    });
 
-    it("Only owner", async () => {
-      const projectInfo = await project.getProjectInfo(1);
-      let currentBlock = await getCurrentBlock();
-      const blockStart =
-        projectInfo.stakeInfo.endBlockNumber * 1 + currentBlock + 10;
-      const blockEnd = blockStart + 50;
-      await expect(
-        project.connect(user1).setFundingBlockNumber(1, blockStart, blockEnd)
-      ).revertedWith("Not admin or owner");
-      expect(
-        await project
-          .connect(admin)
-          .setFundingBlockNumber(1, blockStart, blockEnd)
-      ).ok;
-    });
-
-    it("blockStart <= currentBlock", async () => {
-      const projectInfo = await project.getProjectInfo(1);
-      let currentBlock = await getCurrentBlock();
-      const blockStart = currentBlock > projectInfo.stakeInfo.endBlockNumber * 1 ? currentBlock + 10 : projectInfo.stakeInfo.endBlockNumber * 1 + 10;
-      const blockEnd = blockStart + 100;
-      await expect(
-        project
-          .connect(admin)
-          .setFundingBlockNumber(1, currentBlock - 1, blockEnd)
-      ).revertedWith("Invalid block number");
-      await expect(
-        project.connect(admin).setFundingBlockNumber(1, currentBlock, blockEnd)
-      ).revertedWith("Invalid block number");
-      expect(
-        await project
-          .connect(admin)
-          .setFundingBlockNumber(1, blockStart, blockStart + 100)
-      ).ok;
-    });
-
-    it("blockStart <= blockEnd", async () => {
-      const projectInfo = await project.getProjectInfo(1);
-      let currentBlock = await getCurrentBlock();
-      const blockStart =
-        projectInfo.stakeInfo.endBlockNumber * 1 + currentBlock + 100;
-      const blockEnd = blockStart + 100;
-      await expect(
-        project
-          .connect(admin)
-          .setFundingBlockNumber(1, blockStart, blockStart - 1)
-      ).revertedWith("Invalid block number");
-      await expect(
-        project.connect(admin).setFundingBlockNumber(1, blockStart, blockStart)
-      ).revertedWith("Invalid block number");
-      expect(
-        await project
-          .connect(admin)
-          .setFundingBlockNumber(1, blockStart, blockEnd)
-      ).ok;
-    });
-
-    it("blockStart <= stakingEndBlockNumber", async () => {
-      const projectInfo = await project.getProjectInfo(1);
-      let currentBlock = await getCurrentBlock();
-      const blockStart =
-        projectInfo.stakeInfo.endBlockNumber * 1 + currentBlock + 10;
-      const blockEnd = blockStart + 10;
-      await expect(
-        project
-          .connect(admin)
-          .setFundingBlockNumber(
-            1,
-            projectInfo.stakeInfo.endBlockNumber - 10,
-            blockEnd
-          )
-      ).revertedWith("Invalid block number");
-      await expect(
-        project
-          .connect(admin)
-          .setFundingBlockNumber(
-            1,
-            projectInfo.stakeInfo.endBlockNumber,
-            projectInfo.stakeInfo.endBlockNumber
-          )
-      ).revertedWith("Invalid block number");
-      expect(
-        await project
-          .connect(admin)
-          .setFundingBlockNumber(
-            1,
-            add(projectInfo.stakeInfo.endBlockNumber, "1"),
-            add(projectInfo.stakeInfo.endBlockNumber, "10")
-          )
-      ).ok;
+      expect(projectInfo.claimBackInfo.startBlockNumber).equal(
+        claimBackStartBlockNumber,
+        "Invalid claimBackStartBlockNumber"
+      );
     });
   });
 
@@ -677,7 +590,8 @@ describe("Project", () => {
           fundingMinAllocation,
           estimateTokenAllocationRate,
           user1.address,
-          claimBackStartBlockNumber
+          claimBackStartBlockNumber,
+          decimals
         );
     });
 
@@ -725,7 +639,8 @@ describe("Project", () => {
           fundingMinAllocation,
           estimateTokenAllocationRate,
           user1.address,
-          claimBackStartBlockNumber
+          claimBackStartBlockNumber,
+          decimals
         );
     });
 
@@ -777,7 +692,8 @@ describe("Project", () => {
           fundingMinAllocation,
           estimateTokenAllocationRate,
           user1.address,
-          claimBackStartBlockNumber
+          claimBackStartBlockNumber,
+          decimals
         );
     });
 
@@ -828,7 +744,8 @@ describe("Project", () => {
           fundingMinAllocation,
           estimateTokenAllocationRate,
           user1.address,
-          claimBackStartBlockNumber
+          claimBackStartBlockNumber,
+          decimals
         );
     });
 
@@ -876,7 +793,8 @@ describe("Project", () => {
           fundingMinAllocation,
           estimateTokenAllocationRate,
           user1.address,
-          claimBackStartBlockNumber
+          claimBackStartBlockNumber,
+          decimals
         );
     });
 
@@ -906,29 +824,21 @@ describe("Project", () => {
   describe("setContracts", () => {
     it("Only owner", async () => {
       await expect(
-        project
-          .connect(user1)
-          .setContracts(user1.address, user2.address)
+        project.connect(user1).setContracts(user1.address, user2.address)
       ).revertedWith("Not admin or owner");
     });
 
     it("Invalid contract address", async () => {
       await expect(
-        project
-          .connect(admin)
-          .setContracts(ZERO_ADDRESS, user2.address)
+        project.connect(admin).setContracts(ZERO_ADDRESS, user2.address)
       ).revertedWith("Invalid contract address");
       await expect(
-        project
-          .connect(admin)
-          .setContracts(user1.address, ZERO_ADDRESS)
+        project.connect(admin).setContracts(user1.address, ZERO_ADDRESS)
       ).revertedWith("Invalid contract address");
     });
 
     it("Success", async () => {
-      await project
-        .connect(admin)
-        .setContracts(user1.address, user2.address);
+      await project.connect(admin).setContracts(user1.address, user2.address);
       expect(await project.gmi()).equal(user1.address);
       expect(await project.busd()).equal(user2.address);
     });
@@ -956,31 +866,50 @@ describe("Project", () => {
           fundingMinAllocation,
           estimateTokenAllocationRate,
           user1.address,
-          claimBackStartBlockNumber
+          claimBackStartBlockNumber,
+          decimals
         );
+      last_project_id = await project.latestProjectId();
     });
 
     it("Success", async () => {
-      const projectInfo = await project.getProjectInfo(1);
-      const blockStart = projectInfo.stakeInfo.endBlockNumber - 10;
-      const blockEnd = projectInfo.fundingInfo.startBlockNumber - 10;
-      await expect(
-        project.connect(user1).setStakingBlockNumber(1, blockStart, blockEnd)
-      ).revertedWith("Not admin or owner");
       await project
         .connect(admin)
-        .setStakingBlockNumber(1, blockStart, blockEnd);
+        .setConfigBlockNumber(
+          last_project_id,
+          stakingStartBlockNumber,
+          stakingEndBlockNumber,
+          fundingStartBlockNumber,
+          fundingEndBlockNumber,
+          claimBackStartBlockNumber
+        );
 
       await project.connect(admin).setAdmin(user1.address, true);
       await project
         .connect(user1)
-        .setStakingBlockNumber(1, add(blockStart, 1), add(blockEnd, 1));
+        .setConfigBlockNumber(
+          last_project_id,
+          stakingStartBlockNumber,
+          stakingEndBlockNumber,
+          fundingStartBlockNumber,
+          fundingEndBlockNumber,
+          claimBackStartBlockNumber
+        );
     });
 
-    it("Only owner", async () => {
+    it("Should exception Only owner", async () => {
       await expect(
-        project.connect(user1).setAdmin(user1.address, true)
-      ).revertedWith("caller is not the owner");
+        project
+          .connect(user1)
+          .setConfigBlockNumber(
+            last_project_id,
+            stakingStartBlockNumber,
+            stakingEndBlockNumber,
+            fundingStartBlockNumber,
+            fundingEndBlockNumber,
+            claimBackStartBlockNumber
+          )
+      ).revertedWith("Not admin or owner");
     });
   });
 
@@ -1006,7 +935,8 @@ describe("Project", () => {
           fundingMinAllocation,
           estimateTokenAllocationRate,
           user1.address,
-          claimBackStartBlockNumber
+          claimBackStartBlockNumber,
+          decimals
         );
 
       projectId = await project.latestProjectId();
@@ -1102,7 +1032,8 @@ describe("Project", () => {
           fundingMinAllocation,
           estimateTokenAllocationRate,
           user1.address,
-          claimBackStartBlockNumber
+          claimBackStartBlockNumber,
+          decimals
         );
 
       projectId = await project.latestProjectId();
@@ -1113,22 +1044,30 @@ describe("Project", () => {
 
     it("Staking has not started yet", async () => {
       await expect(
-        project.connect(user1).stakeWithNFT(projectId, duke.address, tokens_general_user_1[0])
+        project
+          .connect(user1)
+          .stakeWithNFT(projectId, duke.address, tokens_general_user_1[0])
       ).to.revertedWith("Staking has not started yet");
     });
 
     it("Staking has ended", async () => {
       await skipBlock(200);
       await expect(
-        project.connect(user1).stakeWithNFT(projectId, duke.address, tokens_general_user_1[0])
+        project
+          .connect(user1)
+          .stakeWithNFT(projectId, duke.address, tokens_general_user_1[0])
       ).to.revertedWith("Staking has ended");
     });
 
     it("You already staking", async () => {
       await skipBlock(100);
-      await project.connect(user1).stakeWithNFT(projectId, duke.address, tokens_general_user_1[0]);
+      await project
+        .connect(user1)
+        .stakeWithNFT(projectId, duke.address, tokens_general_user_1[0]);
       await expect(
-        project.connect(user1).stakeWithNFT(projectId, duke.address, tokens_general_user_1[1])
+        project
+          .connect(user1)
+          .stakeWithNFT(projectId, duke.address, tokens_general_user_1[1])
       ).to.revertedWith("You already staking");
     });
 
@@ -1145,7 +1084,9 @@ describe("Project", () => {
     it("Unauthorised use of NFT", async () => {
       await skipBlock(100);
       await expect(
-        project.connect(user2).stakeWithNFT(projectId, duke.address, tokens_general_user_1[0])
+        project
+          .connect(user2)
+          .stakeWithNFT(projectId, duke.address, tokens_general_user_1[0])
       ).to.revertedWith("Unauthorised use of NFT");
     });
 
@@ -1155,14 +1096,18 @@ describe("Project", () => {
         .setExpireTime(0, divide(Date.now(), 1000, 0));
       await skipBlock(100);
       await expect(
-        project.connect(user1).stakeWithNFT(projectId, duke.address, tokens_other_user_1[0])
+        project
+          .connect(user1)
+          .stakeWithNFT(projectId, duke.address, tokens_other_user_1[0])
       ).to.revertedWith("Invalid NFT");
     });
 
     it("Token balance is not enough", async () => {
       await skipBlock(100);
       await expect(
-        project.connect(user3).stakeWithNFT(projectId, duke.address, tokens_general_user_3[0])
+        project
+          .connect(user3)
+          .stakeWithNFT(projectId, duke.address, tokens_general_user_3[0])
       ).to.revertedWith("Token balance is not enough");
     });
 
@@ -1173,7 +1118,9 @@ describe("Project", () => {
       const tokenBalanceOfUser_before = await token.balanceOf(user1.address);
 
       await skipBlock(100);
-      await project.connect(user1).stakeWithNFT(projectId, duke.address, tokens_general_user_1[0]);
+      await project
+        .connect(user1)
+        .stakeWithNFT(projectId, duke.address, tokens_general_user_1[0]);
 
       const tokenBalanceOfProject_after = await token.balanceOf(
         project.address
@@ -1217,7 +1164,8 @@ describe("Project", () => {
           fundingMinAllocation,
           estimateTokenAllocationRate,
           user1.address,
-          claimBackStartBlockNumber
+          claimBackStartBlockNumber,
+          decimals
         );
 
       projectId = await project.latestProjectId();
@@ -1332,7 +1280,8 @@ describe("Project", () => {
           fundingMinAllocation,
           estimateTokenAllocationRate,
           user1.address,
-          claimBackStartBlockNumber
+          claimBackStartBlockNumber,
+          decimals
         );
 
       projectId = await project.latestProjectId();
@@ -1340,7 +1289,9 @@ describe("Project", () => {
 
       await memberCard.mintMemberCard(user2.address, "");
       await project.connect(admin).setNftPermitted(memberCard.address, true);
-      await project.connect(user2).stakeWithNFT(projectId, memberCard.address, "0");
+      await project
+        .connect(user2)
+        .stakeWithNFT(projectId, memberCard.address, "0");
       await project.connect(user1).stake(projectId, maxStakeAmount);
       await skipBlock(100);
     });
@@ -1428,7 +1379,8 @@ describe("Project", () => {
           fundingMinAllocation,
           estimateTokenAllocationRate,
           user1.address,
-          claimBackStartBlockNumber
+          claimBackStartBlockNumber,
+          decimals
         );
 
       projectId = await project.latestProjectId();
@@ -1508,7 +1460,8 @@ describe("Project", () => {
           fundingMinAllocation,
           estimateTokenAllocationRate,
           user1.address,
-          claimBackStartBlockNumber
+          claimBackStartBlockNumber,
+          decimals
         );
 
       projectId = await project.latestProjectId();
@@ -1588,7 +1541,8 @@ describe("Project", () => {
           fundingMinAllocation,
           estimateTokenAllocationRate,
           fundingReceiver.address,
-          claimBackStartBlockNumber
+          claimBackStartBlockNumber,
+          decimals
         );
 
       projectId = await project.latestProjectId();
@@ -1641,7 +1595,8 @@ describe("Project", () => {
           fundingMinAllocation,
           estimateTokenAllocationRate,
           fundingReceiver.address,
-          claimBackStartBlockNumber
+          claimBackStartBlockNumber,
+          decimals
         );
 
       await skipBlock(400);

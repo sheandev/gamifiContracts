@@ -55,6 +55,8 @@ describe("Project - Integration", () => {
     maxStakeAmount = '10000000000000000000000';   // 10000 GMI
     fundingMinAllocation = '10000000000000000000';     // 10 USD
     estimateTokenAllocationRate = '100000000000000000'; // rate is 0.1 / mean that fund 1 USD => receive 1 / 0.1 = 10 token
+
+    decimals = await token.decimals();
   });
 
   it("Create project", async () => {
@@ -79,7 +81,8 @@ describe("Project - Integration", () => {
         fundingMinAllocation,
         estimateTokenAllocationRate,
         fundingReceiver.address,
-        claimBackStartBlockNumber
+        claimBackStartBlockNumber,
+        decimals
       );
 
     projectId = await project.latestProjectId();
@@ -506,7 +509,8 @@ describe("Project - Integration", () => {
         fundingMinAllocation,
         estimateTokenAllocationRate,
         fundingReceiver.address,
-        claimBackStartBlockNumber
+        claimBackStartBlockNumber,
+        decimals
       );
 
     projectId = await project.latestProjectId();

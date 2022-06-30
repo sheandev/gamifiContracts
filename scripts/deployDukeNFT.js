@@ -25,8 +25,7 @@ async function main() {
     const duke = await upgrades.deployProxy(Duke, [
         admin,
         "Duke NFT",
-        "CBT",
-        // "0x281ef06F5e464A337D3a56285b2b328808055e9D"
+        "DUKE",
         rand.address
     ]
     );
@@ -113,6 +112,11 @@ async function main() {
     );
     console.log("dukeStakingGeneral                deployed to:", dukeStakingGeneral.address);
     console.log("dukeStakingGeneralVerify          deployed to:", dukeStakingGeneralVerify);
+
+    await duke.setAdmin(dukeStakingGeneral.address, true);
+    await duke.setAdmin(dukeStakingPilot.address, true);
+    await duke.setAdmin(dukeStaking.address, true);
+    await duke.setAdmin(mysteriousBox.address, true);
 
     const contractAddresses = {
         admin: admin,

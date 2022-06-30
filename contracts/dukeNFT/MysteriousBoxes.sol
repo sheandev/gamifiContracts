@@ -25,6 +25,7 @@ contract MysteriousBoxes is
     ERC721EnumerableUpgradeable
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
+    using StringsUpgradeable for uint256;
 
     uint256 public constant MAX_BATCH = 10;
     uint256 public constant TOTAL_SUPPLY = 500;
@@ -39,6 +40,11 @@ contract MysteriousBoxes is
      *          current token ID value in storage.
      */
     uint256 public tokenCounter;
+
+    /**
+     *  @notice baseURI store the value of the ipfs url of NFT images
+     */
+    string public baseURI;
 
     /**
      *  @notice paymentToken is interface of payment token.
@@ -128,6 +134,22 @@ contract MysteriousBoxes is
     }
 
     /**
+     *  @notice Return current base URI.
+     */
+    function _baseURI() internal view override returns (string memory) {
+        return baseURI;
+    }
+
+    /**
+     *  @notice Replace current base URI by new base URI.
+     *
+     *  @dev    Only owner can call this function.
+     */
+    function setBaseURI(string memory _newURI) public onlyOwner {
+        baseURI = _newURI;
+    }
+
+    /**
      *  @notice Withdraw token from contract if end
      *
      *  @dev    Only owner or admin can call this function.
@@ -192,5 +214,31 @@ contract MysteriousBoxes is
         }
 
         emit Bought(_msgSender(), _times, block.timestamp);
+    }
+
+    /**
+     *  @notice Mapping token ID to base URI in ipfs storage
+     *
+     *  @dev    All caller can call this function.
+     */
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override
+        returns (string memory)
+    {
+        require(
+            _exists(tokenId),
+            "ERC721Metadata: URI query for nonexistent token."
+        );
+
+        string memory currentBaseURI = _baseURI();
+        string memory _isOpened = uint256(isOpened[tokenId] ? 1 : 0)
+            .toString();
+
+        return
+            bytes(currentBaseURI).length > 0
+                ? string(abi.encodePacked(currentBaseURI, "/", _isOpened, ".json"))
+                : ".json";
     }
 }

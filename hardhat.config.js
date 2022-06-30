@@ -31,16 +31,18 @@ const config = {
   defaultNetwork: "hardhat",
   networks: {
     hardhat: {
-      accounts: { count: 100 },
+      accounts: { count: 20 },
+      // mining: { auto: false, interval: 1000 },
     },
     testnet: {
       url: 'https://data-seed-prebsc-2-s1.binance.org:8545/',
       accounts: [process.env.DEPLOY_ACCOUNT],
+      gasPrice: 80000000000
     },
     mainnet: {
       url: 'https://bsc-dataseed1.ninicoin.io',
       accounts: [process.env.DEPLOY_ACCOUNT],
-      gas: 2100000, gasPrice: 8000000000
+      gasPrice: 8000000000
     },
   },
   etherscan: {
