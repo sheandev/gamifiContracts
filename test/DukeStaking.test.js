@@ -412,7 +412,7 @@ describe("Duke Staking", () => {
             const unstakeTime = 8 * 30 * 24 * 60 * 60 + 1;
             await skipTime(unstakeTime);
 
-            await expect(staking.connect(user1).unstake(ONE_ETHER)).to.be.revertedWith("Staking: StakingPool for NFT has not expired yet..");
+            await expect(staking.connect(user1).unstake(ONE_ETHER)).to.be.revertedWith("Please request and can withdraw after 24 hours");
         });
 
         it("should revert when request not finish after 24 hours", async () => {

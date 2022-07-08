@@ -9,17 +9,27 @@ async function main() {
     const addresses = accounts.map((item) => item.address);
     const admin = addresses[0];
 
+    const GMI = "0x93D8d25E3C9A847a5Da79F79ecaC89461FEcA846"; // main: 0x93D8d25E3C9A847a5Da79F79ecaC89461FEcA846 / test: 0x88d8defcda194e08a93689fb6888579f6d45851d
+
     // Loading contract factory.
     const MysteriousBox = await ethers.getContractFactory("MysteriousBoxes");
     const Duke = await ethers.getContractFactory("Duke");
     const DukeStaking = await ethers.getContractFactory("DukeStaking");
+    const Rand = await ethers.getContractFactory("Rand");
     // Deploy contracts
     console.log('==================================================================');
     console.log('DEPLOY CONTRACTS');
     console.log('==================================================================');
 
-    const Rand = await ethers.getContractFactory("Rand");
+    // const duke = await Duke.attach("0x53D2edff285970E383bA767De45A249CAC9E6785");
+    // const dukeStaking = await DukeStaking.attach("0x7812cC4f039cf0B2D76c9F1cBa96bb4FCc8704EE");
+    // const dukeStakingGeneral = await DukeStaking.attach("0x40A320023A592944ae0aAE5aba3602e0697d30bA");
+    // const dukeStakingPilot = await DukeStaking.attach("0x22209c1b8301e05Fd8a41a6D5Fe83f45e2B1e9b0");
+    // const mysteriousBox = await MysteriousBox.attach("0x6Cb7CFf54AD5B5d324c91587D2B8c6feE9363c29");
+    // const rand = await Rand.attach("0x0c64D87DeFD1E21Feb06FEcc168aaeadEce8309E");
+
     const rand = await Rand.deploy();
+    await rand.deployed();
     console.log("Rand          deployed to:", rand.address);
 
     const duke = await upgrades.deployProxy(Duke, [
@@ -40,7 +50,7 @@ async function main() {
         admin,
         "Mysterious Box NFT",
         "MBN",
-        "0x88d8defcda194e08a93689fb6888579f6d45851d",
+        GMI,
         duke.address
     ]
     );
@@ -54,8 +64,8 @@ async function main() {
 
     const dukeStaking = await upgrades.deployProxy(DukeStaking, [
         admin,
-        "0x88d8defcda194e08a93689fb6888579f6d45851d",
-        "0x88d8defcda194e08a93689fb6888579f6d45851d",
+        GMI,
+        GMI,
         duke.address,
         process.env.SOLDIER_RATE,
         process.env.POOL_DURATION,
@@ -75,8 +85,8 @@ async function main() {
 
     const dukeStakingPilot = await upgrades.deployProxy(DukeStaking, [
         admin,
-        "0x88d8defcda194e08a93689fb6888579f6d45851d",
-        "0x88d8defcda194e08a93689fb6888579f6d45851d",
+        GMI,
+        GMI,
         duke.address,
         process.env.PILOT_RATE,
         process.env.POOL_DURATION,
@@ -95,8 +105,8 @@ async function main() {
 
     const dukeStakingGeneral = await upgrades.deployProxy(DukeStaking, [
         admin,
-        "0x88d8defcda194e08a93689fb6888579f6d45851d",
-        "0x88d8defcda194e08a93689fb6888579f6d45851d",
+        GMI,
+        GMI,
         duke.address,
         process.env.GENERAL_RATE,
         process.env.POOL_DURATION,
@@ -113,15 +123,40 @@ async function main() {
     console.log("dukeStakingGeneral                deployed to:", dukeStakingGeneral.address);
     console.log("dukeStakingGeneralVerify          deployed to:", dukeStakingGeneralVerify);
 
-    await duke.setAdmin(dukeStakingGeneral.address, true);
-    await duke.setAdmin(dukeStakingPilot.address, true);
-    await duke.setAdmin(dukeStaking.address, true);
-    await duke.setAdmin(mysteriousBox.address, true);
+    console.log('==================================================================');
+    console.log('ACTION FUNCTION TO CONTRACTS');
+    console.log('==================================================================');
+
+    let tx = await duke.setAdmin(dukeStakingGeneral.address, true);
+    await tx.wait();
+    tx = await duke.setAdmin(dukeStakingPilot.address, true);
+    await tx.wait();
+    tx = await duke.setAdmin(dukeStaking.address, true);
+    await tx.wait();
+    tx = await duke.setAdmin(mysteriousBox.address, true);
+    await tx.wait();
+
+    tx = await mysteriousBox.setPricePerNFTBox(ethers.utils.parseEther("1"));
+    await tx.wait();
+
+    tx = await dukeStaking.setStakingEndTime("7200");
+    await tx.wait();
+    tx = await dukeStakingPilot.setStakingEndTime("7200");
+    await tx.wait();
+    tx = await dukeStakingGeneral.setStakingEndTime("7200");
+    await tx.wait();
+
+    tx = await dukeStaking.setPendingUnstake("300");
+    await tx.wait();
+    tx = await dukeStakingPilot.setPendingUnstake("300");
+    await tx.wait();
+    tx = await dukeStakingGeneral.setPendingUnstake("300");
+    await tx.wait();
 
     const contractAddresses = {
         admin: admin,
-        gmi: '0x88d8defcda194e08a93689fb6888579f6d45851d',
-        rand: "0x281ef06F5e464A337D3a56285b2b328808055e9D",
+        gmi: GMI,
+        rand: rand.address,
         duke: duke.address,
         mysteriousBox: mysteriousBox.address,
         dukeStaking: dukeStaking.address,
@@ -136,7 +171,7 @@ async function main() {
 
     const contractAddresses_verify = {
         admin: admin,
-        gmi: "0x88d8defcda194e08a93689fb6888579f6d45851d",
+        gmi: GMI,
         duke: dukeVerify,
         mysteriousBox: mysteriousBoxVerify,
         dukeStaking: dukeStakingVerify,

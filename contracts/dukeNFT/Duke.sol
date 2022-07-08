@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
@@ -131,7 +131,7 @@ contract Duke is
      *
      *  @dev    Only owner can call this function.
      */
-    function setBaseURI(string memory _newURI) public onlyOwner {
+    function setBaseURI(string memory _newURI) external onlyOwner {
         baseURI = _newURI;
     }
 
@@ -140,14 +140,14 @@ contract Duke is
      *
      *  @dev    Only owner can call this function.
      */
-    function setAdmin(address user, bool allow) public onlyOwner {
+    function setAdmin(address user, bool allow) external onlyOwner {
         require(user != address(0), "Invalid address");
         admins[user] = allow;
         emit SetAdmin(user, allow);
     }
 
     function setUseCounter(uint256 tokenId, uint256 useCounter)
-        public
+        external
         onlyAdminOrOwner
     {
         require(
@@ -243,7 +243,7 @@ contract Duke is
      *  @notice Get list token ID by type of owner address.
      */
     function tokensOfOwnerByType(address owner, TypeId typeID)
-        public
+        external
         view
         override
         returns (uint256[] memory)
@@ -277,7 +277,7 @@ contract Duke is
      *  @notice Get list token ID is active of owner address.
      */
     function getNFTActiveOfOwner(address owner)
-        public
+        external
         view
         returns (uint256[] memory)
     {

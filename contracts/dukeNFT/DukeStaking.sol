@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -17,9 +17,6 @@ import "./IDuke.sol";
  *
  *  @notice This smart contract is created for staking pool for user owning duke box can stake amount of token
  *          to get with attractive rewardin 9 months from start day.
- *            -  50% APY : Soldier NFT
- *            -  75% APY :   Pilot NFT
- *            - 150% APY : General NFT
  *          The contract here by is implemented to create opportunities for users to drive project growth
  */
 contract DukeStaking is
@@ -70,11 +67,6 @@ contract DukeStaking is
     uint256 private _poolDuration;
 
     /**
-     *  @notice poolType uint256 is type of pool.
-     */
-    TypeId public poolType;
-
-    /**
      *  @notice pendingUnstake uint256 is time after request unstake for waiting.
      */
     uint256 public pendingUnstake;
@@ -94,6 +86,11 @@ contract DukeStaking is
      *  @notice _startTime is timestamp start staking in pool.
      */
     uint256 public limitStaking;
+
+    /**
+     *  @notice poolType uint256 is type of pool.
+     */
+    TypeId public poolType;
 
     /**
      *  @notice _duke address is address of membercard token.
@@ -172,35 +169,35 @@ contract DukeStaking is
     /**
      *  @notice Get staked token.
      */
-    function getStakeToken() public view returns (address) {
+    function getStakeToken() external view returns (address) {
         return address(_stakeToken);
     }
 
     /**
      *  @notice Get staked amount of staking pool from all user.
      */
-    function getStakedAmount() public view returns (uint256) {
+    function getStakedAmount() external view returns (uint256) {
         return _stakedAmount;
     }
 
     /**
      *  @notice Get pool duration.
      */
-    function getPoolDuration() public view returns (uint256) {
+    function getPoolDuration() external view returns (uint256) {
         return _poolDuration;
     }
 
     /**
      *  @notice Get reward rate of staking pool.
      */
-    function getRewardRate() public view returns (uint256) {
+    function getRewardRate() external view returns (uint256) {
         return _rewardRate;
     }
 
     /**
      *  @notice Get start time of staking pool.
      */
-    function getStartTime() public view returns (uint256) {
+    function getStartTime() external view returns (uint256) {
         return _startTime;
     }
 
@@ -209,7 +206,7 @@ contract DukeStaking is
      *
      *  @dev    Only owner can call this function.
      */
-    function setStartTime(uint256 startTime) public onlyOwner {
+    function setStartTime(uint256 startTime) external onlyOwner {
         _startTime = startTime;
         emit SetStartTime(startTime, block.timestamp);
     }
@@ -219,7 +216,7 @@ contract DukeStaking is
      *
      *  @dev    Only owner can call this function.
      */
-    function setRewardRate(uint256 rewardRate) public onlyOwner {
+    function setRewardRate(uint256 rewardRate) external onlyOwner {
         _rewardRate = rewardRate;
         emit SetRewardRate(rewardRate, block.timestamp);
     }
@@ -229,7 +226,7 @@ contract DukeStaking is
      *
      *  @dev    Only owner can call this function.
      */
-    function setPendingUnstake(uint256 pendingTime) public onlyOwner {
+    function setPendingUnstake(uint256 pendingTime) external onlyOwner {
         pendingUnstake = pendingTime;
         emit SetUnstakeTime(pendingTime, block.timestamp);
     }
@@ -239,7 +236,7 @@ contract DukeStaking is
      *
      *  @dev    Only owner can call this function.
      */
-    function setStakingEndTime(uint256 endTime) public onlyOwner {
+    function setStakingEndTime(uint256 endTime) external onlyOwner {
         stakingEndTime = endTime;
         emit SetStakeTime(endTime, block.timestamp);
     }
@@ -249,7 +246,7 @@ contract DukeStaking is
      *
      *  @dev    Only owner can call this function.
      */
-    function setPoolDuration(uint256 poolDuration) public onlyOwner {
+    function setPoolDuration(uint256 poolDuration) external onlyOwner {
         _poolDuration = poolDuration;
         emit SetDuration(poolDuration, block.timestamp);
     }
@@ -257,14 +254,14 @@ contract DukeStaking is
     /**
      *  @notice Get amount of deposited token of corresponding user address.
      */
-    function getUserAmount(address user) public view returns (uint256) {
+    function getUserAmount(address user) external view returns (uint256) {
         return users[user].totalAmount;
     }
 
     /**
      *  @notice Get max amount of token on corresponding user address.
      */
-    function getMaxAmountOf(address sender) public view returns (uint256) {
+    function getMaxAmountOf(address sender) external view returns (uint256) {
         uint256 numberOfTokens = _duke.tokensOfOwnerByType(sender, poolType).length;
         return numberOfTokens.mul(limitStaking);
     }
@@ -307,7 +304,7 @@ contract DukeStaking is
 
         for (uint256 i = 0; i < tokenIds.length; i++) {
             IDuke.DukeInfo memory info =  _duke.getDukeInfoOf(tokenIds[i]);
-            if (info.lockedExpireTime == 0) {
+            if (!info.isLocked) {
                 _duke.lockToken(tokenIds[i], NFT_LOCK_DURATION);
             }
         }
@@ -420,10 +417,6 @@ contract DukeStaking is
      */
     function unstake(uint256 _amount) external nonReentrant {
         UserInfo storage user = users[_msgSender()];
-        require(
-            _startTime.add(_poolDuration) <= block.timestamp,
-            "Staking: StakingPool for NFT has not expired yet.."
-        );
         require(
             user.lazyUnstake.isRequested &&
                 user.lazyUnstake.unlockedTime <= block.timestamp,

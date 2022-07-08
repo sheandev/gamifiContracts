@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
@@ -115,7 +115,7 @@ contract MysteriousBoxes is
      *
      *  @dev    Only owner can call this function.
      */
-    function setAdmin(address _account, bool _allow) public onlyOwner {
+    function setAdmin(address _account, bool _allow) external onlyOwner {
         require(_account != address(0), "Invalid address");
         admins[_account] = _allow;
         emit SetAdmin(_account, _allow);
@@ -126,7 +126,7 @@ contract MysteriousBoxes is
      *
      *  @dev    Only owner or admin can call this function.
      */
-    function setPricePerNFTBox(uint256 amount) public onlyAdminOrOwner {
+    function setPricePerNFTBox(uint256 amount) external onlyAdminOrOwner {
         require(amount > 0, "Invalid amount");
         uint256 pricePerNFTBoxOld = pricePerNFTBox;
         pricePerNFTBox = amount;
@@ -145,7 +145,7 @@ contract MysteriousBoxes is
      *
      *  @dev    Only owner can call this function.
      */
-    function setBaseURI(string memory _newURI) public onlyOwner {
+    function setBaseURI(string memory _newURI) external onlyOwner {
         baseURI = _newURI;
     }
 
@@ -155,7 +155,7 @@ contract MysteriousBoxes is
      *  @dev    Only owner or admin can call this function.
      */
     function withdraw(address receiver, uint256 amount)
-        public
+        external
         onlyAdminOrOwner
         nonReentrant
     {
@@ -175,7 +175,7 @@ contract MysteriousBoxes is
      *
      *  @dev    Only NFT holder can call this function.
      */
-    function open(uint256 tokenId) public nonReentrant {
+    function open(uint256 tokenId) external nonReentrant {
         require(ownerOf(tokenId) == _msgSender(), "This token is not own !");
         require(!isOpened[tokenId], "Your NFT is opened !");
         isOpened[tokenId] = true;
@@ -189,7 +189,7 @@ contract MysteriousBoxes is
      *
      *  @dev    Anyone can call this function.
      */
-    function buy(uint256 _times) public nonReentrant {
+    function buy(uint256 _times) external nonReentrant {
         require(tokenCounter + _times <= TOTAL_SUPPLY, "Sold out");
         require(
             _times > 0 && _times <= MAX_BATCH,
