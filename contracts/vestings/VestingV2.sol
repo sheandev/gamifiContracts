@@ -23,7 +23,8 @@ contract VestingV2 is Initializable, OwnableUpgradeable {
         uint256 claimed;
     }
 
-    mapping(bytes32 => Vest) private _vests;
+    bool public isVestingStarted;
+    mapping(bytes32 => Vest) public vests;
     mapping(address => uint256) private _nonce;
 
     event InitiateVests(
@@ -44,45 +45,49 @@ contract VestingV2 is Initializable, OwnableUpgradeable {
         token = _token;
     }
 
-    function getClaimable(address owner_) public view returns (uint256) {
+    function getClaimable(address _account) public view returns (uint256) {
         uint256 tokenClaimable;
-        for (uint256 i = 0; i < _nonce[owner_]; i++) {
-            tokenClaimable += getClaimableForNonce(owner_, i);
+        for (uint256 i = 0; i < _nonce[_account]; i++) {
+            tokenClaimable += getClaimableForNonce(_account, i);
         }
+
         return tokenClaimable;
     }
 
-    function getClaimableForNonce(address owner_, uint256 nonce)
+    function getClaimableForNonce(address _account, uint256 nonce)
         public
         view
         returns (uint256)
     {
-        bytes32 index = getVestId(owner_, nonce);
+        bytes32 index = getVestId(_account, nonce);
+        Vest memory vest = getVest(index);
+
         uint256 tokenClaimable;
         uint256 currentTime = block.timestamp;
         if (
-            currentTime >= _vests[index].start.add(_vests[index].cliff) &&
+            currentTime >= vest.start.add(vest.cliff) &&
             currentTime <=
-            _vests[index].start.add(_vests[index].cliff).add(
-                _vests[index].linear
+            vest.start.add(vest.cliff).add(
+                vest.linear
             )
         ) {
             uint256 timePassed = currentTime.sub(
-                (_vests[index].start).add(_vests[index].cliff)
+                (vest.start).add(vest.cliff)
             );
             tokenClaimable = (
-                (_vests[index].amount - _vests[index].initial)
+                (vest.amount - vest.initial)
                     .mul(timePassed)
-                    .div(_vests[index].linear)
-            ).add(_vests[index].initial).sub(_vests[index].claimed);
+                    .div(vest.linear)
+            ).add(vest.initial).sub(vest.claimed);
         } else if (
             currentTime >
-            _vests[index].start.add(_vests[index].cliff).add(
-                _vests[index].linear
+            vest.start.add(vest.cliff).add(
+                vest.linear
             )
         ) {
-            tokenClaimable = _vests[index].amount.sub(_vests[index].claimed);
+            tokenClaimable = vest.amount.sub(vest.claimed);
         }
+
         return tokenClaimable;
     }
 
@@ -92,7 +97,7 @@ contract VestingV2 is Initializable, OwnableUpgradeable {
             uint256 tokenClaimableForNone = getClaimableForNonce(_msgSender(), i);
             tokenClaimable += tokenClaimableForNone;
             bytes32 index = getVestId(_msgSender(), i);
-            _vests[index].claimed = _vests[index].claimed.add(
+            vests[index].claimed = vests[index].claimed.add(
                 tokenClaimableForNone
             );
         }
@@ -121,6 +126,8 @@ contract VestingV2 is Initializable, OwnableUpgradeable {
         }
 
         require(amount == totalAmount, "Vesting: Bad totalAmount");
+
+        isVestingStarted = true;
         token.safeTransferFrom(_msgSender(), address(this), totalAmount);
 
         emit InitiateVests(accounts, amounts, tgePercent, cliff, linear);
@@ -134,7 +141,7 @@ contract VestingV2 is Initializable, OwnableUpgradeable {
         uint256 linear
     ) private {
         bytes32 index = getVestId(owner_, _nonce[owner_]);
-        _vests[index] = Vest(
+        vests[index] = Vest(
             owner_,
             amount,
             block.timestamp,
@@ -158,7 +165,7 @@ contract VestingV2 is Initializable, OwnableUpgradeable {
         return _nonce[user];
     }
 
-    function getVest(bytes32 index) external view returns (Vest memory) {
-        return _vests[index];
+    function getVest(bytes32 index) public view returns (Vest memory) {
+        return vests[index];
     }
 }
