@@ -1,6 +1,6 @@
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
-const { skipTime, setTime } = require("./utils");
+const { skipTime, setTime } = require("../utils");
 const { MAX_UINT256 } = require("@openzeppelin/test-helpers/src/constants");
 const { add, subtract, multiply, divide } = require('js-big-decimal');
 

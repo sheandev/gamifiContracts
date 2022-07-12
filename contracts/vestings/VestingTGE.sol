@@ -5,7 +5,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "./libraries/Formula.sol";
+import "../libraries/Formula.sol";
 
 contract VestingTGE is Initializable, OwnableUpgradeable {
     using SafeMathUpgradeable for uint256;
