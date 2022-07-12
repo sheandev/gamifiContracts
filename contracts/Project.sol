@@ -3,28 +3,36 @@ pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "./libraries/Formula.sol";
 import "./libraries/Config.sol";
 
-interface IMemberCard {
+interface INft {
     function getMemberCardActive(uint256 tokenId) external view returns(bool);
     function consumeMembership(uint256 tokenId) external;
     function ownerOf(uint256 tokenId) external view returns (address);
 }
 
-contract Project is Initializable, OwnableUpgradeable {
+contract Project is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
+    using AddressUpgradeable for address;
+
+    // IID of ERC721 contract interface
+	bytes4 public constant IID_IERC721 = type(IERC721Upgradeable).interfaceId;
 
     struct UserInfo {
         bool isAddedWhitelist;
         bool isClaimedBack;
+        address nftAddress;
         uint256 stakedAmount;
         uint256 fundedAmount;
         uint256 tokenAllocationAmount;
         uint256 allocatedPortion;
-        uint256 usedMemberCard;
+        uint256 usedNft;
     }
 
     struct StakeInfo {
@@ -54,6 +62,7 @@ contract Project is Initializable, OwnableUpgradeable {
         uint256 allocationSize;
         uint256 totalTokenAllocated;
         uint256 whitelistedTotalPortion;
+        uint256 tokenDecimals;
         StakeInfo stakeInfo;
         FundingInfo fundingInfo;
         ClaimBackInfo claimBackInfo;
@@ -61,9 +70,9 @@ contract Project is Initializable, OwnableUpgradeable {
 
     IERC20Upgradeable public gmi;
     IERC20Upgradeable public busd;
-    IMemberCard public memberCard;
 
     uint256 public latestProjectId;
+    uint256 public gasCallLimit;
 
     // projectId => project info
     mapping(uint256 => ProjectInfo) public projects;
@@ -73,31 +82,32 @@ contract Project is Initializable, OwnableUpgradeable {
 
     mapping(address => bool) public admins;
 
+    mapping(address => bool) public nftPermitteds;
+
     event CreateProject(ProjectInfo project);
     event SetAllocationSize(uint256 indexed _projectId, uint256 indexed allocationSize);
     event SetEstimateTokenAllocationRate(uint256 indexed _projectId, uint256 indexed estimateTokenAllocationRate);
-    event SetStakingBlockNumber(uint256 indexed projectId, uint256 indexed blockStart, uint256 indexed blockEnd);
+    event SetConfigBlockNumber(uint256 indexed projectId, uint256 indexed stakingBlockStart, uint256 stakingBlockEnd, uint256 indexed fundingBlockStart, uint256 fundingBlockEnd, uint256 claimBackBlock);
     event SetMinStakeAmount(uint256 indexed projectId, uint256 indexed minStakeAmount);
     event SetMaxStakeAmount(uint256 indexed projectId, uint256 indexed maxStakeAmount);
-    event SetClaimBackStartBlockNumber(uint256 indexed projectId, uint256 indexed blockStart);
-    event SetFundingBlockNumber(uint256 indexed projectId, uint256 indexed blockStart, uint256 indexed blockEnd);
     event SetFundingMinAllocation(uint256 indexed projectId, uint256 indexed minAllocation);
     event SetFundingReceiver(uint256 indexed projectId, address indexed fundingReceiver);
     event Stake(address indexed account, uint256 indexed projectId, uint256 indexed amount);
-    event StakeWithMemberCard(address indexed account, uint256 indexed projectId, uint256 indexed tokenId, uint256 portion);
     event ClaimBack(address indexed account, uint256 indexed projectId, uint256 indexed amount);
     event AddedToWhitelist(uint256 indexed projectId, address[] indexed accounts);
     event RemovedFromWhitelist(uint256 indexed projectId, address[] indexed accounts);
     event Funding(address indexed account, uint256 indexed projectId, uint256 indexed amount, uint256 tokenAllocationAmount);
     event WithdrawFunding(address indexed account, uint256 indexed projectId, uint256 indexed amount);
     event SetAdmin(address indexed user, bool indexed allow);
-
-    function initialize(address owner_, IERC20Upgradeable _gmi, IERC20Upgradeable _busd, IMemberCard _memberCard) public initializer {
-        OwnableUpgradeable.__Ownable_init();
+    event SetNftPermitted(address indexed _nftAddress, bool indexed allow);
+    event StakeWithNFT(address indexed account, uint256 indexed projectId, address _nftAddress, uint256 indexed tokenId, uint256 portion);
+    
+    function initialize(address owner_, IERC20Upgradeable _gmi, IERC20Upgradeable _busd) public initializer {
+        __ReentrancyGuard_init();
+        __Ownable_init();
         _transferOwnership(owner_);
         gmi = _gmi;
         busd = _busd;
-        memberCard = IMemberCard(_memberCard);
     }
 
     modifier validProject(uint256 _projectId) {
@@ -121,7 +131,8 @@ contract Project is Initializable, OwnableUpgradeable {
         uint256 _fundingMinAllocation,
         uint256 _estimateTokenAllocationRate,
         address _fundingReceiver,
-        uint256 _claimBackStartBlockNumber
+        uint256 _claimBackStartBlockNumber,
+        uint256 _tokenDecimals
     ) external onlyAdminOrOwner {
         require(_stakingStartBlockNumber > block.number &&
                 _stakingStartBlockNumber < _stakingEndBlockNumber &&
@@ -130,6 +141,7 @@ contract Project is Initializable, OwnableUpgradeable {
                 _fundingEndBlockNumber < _claimBackStartBlockNumber, "Invalid block number");
         require(_minStakeAmount <= _maxStakeAmount, "Invalid stake min amount");
         require(_fundingReceiver != address(0), "Invalid funding receiver address");
+        require(_tokenDecimals > 0, "Invalid token decimals");
 
         latestProjectId++;
         ProjectInfo memory project;
@@ -145,6 +157,7 @@ contract Project is Initializable, OwnableUpgradeable {
         project.fundingInfo.estimateTokenAllocationRate = _estimateTokenAllocationRate;
         project.fundingInfo.fundingReceiver = _fundingReceiver;
         project.claimBackInfo.startBlockNumber = _claimBackStartBlockNumber;
+        project.tokenDecimals = _tokenDecimals;
 
         projects[latestProjectId] = project;
         emit CreateProject(project);
@@ -164,15 +177,21 @@ contract Project is Initializable, OwnableUpgradeable {
         emit SetEstimateTokenAllocationRate(_projectId, _rate);
     }
 
-    function setStakingBlockNumber(uint256 _projectId, uint256 _blockStart, uint256 _blockEnd) external onlyAdminOrOwner validProject(_projectId) {
+    function setConfigBlockNumber(uint256 _projectId, uint256 _stakingBlockStart, uint256 _stakingBlockEnd, uint256 _fundingBlockStart, uint256 _fundingBlockEnd, uint256 _claimBackBlock) external onlyAdminOrOwner validProject(_projectId) {
         ProjectInfo storage project = projects[_projectId];
-        require(_blockStart > block.number &&
-                _blockStart < _blockEnd &&
-                _blockEnd < project.fundingInfo.startBlockNumber, "Invalid block number");
+        require(_stakingBlockStart > 0 &&
+                _stakingBlockStart < _stakingBlockEnd &&
+                _stakingBlockEnd < _fundingBlockStart &&
+                _fundingBlockStart < _fundingBlockEnd &&
+                _fundingBlockEnd < _claimBackBlock
+                , "Invalid block number");
 
-        project.stakeInfo.startBlockNumber = _blockStart;
-        project.stakeInfo.endBlockNumber = _blockEnd;
-        emit SetStakingBlockNumber(_projectId, _blockStart, _blockEnd);
+        project.stakeInfo.startBlockNumber = _stakingBlockStart;
+        project.stakeInfo.endBlockNumber = _stakingBlockEnd;
+        project.fundingInfo.startBlockNumber = _fundingBlockStart;
+        project.fundingInfo.endBlockNumber = _fundingBlockEnd;
+        project.claimBackInfo.startBlockNumber = _claimBackBlock;
+        emit SetConfigBlockNumber(_projectId, _stakingBlockStart, _stakingBlockEnd, _fundingBlockStart, _fundingBlockEnd, _claimBackBlock);
     }
 
     function setMinStakeAmount(uint256 _projectId, uint256 _amount) external onlyAdminOrOwner validProject(_projectId) {
@@ -190,28 +209,6 @@ contract Project is Initializable, OwnableUpgradeable {
         emit SetMaxStakeAmount(_projectId, _amount);
     }
 
-    function setFundingBlockNumber(uint256 _projectId, uint256 _blockStart, uint256 _blockEnd) external onlyAdminOrOwner validProject(_projectId) {
-        ProjectInfo storage project = projects[_projectId];
-        require(_blockStart > block.number &&
-                _blockStart > project.stakeInfo.endBlockNumber &&
-                _blockStart < _blockEnd &&
-                _blockEnd < project.claimBackInfo.startBlockNumber,
-                "Invalid block number");
-
-        project.fundingInfo.startBlockNumber = _blockStart;
-        project.fundingInfo.endBlockNumber = _blockEnd;
-        emit SetFundingBlockNumber(_projectId, _blockStart, _blockEnd);
-    }
-
-    function setClaimBackStartBlockNumber(uint256 _projectId, uint256 _blockStart) external onlyAdminOrOwner validProject(_projectId) {
-        ProjectInfo storage project = projects[_projectId];
-        require(_blockStart > block.number &&
-                _blockStart > project.fundingInfo.endBlockNumber, "Invalid block number");
-
-        project.claimBackInfo.startBlockNumber = _blockStart;
-        emit SetClaimBackStartBlockNumber(_projectId, _blockStart);
-    }
-
     function setFundingMinAllocation(uint256 _projectId, uint256 _amount) external onlyAdminOrOwner validProject(_projectId) {
         require(_amount > 0, "Invalid project funding min allocation");
 
@@ -225,16 +222,24 @@ contract Project is Initializable, OwnableUpgradeable {
         emit SetFundingReceiver(_projectId, _fundingReceiver);
     }
 
-    function setContracts(address _gmi, address _busd, address _memberCard) external onlyAdminOrOwner {
-        require(_gmi != address(0) && _busd != address(0) && _memberCard != address(0), "Invalid contract address");
+    function setContracts(address _gmi, address _busd) external onlyAdminOrOwner {
+        require(_gmi != address(0) && _busd != address(0), "Invalid contract address");
         gmi = IERC20Upgradeable(_gmi);
-        busd = IERC20Upgradeable(_busd);
-        memberCard = IMemberCard(_memberCard);
+        busd = IERC20Upgradeable(_busd);    
     }
 
-    function setAdmin(address user, bool allow) public onlyOwner {
+    function setAdmin(address user, bool allow) external onlyOwner {
         admins[user] = allow;
         emit SetAdmin(user, allow);
+    }
+
+    function setNftPermitted(address nft, bool allow) external onlyOwner nonReentrant {
+        require(nft != address(0), "Invalid nft address");
+        require(nft.isContract(), "NFT is not contract");
+        (bool success, ) = nft.call(abi.encodeWithSignature("supportsInterface(bytes4)", IID_IERC721));
+		require(success && IERC721Upgradeable(nft).supportsInterface(IID_IERC721), "NFT address is not ERC721");
+        nftPermitteds[nft] = allow;
+        emit SetNftPermitted(nft, allow);
     }
 
     /// @notice stake amount of GMI tokens to Staking Pool
@@ -259,37 +264,40 @@ contract Project is Initializable, OwnableUpgradeable {
         emit Stake(_msgSender(), _projectId, _amount);
     }
 
-    /// @notice stake member card NFT to Staking Pool
+    /// @notice stake NFT to Staking Pool
     /// @dev    this method can called by anyone
     /// @param  _projectId  id of the project
-    /// @param  _tokenId  id of the member card to be staked
-    function stakeWithMemberCard(uint256 _projectId, uint256 _tokenId) external validProject(_projectId) {
+    /// @param  _nftAddress  address of the nft
+    /// @param  _tokenId  id of the nft to be staked
+    function stakeWithNFT(uint256 _projectId, address _nftAddress, uint256 _tokenId) external validProject(_projectId) {
         StakeInfo storage stakeInfo = projects[_projectId].stakeInfo;
 
         require(!isAlreadyStaked(_projectId, _msgSender()), "You already staking");
         require(block.number >= stakeInfo.startBlockNumber, "Staking has not started yet");
         require(block.number <= stakeInfo.endBlockNumber, "Staking has ended");
+        require(nftPermitteds[_nftAddress], "NFT has not permitted");
 
-        require(memberCard.ownerOf(_tokenId) == _msgSender(), "Unauthorised use of Member Card");
-        bool active = memberCard.getMemberCardActive(_tokenId);
-        require(active, "Invalid member card");
+        require(INft(_nftAddress).ownerOf(_tokenId) == _msgSender(), "Unauthorised use of NFT");
+        bool active = INft(_nftAddress).getMemberCardActive(_tokenId);
+        require(active, "Invalid NFT");
 
         require(gmi.balanceOf(_msgSender()) >= stakeInfo.minStakeAmount, "Token balance is not enough");
 
-        memberCard.consumeMembership(_tokenId);
+        INft(_nftAddress).consumeMembership(_tokenId);
 
+        userInfo[_projectId][_msgSender()].nftAddress = _nftAddress;
         userInfo[_projectId][_msgSender()].allocatedPortion += stakeInfo.maxStakeAmount;
-        userInfo[_projectId][_msgSender()].usedMemberCard++;
+        userInfo[_projectId][_msgSender()].usedNft++;
 
         addUserToWhitelist(_projectId, _msgSender(), true);
 
-        emit StakeWithMemberCard(_msgSender(), _projectId, _tokenId, stakeInfo.maxStakeAmount);
+        emit StakeWithNFT(_msgSender(), _projectId, _nftAddress, _tokenId, stakeInfo.maxStakeAmount);
     }
 
     /// @notice claimBack amount of GMI tokens from staked GMI before
     /// @dev    This method can called by anyone
     /// @param  _projectId  id of the project
-    function claimBack(uint256 _projectId) external validProject(_projectId) {
+    function claimBack(uint256 _projectId) external validProject(_projectId) nonReentrant {
         require(block.number >= projects[_projectId].claimBackInfo.startBlockNumber, "Claiming back has not started yet");
 
         UserInfo storage user = userInfo[_projectId][_msgSender()];
@@ -371,7 +379,7 @@ contract Project is Initializable, OwnableUpgradeable {
     /// @notice Send funded USD to project funding receiver
     /// @dev    this method only called by owner
     /// @param  _projectId  id of the project
-    function withdrawFunding(uint256 _projectId) external onlyAdminOrOwner validProject(_projectId) {
+    function withdrawFunding(uint256 _projectId) external onlyAdminOrOwner validProject(_projectId) nonReentrant {
         FundingInfo storage fundingInfo = projects[_projectId].fundingInfo;
         require(block.number > fundingInfo.endBlockNumber, "Funding has not ended yet");
         require(!fundingInfo.isWithdrawnFund, "Already withdrawn fund");
@@ -433,7 +441,9 @@ contract Project is Initializable, OwnableUpgradeable {
 
     function estimateTokenAllocation(uint256 _projectId, uint256 _fundingAmount) public view returns (uint256) {
         uint256 rate = projects[_projectId].fundingInfo.estimateTokenAllocationRate;
+        uint256 _tokenDecimals = projects[_projectId].tokenDecimals;
         require(rate > 0, "Did not set estimate token allocation rate yet");
-        return Formula.mulDiv(_fundingAmount, Formula.SCALE, rate);
+        if (_tokenDecimals == 0) return 0;
+        return Formula.mulDiv(_fundingAmount, 10**_tokenDecimals, rate);
     }
 }

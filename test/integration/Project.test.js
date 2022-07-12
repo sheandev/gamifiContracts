@@ -26,7 +26,9 @@ describe("Project - Integration", () => {
     await memberCard.initialize(admin.address, "NFT", "NFT");
 
     const Project = await ethers.getContractFactory("Project");
-    project = await upgrades.deployProxy(Project, [admin.address, token.address, busd.address, memberCard.address]);
+    project = await upgrades.deployProxy(Project, [admin.address, token.address, busd.address]);
+
+    await project.setNftPermitted(memberCard.address, true);
 
     await token.addController(admin.address);
     await token.mint(user1.address, '1000000000000000000000000'); // mint 1000,000 token GMI
@@ -53,6 +55,8 @@ describe("Project - Integration", () => {
     maxStakeAmount = '10000000000000000000000';   // 10000 GMI
     fundingMinAllocation = '10000000000000000000';     // 10 USD
     estimateTokenAllocationRate = '100000000000000000'; // rate is 0.1 / mean that fund 1 USD => receive 1 / 0.1 = 10 token
+
+    decimals = await token.decimals();
   });
 
   it("Create project", async () => {
@@ -77,7 +81,8 @@ describe("Project - Integration", () => {
         fundingMinAllocation,
         estimateTokenAllocationRate,
         fundingReceiver.address,
-        claimBackStartBlockNumber
+        claimBackStartBlockNumber,
+        decimals
       );
 
     projectId = await project.latestProjectId();
@@ -116,7 +121,7 @@ describe("Project - Integration", () => {
     await project.connect(user2).stake(projectId, '2000000000000000000000'); // 2000 token GMI
     await project.connect(user3).stake(projectId, '6000000000000000000000'); // 6000 token GMI
     await project.connect(user4).stake(projectId, '10000000000000000000000'); // 10000 token GMI
-    await project.connect(user5).stakeWithMemberCard(projectId, 0);
+    await project.connect(user5).stakeWithNFT(projectId, memberCard.address, 0);
 
     const user1TokenBalance_after = await token.balanceOf(user1.address);
     const user2TokenBalance_after = await token.balanceOf(user2.address);
@@ -134,7 +139,7 @@ describe("Project - Integration", () => {
 
     const user1Info = await project.getUserInfo(projectId, user1.address);
     expect(user1Info.isClaimedBack).to.be.false;
-    expect(user1Info.usedMemberCard).to.equal('0');
+    expect(user1Info.usedNft).to.equal('0');
     expect(user1Info.stakedAmount).to.equal('1000000000000000000000');
     expect(user1Info.allocatedPortion).to.equal('1000000000000000000000');
     expect(user1Info.fundedAmount).to.equal('0');
@@ -142,7 +147,7 @@ describe("Project - Integration", () => {
 
     const user2Info = await project.getUserInfo(projectId, user2.address);
     expect(user2Info.isClaimedBack).to.be.false;
-    expect(user2Info.usedMemberCard).to.equal('0');
+    expect(user2Info.usedNft).to.equal('0');
     expect(user2Info.stakedAmount).to.equal('2000000000000000000000');
     expect(user2Info.allocatedPortion).to.equal('2000000000000000000000');
     expect(user2Info.fundedAmount).to.equal('0');
@@ -150,7 +155,7 @@ describe("Project - Integration", () => {
 
     const user3Info = await project.getUserInfo(projectId, user3.address);
     expect(user3Info.isClaimedBack).to.be.false;
-    expect(user3Info.usedMemberCard).to.equal('0');
+    expect(user3Info.usedNft).to.equal('0');
     expect(user3Info.stakedAmount).to.equal('6000000000000000000000');
     expect(user3Info.allocatedPortion).to.equal('6000000000000000000000');
     expect(user3Info.fundedAmount).to.equal('0');
@@ -158,7 +163,7 @@ describe("Project - Integration", () => {
 
     const user4Info = await project.getUserInfo(projectId, user4.address);
     expect(user4Info.isClaimedBack).to.be.false;
-    expect(user4Info.usedMemberCard).to.equal('0');
+    expect(user4Info.usedNft).to.equal('0');
     expect(user4Info.stakedAmount).to.equal('10000000000000000000000');
     expect(user4Info.allocatedPortion).to.equal('10000000000000000000000');
     expect(user4Info.fundedAmount).to.equal('0');
@@ -166,7 +171,7 @@ describe("Project - Integration", () => {
 
     const user5Info = await project.getUserInfo(projectId, user5.address);
     expect(user5Info.isClaimedBack).to.be.false;
-    expect(user5Info.usedMemberCard).to.equal('1');
+    expect(user5Info.usedNft).to.equal('1');
     expect(user5Info.stakedAmount).to.equal('0');
     expect(user5Info.allocatedPortion).to.equal('10000000000000000000000');
     expect(user5Info.fundedAmount).to.equal('0');
@@ -260,7 +265,7 @@ describe("Project - Integration", () => {
 
     const user1Info = await project.getUserInfo(projectId, user1.address);
     expect(user1Info.isClaimedBack).to.be.false;
-    expect(user1Info.usedMemberCard).to.equal('0');
+    expect(user1Info.usedNft).to.equal('0');
     expect(user1Info.stakedAmount).to.equal('1000000000000000000000');
     expect(user1Info.allocatedPortion).to.equal('1000000000000000000000');
     expect(user1Info.fundedAmount).to.equal(fundingMaxAllocation_user1);
@@ -292,7 +297,7 @@ describe("Project - Integration", () => {
 
     const user3Info = await project.getUserInfo(projectId, user3.address);
     expect(user3Info.isClaimedBack).to.be.false;
-    expect(user3Info.usedMemberCard).to.equal('0');
+    expect(user3Info.usedNft).to.equal('0');
     expect(user3Info.stakedAmount).to.equal('6000000000000000000000');
     expect(user3Info.allocatedPortion).to.equal('6000000000000000000000');
     expect(user3Info.fundedAmount).to.equal(fundingMaxAllocation_user3);
@@ -324,7 +329,7 @@ describe("Project - Integration", () => {
 
     const user4Info = await project.getUserInfo(projectId, user4.address);
     expect(user4Info.isClaimedBack).to.be.false;
-    expect(user4Info.usedMemberCard).to.equal('0');
+    expect(user4Info.usedNft).to.equal('0');
     expect(user4Info.stakedAmount).to.equal('10000000000000000000000');
     expect(user4Info.allocatedPortion).to.equal('10000000000000000000000');
     expect(user4Info.fundedAmount).to.equal('10000000000000000000000');
@@ -353,7 +358,7 @@ describe("Project - Integration", () => {
 
     const user4Info = await project.getUserInfo(projectId, user4.address);
     expect(user4Info.isClaimedBack).to.be.false;
-    expect(user4Info.usedMemberCard).to.equal('0');
+    expect(user4Info.usedNft).to.equal('0');
     expect(user4Info.stakedAmount).to.equal('10000000000000000000000');
     expect(user4Info.allocatedPortion).to.equal('10000000000000000000000');
     expect(user4Info.fundedAmount).to.equal(fundingMaxAllocation_user4);
@@ -385,7 +390,7 @@ describe("Project - Integration", () => {
 
     const user5Info = await project.getUserInfo(projectId, user5.address);
     expect(user5Info.isClaimedBack).to.be.false;
-    expect(user5Info.usedMemberCard).to.equal('1');
+    expect(user5Info.usedNft).to.equal('1');
     expect(user5Info.stakedAmount).to.equal('0');
     expect(user5Info.allocatedPortion).to.equal('10000000000000000000000');
     expect(user5Info.fundedAmount).to.equal(fundingMaxAllocation_user5);
@@ -504,7 +509,8 @@ describe("Project - Integration", () => {
         fundingMinAllocation,
         estimateTokenAllocationRate,
         fundingReceiver.address,
-        claimBackStartBlockNumber
+        claimBackStartBlockNumber,
+        decimals
       );
 
     projectId = await project.latestProjectId();
@@ -543,7 +549,7 @@ describe("Project - Integration", () => {
     await project.connect(user2).stake(projectId, '2000000000000000000000'); // 2000 token GMI
     await project.connect(user3).stake(projectId, '6000000000000000000000'); // 6000 token GMI
     await project.connect(user4).stake(projectId, '10000000000000000000000'); // 10000 token GMI
-    await project.connect(user5).stakeWithMemberCard(projectId, 0);
+    await project.connect(user5).stakeWithNFT(projectId, memberCard.address, 0);
 
     const user1TokenBalance_after = await token.balanceOf(user1.address);
     const user2TokenBalance_after = await token.balanceOf(user2.address);
@@ -561,7 +567,7 @@ describe("Project - Integration", () => {
 
     const user1Info = await project.getUserInfo(projectId, user1.address);
     expect(user1Info.isClaimedBack).to.be.false;
-    expect(user1Info.usedMemberCard).to.equal('0');
+    expect(user1Info.usedNft).to.equal('0');
     expect(user1Info.stakedAmount).to.equal('1000000000000000000000');
     expect(user1Info.allocatedPortion).to.equal('1000000000000000000000');
     expect(user1Info.fundedAmount).to.equal('0');
@@ -569,7 +575,7 @@ describe("Project - Integration", () => {
 
     const user2Info = await project.getUserInfo(projectId, user2.address);
     expect(user2Info.isClaimedBack).to.be.false;
-    expect(user2Info.usedMemberCard).to.equal('0');
+    expect(user2Info.usedNft).to.equal('0');
     expect(user2Info.stakedAmount).to.equal('2000000000000000000000');
     expect(user2Info.allocatedPortion).to.equal('2000000000000000000000');
     expect(user2Info.fundedAmount).to.equal('0');
@@ -577,7 +583,7 @@ describe("Project - Integration", () => {
 
     const user3Info = await project.getUserInfo(projectId, user3.address);
     expect(user3Info.isClaimedBack).to.be.false;
-    expect(user3Info.usedMemberCard).to.equal('0');
+    expect(user3Info.usedNft).to.equal('0');
     expect(user3Info.stakedAmount).to.equal('6000000000000000000000');
     expect(user3Info.allocatedPortion).to.equal('6000000000000000000000');
     expect(user3Info.fundedAmount).to.equal('0');
@@ -585,7 +591,7 @@ describe("Project - Integration", () => {
 
     const user4Info = await project.getUserInfo(projectId, user4.address);
     expect(user4Info.isClaimedBack).to.be.false;
-    expect(user4Info.usedMemberCard).to.equal('0');
+    expect(user4Info.usedNft).to.equal('0');
     expect(user4Info.stakedAmount).to.equal('10000000000000000000000');
     expect(user4Info.allocatedPortion).to.equal('10000000000000000000000');
     expect(user4Info.fundedAmount).to.equal('0');
@@ -593,7 +599,7 @@ describe("Project - Integration", () => {
 
     const user5Info = await project.getUserInfo(projectId, user5.address);
     expect(user5Info.isClaimedBack).to.be.false;
-    expect(user5Info.usedMemberCard).to.equal('1');
+    expect(user5Info.usedNft).to.equal('1');
     expect(user5Info.stakedAmount).to.equal('0');
     expect(user5Info.allocatedPortion).to.equal('10000000000000000000000');
     expect(user5Info.fundedAmount).to.equal('0');
@@ -687,7 +693,7 @@ describe("Project - Integration", () => {
 
     const user1Info = await project.getUserInfo(projectId, user1.address);
     expect(user1Info.isClaimedBack).to.be.false;
-    expect(user1Info.usedMemberCard).to.equal('0');
+    expect(user1Info.usedNft).to.equal('0');
     expect(user1Info.stakedAmount).to.equal('1000000000000000000000');
     expect(user1Info.allocatedPortion).to.equal('1000000000000000000000');
     expect(user1Info.fundedAmount).to.equal(fundingMaxAllocation_user1);
@@ -719,7 +725,7 @@ describe("Project - Integration", () => {
 
     const user3Info = await project.getUserInfo(projectId, user3.address);
     expect(user3Info.isClaimedBack).to.be.false;
-    expect(user3Info.usedMemberCard).to.equal('0');
+    expect(user3Info.usedNft).to.equal('0');
     expect(user3Info.stakedAmount).to.equal('6000000000000000000000');
     expect(user3Info.allocatedPortion).to.equal('6000000000000000000000');
     expect(user3Info.fundedAmount).to.equal(fundingMaxAllocation_user3);
@@ -751,7 +757,7 @@ describe("Project - Integration", () => {
 
     const user4Info = await project.getUserInfo(projectId, user4.address);
     expect(user4Info.isClaimedBack).to.be.false;
-    expect(user4Info.usedMemberCard).to.equal('0');
+    expect(user4Info.usedNft).to.equal('0');
     expect(user4Info.stakedAmount).to.equal('10000000000000000000000');
     expect(user4Info.allocatedPortion).to.equal('10000000000000000000000');
     expect(user4Info.fundedAmount).to.equal('10000000000000000000000');
@@ -780,7 +786,7 @@ describe("Project - Integration", () => {
 
     const user4Info = await project.getUserInfo(projectId, user4.address);
     expect(user4Info.isClaimedBack).to.be.false;
-    expect(user4Info.usedMemberCard).to.equal('0');
+    expect(user4Info.usedNft).to.equal('0');
     expect(user4Info.stakedAmount).to.equal('10000000000000000000000');
     expect(user4Info.allocatedPortion).to.equal('10000000000000000000000');
     expect(user4Info.fundedAmount).to.equal(fundingMaxAllocation_user4);
@@ -812,7 +818,7 @@ describe("Project - Integration", () => {
 
     const user5Info = await project.getUserInfo(projectId, user5.address);
     expect(user5Info.isClaimedBack).to.be.false;
-    expect(user5Info.usedMemberCard).to.equal('1');
+    expect(user5Info.usedNft).to.equal('1');
     expect(user5Info.stakedAmount).to.equal('0');
     expect(user5Info.allocatedPortion).to.equal('10000000000000000000000');
     expect(user5Info.fundedAmount).to.equal(fundingMaxAllocation_user5);

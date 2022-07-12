@@ -9,6 +9,7 @@
 /artifacts
 /cache
 /contracts.json
+/contracts-verify.json
 
 # Logs
 logs
@@ -50,3 +51,6 @@ yarn.lock
 
 # Others
 *.csv
+
+.openzeppelin/unknown-31337.json
+.openzeppelin/unknown-97.json

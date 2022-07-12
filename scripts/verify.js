@@ -43,6 +43,31 @@ async function main() {
     console.log("err :>> ", err);
   }
 
+  // Duke NFT
+  try {
+    await hre.run("verify:verify", {
+      address: contracts.duke,
+    });
+  } catch (err) {
+    console.log("err :>> ", err);
+  }
+
+  try {
+    await hre.run("verify:verify", {
+      address: contracts.mysteriousBox,
+    });
+  } catch (err) {
+    console.log("err :>> ", err);
+  }
+
+  try {
+    await hre.run("verify:verify", {
+      address: contracts.dukeStaking,
+    });
+  } catch (err) {
+    console.log("err :>> ", err);
+  }
+
   try {
     await hre.run("verify:verify", {
       address: contracts.stakingNFT,
