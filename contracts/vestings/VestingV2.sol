@@ -6,12 +6,11 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
-contract VestingV2 is Initializable, OwnableUpgradeable {
+contract VestingV2 is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeMathUpgradeable for uint256;
     using SafeERC20Upgradeable for IERC20Upgradeable;
-
-    IERC20Upgradeable public token;
 
     struct Vest {
         address owner;
@@ -23,24 +22,29 @@ contract VestingV2 is Initializable, OwnableUpgradeable {
         uint256 claimed;
     }
 
-    bool public isVestingStarted;
+    IERC20Upgradeable public token;
+
     mapping(bytes32 => Vest) public vests;
     mapping(address => uint256) private _nonce;
 
-    event InitiateVests(
+    bool public isVestingStarted;
+
+    event InitiatializedVests(
         address[] indexed accounts,
         uint256[] amounts,
         uint256 tgePercent,
         uint256 indexed _cliff,
         uint256 indexed _linear
     );
-    event Claim(address indexed account, uint256 indexed tokenClaimable);
+    event Claimed(address indexed account, uint256 indexed tokenClaimable);
 
     function initialize(address owner_, IERC20Upgradeable _token)
         public
         initializer
     {
-        OwnableUpgradeable.__Ownable_init();
+        __Ownable_init();
+        __ReentrancyGuard_init();
+
         _transferOwnership(owner_);
         token = _token;
     }
@@ -64,46 +68,42 @@ contract VestingV2 is Initializable, OwnableUpgradeable {
 
         uint256 tokenClaimable;
         uint256 currentTime = block.timestamp;
-        if (
-            currentTime >= vest.start.add(vest.cliff) &&
-            currentTime <=
-            vest.start.add(vest.cliff).add(
-                vest.linear
-            )
-        ) {
-            uint256 timePassed = currentTime.sub(
-                (vest.start).add(vest.cliff)
-            );
+        uint256 vestStart = vest.start.add(vest.cliff);
+        uint256 vestEnd = vest.start.add(vest.cliff).add(vest.linear);
+
+        if (currentTime >= vestStart && currentTime <= vestEnd) {
+            uint256 timePassed = currentTime.sub((vest.start).add(vest.cliff));
             tokenClaimable = (
-                (vest.amount - vest.initial)
+                vest.amount
+                    .sub(vest.initial)
                     .mul(timePassed)
                     .div(vest.linear)
             ).add(vest.initial).sub(vest.claimed);
-        } else if (
-            currentTime >
-            vest.start.add(vest.cliff).add(
-                vest.linear
-            )
-        ) {
+        } else if (currentTime > vestEnd) {
             tokenClaimable = vest.amount.sub(vest.claimed);
         }
 
         return tokenClaimable;
     }
 
-    function claim() external {
+    function claim() external nonReentrant {
         uint256 tokenClaimable;
+
         for (uint256 i = 0; i < _nonce[_msgSender()]; i++) {
-            uint256 tokenClaimableForNone = getClaimableForNonce(_msgSender(), i);
+            uint256 tokenClaimableForNone = getClaimableForNonce(
+                _msgSender(),
+                i
+            );
             tokenClaimable += tokenClaimableForNone;
             bytes32 index = getVestId(_msgSender(), i);
             vests[index].claimed = vests[index].claimed.add(
                 tokenClaimableForNone
             );
         }
+
         token.safeTransfer(_msgSender(), tokenClaimable);
 
-        emit Claim(_msgSender(), tokenClaimable);
+        emit Claimed(_msgSender(), tokenClaimable);
     }
 
     function initiateVests(
@@ -114,7 +114,10 @@ contract VestingV2 is Initializable, OwnableUpgradeable {
         uint256 cliff,
         uint256 linear
     ) external {
-        require(accounts.length > 0 && accounts.length == amounts.length, "Vesting: Inconsistent length");
+        require(
+            accounts.length > 0 && accounts.length == amounts.length,
+            "Vesting: Inconsistent length"
+        );
         require(tgePercent < 100, "Vesting: Bad Percent");
 
         uint256 amount = 0;
@@ -125,12 +128,12 @@ contract VestingV2 is Initializable, OwnableUpgradeable {
             _initiateVest(accounts[i], amounts[i], initial, cliff, linear);
         }
 
-        require(amount == totalAmount, "Vesting: Bad totalAmount");
+        require(amount == totalAmount, "Vesting: Bad total amount");
 
         isVestingStarted = true;
         token.safeTransferFrom(_msgSender(), address(this), totalAmount);
 
-        emit InitiateVests(accounts, amounts, tgePercent, cliff, linear);
+        emit InitiatializedVests(accounts, amounts, tgePercent, cliff, linear);
     }
 
     function _initiateVest(

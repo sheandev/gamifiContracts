@@ -57,7 +57,7 @@ describe("VestingV2", () => {
       ).to.be.revertedWith("Vesting: Inconsistent length");
     });
 
-    it("Should catch error Vesting: Bad totalAmount", async () => {
+    it("Should catch error Vesting: Bad total amount", async () => {
       await expect(
         vestingShiba
           .connect(owner)
@@ -69,13 +69,13 @@ describe("VestingV2", () => {
             CLIFF,
             LINEAR
           )
-      ).to.be.revertedWith("Vesting: Bad totalAmount");
+      ).to.be.revertedWith("Vesting: Bad total amount");
 
       await expect(
         vestingShiba
           .connect(owner)
           .initiateVests([user2.address], ["90"], "10", "100", CLIFF, LINEAR)
-      ).to.be.revertedWith("Vesting: Bad totalAmount");
+      ).to.be.revertedWith("Vesting: Bad total amount");
     });
 
     it("Should catch error Vesting: Invalid account", async () => {
