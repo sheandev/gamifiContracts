@@ -136,22 +136,22 @@ async function main() {
     tx = await duke.setAdmin(mysteriousBox.address, true);
     await tx.wait();
 
-    tx = await mysteriousBox.setPricePerNFTBox(ethers.utils.parseEther("1"));
-    await tx.wait();
+    // tx = await mysteriousBox.setPricePerNFTBox(ethers.utils.parseEther("1"));
+    // await tx.wait();
 
-    tx = await dukeStaking.setStakingEndTime("7200");
-    await tx.wait();
-    tx = await dukeStakingPilot.setStakingEndTime("7200");
-    await tx.wait();
-    tx = await dukeStakingGeneral.setStakingEndTime("7200");
-    await tx.wait();
+    // tx = await dukeStaking.setStakingEndTime("7200");
+    // await tx.wait();
+    // tx = await dukeStakingPilot.setStakingEndTime("7200");
+    // await tx.wait();
+    // tx = await dukeStakingGeneral.setStakingEndTime("7200");
+    // await tx.wait();
 
-    tx = await dukeStaking.setPendingUnstake("300");
-    await tx.wait();
-    tx = await dukeStakingPilot.setPendingUnstake("300");
-    await tx.wait();
-    tx = await dukeStakingGeneral.setPendingUnstake("300");
-    await tx.wait();
+    // tx = await dukeStaking.setPendingUnstake("300");
+    // await tx.wait();
+    // tx = await dukeStakingPilot.setPendingUnstake("300");
+    // await tx.wait();
+    // tx = await dukeStakingGeneral.setPendingUnstake("300");
+    // await tx.wait();
 
     const contractAddresses = {
         admin: admin,
