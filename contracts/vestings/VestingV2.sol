@@ -29,7 +29,7 @@ contract VestingV2 is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
 
     bool public isVestingStarted;
 
-    event InitiatializedVests(
+    event InitializedVests(
         address[] indexed accounts,
         uint256[] amounts,
         uint256 tgePercent,
@@ -133,7 +133,7 @@ contract VestingV2 is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         isVestingStarted = true;
         token.safeTransferFrom(_msgSender(), address(this), totalAmount);
 
-        emit InitiatializedVests(accounts, amounts, tgePercent, cliff, linear);
+        emit InitializedVests(accounts, amounts, tgePercent, cliff, linear);
     }
 
     function _initiateVest(
