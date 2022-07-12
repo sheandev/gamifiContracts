@@ -154,7 +154,7 @@ describe("VestingV2", () => {
       const nonce1 = await vestingShiba.getNonce(user2.address);
       const nonce = nonce1.sub(1);
       const vestId = await vestingShiba.getVestId(user2.address, nonce);
-      const vest = await vestingShiba.getVest(vestId);
+      const vest = await vestingShiba.vests(vestId);
       expect(vest.owner).to.equal(user2.address, "Invalid vest owner");
       expect(vest.amount.toString()).to.equal(
         amount.toString(),
@@ -201,7 +201,7 @@ describe("VestingV2", () => {
       const nonce = nonce1.sub(1);
       const vestId = await vestingShiba.getVestId(user2.address, nonce);
 
-      const vest = await vestingShiba.getVest(vestId);
+      const vest = await vestingShiba.vests(vestId);
       const subAmount = vest.amount.sub(vest.initial);
       const addCliff = vest.start.add(vest.cliff);
 
@@ -359,7 +359,7 @@ describe("VestingV2", () => {
       const nonce = nonce1.sub(1);
       const vestId = await vestingShiba.getVestId(user2.address, nonce);
 
-      const vest_1 = await vestingShiba.getVest(vestId);
+      const vest_1 = await vestingShiba.vests(vestId);
 
       expect(balanceUser_after).to.equal(
         balanceUser_before.add(vest_1.claimed),
@@ -378,7 +378,7 @@ describe("VestingV2", () => {
       const balanceVestingTGE_after_2 = await token.balanceOf(
         vestingShiba.address
       );
-      const vest_2 = await vestingShiba.getVest(vestId);
+      const vest_2 = await vestingShiba.vests(vestId);
       expect(vest_2.claimed).to.equal(
         vest_2.amount,
         "Invalid amount user2 round 2"

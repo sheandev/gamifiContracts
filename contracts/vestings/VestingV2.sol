@@ -64,7 +64,7 @@ contract VestingV2 is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         returns (uint256)
     {
         bytes32 index = getVestId(_account, nonce);
-        Vest memory vest = getVest(index);
+        Vest memory vest = vests[index];
 
         uint256 tokenClaimable;
         uint256 currentTime = block.timestamp;
@@ -166,9 +166,5 @@ contract VestingV2 is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
 
     function getNonce(address user) external view returns (uint256) {
         return _nonce[user];
-    }
-
-    function getVest(bytes32 index) public view returns (Vest memory) {
-        return vests[index];
     }
 }
