@@ -36,7 +36,7 @@ describe("Mysterious Boxes", () => {
 
         await box.deployed();
 
-        MAX_UINT256 = ethers.constants.MaxUint256 ;
+        MAX_UINT256 = ethers.constants.MaxUint256;
 
         TOTAL_SUPPLY = await box.TOTAL_SUPPLY();
         pricePerNFTBox = await box.pricePerNFTBox();
@@ -52,6 +52,10 @@ describe("Mysterious Boxes", () => {
         await gmi.connect(user1).approve(box.address, MAX_UINT256);
         await gmi.connect(user2).approve(box.address, MAX_UINT256);
         await gmi.connect(treasury).approve(box.address, MAX_UINT256);
+
+        await gmi.transfer(box.address, MAX_BURN);
+
+        MAX_BATCH = await box.MAX_BATCH();
     });
 
     describe("Deployment", async () => {
@@ -70,7 +74,6 @@ describe("Mysterious Boxes", () => {
 
     describe("isOpenBox", async () => {
         it("return boolean value that instance for box is open or not", async () => {
-            await gmi.connect(owner).transfer(box.address, MAX_BURN);
             const tokenId = 0;
             await box.connect(user1).buy(1);
             expect(await box.isOpened(tokenId)).to.equal(false);
@@ -92,13 +95,8 @@ describe("Mysterious Boxes", () => {
     });
 
     describe("open", async () => {
-        beforeEach(async() => {
-            num = 10;
-            await gmi.connect(owner).transfer(box.address, MAX_BURN);
-        })
-
         it("should revert when not owner call open", async () => {
-            await box.connect(user1).buy(num);
+            await box.connect(user1).buy(MAX_BATCH);
             await expect(box.connect(user2).open(0)).to.be.revertedWith("This token is not own !");
         });
 
@@ -112,7 +110,7 @@ describe("Mysterious Boxes", () => {
         });
 
         it("should open mysterious box and mint new duke NFT", async () => {
-            await box.connect(user1).buy(num);
+            await box.connect(user1).buy(MAX_BATCH);
             await duke.setAdmin(box.address, true);
             await box.connect(user1).open(0);
 
@@ -130,8 +128,6 @@ describe("Mysterious Boxes", () => {
         });
 
         it("should withdraw success", async () => {
-            await gmi.connect(owner).transfer(box.address, pricePerNFTBox);
-
             const balanceUser_before = await gmi.balanceOf(owner.address);
 
             let balance_contract_before = await gmi.balanceOf(box.address);
@@ -140,18 +136,12 @@ describe("Mysterious Boxes", () => {
             let balance_contract_after = await gmi.balanceOf(box.address);
             const balanceUser_after = await gmi.balanceOf(owner.address);
 
-            expect(balance_contract_after).to.equal(ZERO);
             expect(balanceUser_after.sub(balanceUser_before)).to.equal(balance_contract_before.sub(balance_contract_after));
         });
     });
 
     describe("buy", async () => {
-        beforeEach(async () => {
-            num = 10;
-        });
-
         it("should revert when times plus tokenCounter greater than total supply", async () => {
-            await gmi.connect(owner).transfer(box.address, MAX_BURN);
             for (let i = 1; i <= 500; i++) {
                 await box.connect(user1).buy(1);
             }
@@ -159,20 +149,60 @@ describe("Mysterious Boxes", () => {
         });
 
         it("should revert when Admin not enough token in contract to burn", async () => {
-            await gmi.connect(owner).transfer(box.address, pricePerNFTBox);
-            await expect(box.buy(num)).to.be.revertedWith("Admin not enough token in contract to burn");
+            await box.connect(owner).withdraw(owner.address, MAX_BURN);
+            await expect(box.buy(MAX_BATCH)).to.be.revertedWith("Admin not enough token in contract to burn");
         });
 
         it("should revert when number times per buying greater than MAX_BATCH", async () => {
-            await gmi.connect(owner).transfer(box.address, MAX_BURN);
-            await expect(box.buy(num + 1)).to.be.revertedWith("Too many mysterious boxes!");
+            await expect(box.buy(MAX_BATCH + 1)).to.be.revertedWith("Too many mysterious boxes!");
         });
 
         it("should buy success", async () => {
-            await gmi.connect(owner).transfer(box.address, MAX_BURN);
-            await box.connect(user1).buy(num);
+            await box.connect(user1).buy(MAX_BATCH);
+            expect(await box.balanceOf(user1.address)).to.equal(MAX_BATCH);
+        });
+    });
 
-            expect(await box.balanceOf(user1.address)).to.equal(num);
+    describe("mintBacth", async () => {
+        it("should revert with caller is not the owner", async () => {
+            await expect(box.connect(user1).mintBacth(1)).to.be.revertedWith("caller is not the owner");
+        });
+
+        it("should revert with Sold out", async () => {
+            for (let i = 1; i <= 500; i++) {
+                const balanceUser_before = await gmi.balanceOf(owner.address);
+                const balance_contract_before = await gmi.balanceOf(box.address);
+                await box.mintBacth(1);
+                const balance_contract_after = await gmi.balanceOf(box.address);
+                const balanceUser_after = await gmi.balanceOf(owner.address);
+
+                expect(balanceUser_after.sub(balanceUser_before)).to.equal(0);
+                expect(balance_contract_before.sub(balance_contract_after)).to.equal(pricePerNFTBox);
+            }
+            await expect(box.mintBacth(1)).to.be.revertedWith("Sold out");
+        });
+
+        it("should revert with Admin not enough token in contract to burn", async () => {
+            await box.connect(owner).withdraw(owner.address, MAX_BURN);
+            await expect(box.mintBacth(MAX_BATCH)).to.be.revertedWith("Admin not enough token in contract to burn");
+        });
+
+        it("should revert with Too many mysterious boxes!", async () => {
+            await expect(box.mintBacth(MAX_BATCH + 1)).to.be.revertedWith("Too many mysterious boxes!");
+        });
+
+        it("should mintBacth success", async () => {
+            const balanceUser_before = await gmi.balanceOf(owner.address);
+            const balance_contract_before = await gmi.balanceOf(box.address);
+
+            await box.mintBacth(MAX_BATCH);
+
+            const balance_contract_after = await gmi.balanceOf(box.address);
+            const balanceUser_after = await gmi.balanceOf(owner.address);
+
+            expect(balanceUser_after.sub(balanceUser_before)).to.equal(0);
+            expect(balance_contract_before.sub(balance_contract_after)).to.equal(pricePerNFTBox.mul(MAX_BATCH));
+            expect(await box.balanceOf(owner.address)).to.equal(MAX_BATCH);
         });
     });
 });
