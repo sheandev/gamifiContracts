@@ -8,8 +8,6 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
-import "hardhat/console.sol";
-
 /**
  *  @title  Dev Staking Pool
  *
@@ -38,7 +36,7 @@ contract StakingV3 is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradea
         uint256 lastClaim;
         uint256 indexLength;
         uint256 pendingRewards;
-        Lazy lazyClaimReward;
+        Lazy lazyClaim;
         UserHistory[] userHistory;
     }
 
@@ -282,11 +280,11 @@ contract StakingV3 is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradea
     function requestClaim() external {
         require(_timeStarted > 0 && _timeStarted < block.timestamp, "Pool is not start !");
         UserInfo storage user = users[_msgSender()];
-        require(!user.lazyClaimReward.isRequested, "Requested !");
+        require(!user.lazyClaim.isRequested, "Requested !");
         require(user.lastClaim <= _timeStarted.add(_poolDuration), "Nothing to claim !");
 
-        user.lazyClaimReward.isRequested = true;
-        user.lazyClaimReward.unlockedTime = block.timestamp + pendingClaimReward;
+        user.lazyClaim.isRequested = true;
+        user.lazyClaim.unlockedTime = block.timestamp + pendingClaimReward;
         emit RequestClaim(_msgSender(), block.timestamp);
     }
 
@@ -296,12 +294,12 @@ contract StakingV3 is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradea
     function claim() external nonReentrant {
         UserInfo storage user = users[_msgSender()];
         require(
-            user.lazyClaimReward.isRequested &&
-                user.lazyClaimReward.unlockedTime <= block.timestamp,
+            user.lazyClaim.isRequested &&
+                user.lazyClaim.unlockedTime <= block.timestamp,
             "Please request and can claim after 24 hours"
         );
         require(user.totalAmount > 0, "Reward value equal to zero");
-        user.lazyClaimReward.isRequested = false;
+        user.lazyClaim.isRequested = false;
 
         if (_timeStarted <= block.timestamp) {
             uint256 pending = pendingRewards(_msgSender());
@@ -339,7 +337,7 @@ contract StakingV3 is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradea
             }
         }
 
-        user.lazyClaimReward.isRequested = false;
+        user.lazyClaim.isRequested = false;
         user.lastClaim = block.timestamp;
         if (_amount > 0) {
             require(

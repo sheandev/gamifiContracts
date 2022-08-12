@@ -156,36 +156,6 @@ describe.only("StakingV3", () => {
         });
     });
 
-    // describe("pendingRewards", async () => {
-    //     beforeEach(async () => {
-    //         tokenId = 0;
-    //         let check = true;
-    //         while (check) {
-    //             await duke.mint(user1.address);
-    //             const typeId = await duke.dukeInfos(tokenId);
-    //             const owner = await duke.ownerOf(tokenId);
-    //             tokenId++;
-    //             if (owner == user1.address && typeId.typeId.toString() == '0') {
-    //                 check = false;
-    //             }
-    //         }
-    //     });
-
-    //     it("should return pending reward", async () => {
-    //         const claimTime = 4 * 30 * 24 * 60 * 60;
-    //         const _rewardRate = await staking.getRewardRate();
-
-    //         await staking.connect(user1).stake(ONE_ETHER);
-    //         await skipTime(claimTime);
-    //         const pendingRewards = await staking.pendingRewards(user1.address);
-
-    //         const epsilon = 1 / 100 * ONE_ETHER;
-    //         expect(
-    //             acceptable(pendingRewards.toString(), ONE_ETHER.mul(_rewardRate).mul(claimTime).div(DECIMAL), epsilon))
-    //             .to.be.true;
-    //     });
-    // });
-
     describe("requestClaim", async () => {
         it("should revert Nothing to claim", async () => {
             await staking.connect(user1).stake(ONE_ETHER);
@@ -211,7 +181,7 @@ describe.only("StakingV3", () => {
             await staking.connect(user1).requestClaim();
 
             const data = await staking.users(user1.address);
-            expect(data.lazyClaimReward.isRequested).to.equal(true);
+            expect(data.lazyClaim.isRequested).to.equal(true);
         });
     });
 
@@ -233,7 +203,7 @@ describe.only("StakingV3", () => {
             await skipTime(Number(time));
             await staking.connect(user1).requestClaim();
             let data = await staking.users(user1.address);
-            expect(data.lazyClaimReward.isRequested).to.equal(true);
+            expect(data.lazyClaim.isRequested).to.equal(true);
 
             await skipTime(24 * 60 * 60 + 1);
 
@@ -244,7 +214,7 @@ describe.only("StakingV3", () => {
             await staking.connect(user1).claim();
             data = await staking.users(user1.address);
 
-            expect(data.lazyClaimReward.isRequested).to.equal(false);
+            expect(data.lazyClaim.isRequested).to.equal(false);
         });
     });
 
