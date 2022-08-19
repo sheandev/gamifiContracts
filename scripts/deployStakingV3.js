@@ -9,7 +9,7 @@ async function main() {
   const addresses = accounts.map((item) => item.address);
   const admin = addresses[0];
 
-  const GMI = "0x88d8defcda194e08a93689fb6888579f6d45851d"; // main: 0x93D8d25E3C9A847a5Da79F79ecaC89461FEcA846 / test: 0x88d8defcda194e08a93689fb6888579f6d45851d
+  const GMI = "0x93D8d25E3C9A847a5Da79F79ecaC89461FEcA846"; // main: 0x93D8d25E3C9A847a5Da79F79ecaC89461FEcA846 / test: 0x88d8defcda194e08a93689fb6888579f6d45851d
 
   // Loading contract factory.
   const StakingV3 = await ethers.getContractFactory("StakingV3");
@@ -38,8 +38,8 @@ async function main() {
       CURRENT_TIME,
       process.env.APY75,
       // process.env.TIMESTAMP_9_MONTHS,
-      28800,
-      process.env.MAX_TOKEN_9_MONTHS,
+      172800,
+      process.env.MAX_TOKEN_PER,
     ]
   );
   await stakingAPY75.deployed();
@@ -58,8 +58,8 @@ async function main() {
       CURRENT_TIME,
       process.env.APY100,
       // process.env.TIMESTAMP_12_MONTHS,
-      28800,
-      process.env.MAX_TOKEN_12_MONTHS,
+      172800,
+      process.env.MAX_TOKEN_PER,
     ]
   );
   await stakingAPY100.deployed();

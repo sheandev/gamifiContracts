@@ -37,6 +37,7 @@ contract StakingV3 is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradea
         uint256 indexLength;
         uint256 pendingRewards;
         Lazy lazyClaim;
+        Lazy lazyUnstake;
         UserHistory[] userHistory;
     }
 
@@ -61,14 +62,14 @@ contract StakingV3 is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradea
     uint256 private _poolDuration;
 
     /**
-     *  @notice _maxStakedAmount uint256 is max number of token which staked.
+     *  @notice _maxStakedAmountPer uint256 is max number of token per person which staked.
      */
-    uint256 private _maxStakedAmount;
+    uint256 private _maxStakedAmountPer;
 
     /**
      *  @notice pendingClaimReward uint256 is time after request unstake for waiting.
      */
-    uint256 public pendingClaimReward;
+    uint256 public pendingUnstake;
 
     /**
      *  @notice _stakeToken IERC20 is interface of staked token.
@@ -85,20 +86,26 @@ contract StakingV3 is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradea
      */
     mapping(address => UserInfo) public users;
 
-    event SetPendingClaimReward(uint256 oldValue, uint256 newValue);
+    event SetPendingUnstake(uint256 oldValue, uint256 newValue);
     event SetRewardRate(uint256 indexed rate, uint256 indexed time);
-    event SetMaxStakedAmount(uint256 indexed maxStakedAmount, uint256 indexed time);
+    event SetMaxStakedAmountPer(uint256 indexed maxStakedAmount, uint256 indexed time);
     event SetDuration(uint256 indexed poolDuration, uint256 indexed time);
     event SetStartTime(uint256 indexed timeStart, uint256 indexed time);
     event Deposited(address indexed user, uint256 amount);
     event Withdrawed(address indexed user, uint256 amount);
     event EmergencyWithdrawed(address indexed owner, address indexed token);
+    event RequestClaim(address indexed sender, uint256 indexed timestamp);
     event Claimed(
         address indexed user,
         uint256 indexed amount,
         uint256 indexed time
     );
-    event RequestClaim(address indexed sender, uint256 indexed timestamp);
+    event RequestUnstake(address indexed sender, uint256 indexed timestamp);
+    event UnStaked(
+        address indexed user,
+        uint256 indexed amount,
+        uint256 indexed time
+    );
 
     /**
      *  @notice Initialize new logic contract.
@@ -110,7 +117,7 @@ contract StakingV3 is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradea
         uint256 timeStarted_,
         uint256 rewardRate_,
         uint256 poolDuration_,
-        uint256 maxStakedAmount_
+        uint256 maxStakedAmountPer_
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
         __ReentrancyGuard_init();
@@ -120,8 +127,8 @@ contract StakingV3 is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradea
         _timeStarted = timeStarted_;
         _rewardRate = rewardRate_;
         _poolDuration = poolDuration_;
-        _maxStakedAmount = maxStakedAmount_;
-        pendingClaimReward = 1 days;
+        _maxStakedAmountPer = maxStakedAmountPer_;
+        pendingUnstake = 1 days;
     }
 
     /**
@@ -155,8 +162,8 @@ contract StakingV3 is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradea
     /**
      *  @notice Get max staked value.
      */
-    function getMaxStakedAmount() public view returns (uint256) {
-        return _maxStakedAmount;
+    function getMaxStakedAmountPer() public view returns (uint256) {
+        return _maxStakedAmountPer;
     }
 
     /**
@@ -164,6 +171,16 @@ contract StakingV3 is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradea
      */
     function getUserAmount(address user) public view returns (uint256) {
         return users[user].totalAmount;
+    }
+
+    /**
+     *  @notice Get available amount of deposited token of user address.
+     */
+    function getAvailableStakeAmount(address user) public view returns (uint256) {
+        if (users[user].totalAmount >= _maxStakedAmountPer) {
+            return 0;
+        }
+        return _maxStakedAmountPer - users[user].totalAmount;
     }
 
     /**
@@ -204,13 +221,13 @@ contract StakingV3 is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradea
     }
 
     /**
-     *  @notice Set max staked token in staking pool.
+     *  @notice Set max staked token per person in staking pool.
      *
      *  @dev    Only owner can call this function.
      */
-    function setMaxStakedAmount(uint256 maxStakedAmount) public onlyOwner {
-         _maxStakedAmount = maxStakedAmount;
-         emit SetMaxStakedAmount(_maxStakedAmount, block.timestamp);
+    function setMaxStakedAmountPer(uint256 maxStakedAmount) public onlyOwner {
+         _maxStakedAmountPer = maxStakedAmount;
+         emit SetMaxStakedAmountPer(_maxStakedAmountPer, block.timestamp);
     }
 
     /**
@@ -218,10 +235,10 @@ contract StakingV3 is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradea
      *
      *  @dev    Only owner can call this function.
      */
-    function setPendingClaimReward(uint256 _pendingTime) external onlyOwner {
-        uint256 _oldPendingTime = pendingClaimReward;
-        pendingClaimReward = _pendingTime;
-        emit SetPendingClaimReward(_oldPendingTime, pendingClaimReward);
+    function setPendingUnstake(uint256 _pendingTime) external onlyOwner {
+        uint256 _oldPendingTime = pendingUnstake;
+        pendingUnstake = _pendingTime;
+        emit SetPendingUnstake(_oldPendingTime, pendingUnstake);
     }
 
     /**
@@ -246,7 +263,7 @@ contract StakingV3 is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradea
     function stake(uint256 _amount) public nonReentrant {
         require(_amount > 0, "Invalid amount");
         require(
-            _stakedAmount.add(_amount) <= _maxStakedAmount,
+            _amount <= getAvailableStakeAmount(_msgSender()),
             "Staking: Max staking limit has been reached."
         );
         require(
@@ -254,7 +271,7 @@ contract StakingV3 is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradea
             "Staking: Staking has already ended."
         );
 
-        UserInfo storage user = users[_msgSender()];
+        UserInfo storage user = users[_msgSender()];        
         if (user.totalAmount > 0) {
             if (_timeStarted <= block.timestamp) {
                 uint256 pending = _calReward(user);
@@ -284,7 +301,7 @@ contract StakingV3 is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradea
         require(user.lastClaim <= _timeStarted.add(_poolDuration), "Nothing to claim !");
 
         user.lazyClaim.isRequested = true;
-        user.lazyClaim.unlockedTime = block.timestamp + pendingClaimReward;
+        user.lazyClaim.unlockedTime = block.timestamp + pendingUnstake;
         emit RequestClaim(_msgSender(), block.timestamp);
     }
 
@@ -318,15 +335,32 @@ contract StakingV3 is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradea
     }
 
     /**
+     *  @notice Request withdraw before unstake activity
+     */
+    function requestUnstake() external {
+        UserInfo storage user = users[_msgSender()];
+        require(
+            block.timestamp > _timeStarted.add(_poolDuration),
+            "Not allow unstake at this time"
+        );
+        require(!user.lazyUnstake.isRequested, "Requested !");
+        user.lazyUnstake.isRequested = true;
+        user.lazyUnstake.unlockedTime = block.timestamp + pendingUnstake;
+        emit RequestUnstake(_msgSender(), block.timestamp);
+    }
+
+    /**
      *  @notice Withdraw amount of rewards caller request.
      */
     function unstake(uint256 _amount) public nonReentrant {
-        require(
-            _timeStarted.add(_poolDuration) <= block.timestamp,
-            "Staking: StakingPool has not expired yet.."
-        );
-
         UserInfo storage user = users[_msgSender()];
+        require(
+            user.lazyUnstake.isRequested &&
+                user.lazyUnstake.unlockedTime <= block.timestamp,
+            "Please request and can withdraw after 24 hours"
+        );
+        user.lazyUnstake.isRequested = false;
+
         if (user.totalAmount > 0) {
             if (_timeStarted <= block.timestamp) {
                 uint256 pending = pendingRewards(_msgSender());
@@ -352,7 +386,7 @@ contract StakingV3 is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradea
             user.userHistory.push(UserHistory(user.totalAmount, block.timestamp));
         }
 
-        emit Withdrawed(_msgSender(), _amount);
+        emit UnStaked(_msgSender(), _amount, block.timestamp);
     }
 
     /**
