@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -22,9 +22,9 @@ contract Fighters is
 {
     using StringsUpgradeable for uint256;
 
-    uint256 public constant TYPE_AMOUNT      = 10;
-    uint256 public constant TYPED_SUPPLY     = 10;
-    uint256 public constant MAX_TOTAL_SUPPLY = 100;
+    uint8 public constant TYPE_AMOUNT      = 10;
+    uint8 public constant TYPED_SUPPLY     = 10;
+    uint8 public constant MAX_TOTAL_SUPPLY = 100;
 
     /**
      *  @notice address of randomizer contract
@@ -142,22 +142,15 @@ contract Fighters is
         emit SetAdmin(_account, _allow);
     }
 
-        /**
+    /**
      *  @notice Set contract randomizer address.
      *
      *  @dev    Only owner can call this function.
      */
     function setRandomizer(address _randomizer) external onlyOwner {
         require(_randomizer != address(0), "Invalid contract address");
-        rander = IRand(_randomizer);
+        randomizer = IRandomizer(_randomizer);
         emit SetRandomizer(_randomizer);
-    }
-
-    function consumeMembership(uint256 _tokenId) external override onlyAdmin {
-        require(fighters[_tokenId].useCounter > 0, "Fighter has been used");
-        fighters[_tokenId].useCounter--;
-
-        emit ConsumedMembership(_tokenId, fighters[_tokenId].useCounter);
     }
 
     /**
@@ -169,10 +162,11 @@ contract Fighters is
         require(tokenCounter < MAX_TOTAL_SUPPLY, "Exceeds max token supply");
 
         uint256 tokenId = tokenCounter;
-
-        TypeId typeId = randomTypeId(seed);
+        TypeId typeId = _randomTypeId(tokenId);
         fighters[tokenId].typeId = typeId;
         fighters[tokenId].useCounter = 3;
+
+        currentSupplies[typeId]++;
 
         _mint(_to, tokenId);
         tokenCounter++;
@@ -181,15 +175,27 @@ contract Fighters is
     }
 
     /**
+     *  @notice Consume IDO ticket
+     *
+     *  @dev    Only admin can call this function.
+     */
+    function consumeMembership(uint256 _tokenId) external override onlyAdmin {
+        require(fighters[_tokenId].useCounter > 0, "Fighter has been used");
+        fighters[_tokenId].useCounter--;
+
+        emit ConsumedMembership(_tokenId, fighters[_tokenId].useCounter);
+    }
+
+    /**
      *  @notice Get all information of fighter from token ID.
      */
-    function getFighterInfoOf(uint256 tokenId)
+    function getFighterInfoOf(uint256 _tokenId)
         public
         view
         override
         returns (FighterInfo memory)
     {
-        return fighters[tokenId];
+        return fighters[_tokenId];
     }
 
 
@@ -276,10 +282,16 @@ contract Fighters is
         return tokenIds;
     }
 
+    /**
+     *  @notice Checking whether IDO membership of token is active.
+     */
     function getMemberCardActive(uint256 _tokenId) public view returns (bool) {
         return fighters[_tokenId].useCounter > 0;
     }
 
+    /**
+     *  @notice Checking whether address has IDO membership.
+     */
     function isMember(address _owner) external view returns (bool) {
         uint256 allTokens = balanceOf(_owner);
 
@@ -297,28 +309,28 @@ contract Fighters is
     /**
      *  @notice Random fighter type id
      */
-    function _randomTypeId(uint256 seed) private returns (TypeId) {
-        TypeId[3] memory flags = [TypeId.SOLDIER, TypeId.PILOT, TypeId.GENERAL];
+    function _randomTypeId(uint256 _tokenId) private view returns (TypeId) {
+        uint256 seed = randomizer.random(_tokenId);
+        TypeId result = selectType(seed);
 
-        // Return correct type
-        for (uint8 i = 0; i < TYPE_AMOUNT; i++) {
-            if (
-                TypeId(result) == flags[i] &&
-                currentIndexes[flags[i]] < getSupplyOf(flags[i])
-            ) {
-                currentIndexes[flags[i]]++;
-                return flags[i];
+        if (currentSupplies[result] < TYPED_SUPPLY) {
+            return result;
+        }
+
+        // Always returns valid value
+        for (uint256 i = 0; i < TYPE_AMOUNT; i++) {
+            if (currentSupplies[TypeId(i)] < TYPED_SUPPLY) {
+                return TypeId(i);
             }
         }
 
-        // Always returns valid avalue
-        for (uint256 i = 0; i < flags.length; i++) {
-            if (currentIndexes[flags[i]] < getSupplyOf(flags[i])) {
-                return flags[i];
-            }
-        }
+        return TypeId(0);
+    }
 
-        return TypeId.SOLDIER;
+    function selectType(uint256 seed) private pure returns (TypeId) {
+        seed >>= 16;
+        uint16 t = uint16(seed & 0xFFFF) % TYPE_AMOUNT;
+        return TypeId(t);
     }
 
     /**

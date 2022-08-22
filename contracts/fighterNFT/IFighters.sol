@@ -6,9 +6,16 @@ pragma solidity 0.8.4;
  */
 interface IFighters {
     enum TypeId {
-        SOLDIER,
-        PILOT,
-        GENERAL
+        TODD,
+        MANDY,
+        ARTHUR,
+        KAEM,
+        ROBIN,
+        FREYDIS,
+        LEIF,
+        MINA,
+        LYCA,
+        BASER
     }
 
     struct FighterInfo {
