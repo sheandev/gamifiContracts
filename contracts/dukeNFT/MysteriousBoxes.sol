@@ -91,6 +91,11 @@ contract MysteriousBoxes is
         uint256 indexed amount,
         uint256 indexed timestamp
     );
+    event Minted(
+        address indexed caller,
+        uint256 indexed times,
+        uint256 indexed timestamp
+    );
 
     /**
      *  @notice Initialize new logic contract.
@@ -214,6 +219,37 @@ contract MysteriousBoxes is
         }
 
         emit Bought(_msgSender(), _times, block.timestamp);
+    }
+
+    /**
+     *  @notice Mint mysterious boxs.
+     *
+     *  @dev    Only owner call this function.
+     */
+    function mintBacth(uint256 _times) external onlyOwner nonReentrant {
+        require(tokenCounter + _times <= TOTAL_SUPPLY, "Sold out");
+        require(
+            _times > 0 && _times <= MAX_BATCH,
+            "Too many mysterious boxes!"
+        );
+
+        uint256 payAmount = _times * pricePerNFTBox;
+        require(
+            paymentToken.balanceOf(address(this)) >= payAmount,
+            "Admin not enough token in contract to burn"
+        );
+
+        // burn payment token
+        paymentToken.transfer(address(1), payAmount);
+
+        // mint
+        for (uint256 i = 0; i < _times; i++) {
+            _mint(_msgSender(), tokenCounter);
+            isOpened[tokenCounter] = false;
+            tokenCounter++;
+        }
+
+        emit Minted(_msgSender(), _times, block.timestamp);
     }
 
     /**

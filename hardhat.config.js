@@ -44,6 +44,10 @@ const config = {
       accounts: [process.env.DEPLOY_ACCOUNT],
       gasPrice: 8000000000
     },
+    frame: {
+      url: 'http://127.0.0.1:1248', // To run inside WSL2, see IP in file /etc/resolv.conf
+      timeout: 4000000
+    }
   },
   etherscan: {
     apiKey: process.env.BINANCE_API_KEY,
